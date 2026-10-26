@@ -134,6 +134,8 @@ Le **cours actuel** d'une carte = dernier prix de vente ; à défaut, plus basse
 ## État actuel (2026-10-26)
 
 - **Déployé sur Vercel** : https://mochy-melody.vercel.app (projet `simulquest/mochy-melody`, deploys via `vercel --prod`).
+- **Dépôt GitHub** : https://github.com/simulquest/mochy-melody (public, branche `main`, remote `origin`).
+  Secrets exclus du dépôt via `.gitignore` (`.env.local`, `node_modules`, `.next`, `.vercel`, `*.db`).
 - **Validations** : `tsc` 0 erreur · `lint` 0 erreur · `build` EXIT 0.
 - **Schéma Supabase appliqué** (sonde : tables + RPC `market_settle_expired` OK, RLS bloque l'anon → `[]`).
 - **Login Simulquest réel** : `SIMULQUEST_DEV_MODE=false` en prod · variables `SIMULQUEST_LOGIN_URL`,
