@@ -16,6 +16,7 @@ import { PlushPreset } from '@/lib/plush/plush-shape';
 import { PlushSpecies } from '@/lib/plush/species';
 import { PlushMutation, mutationRarity, rarityColor, rarityName } from '@/lib/plush/mutations';
 import Lootbox from '@/components/plush/Lootbox';
+import CoinBalance from '@/components/plush/CoinBalance';
 import { getEquippedPreset } from '@/lib/plush/lootbox';
 
 interface PlushExperienceProps {
@@ -155,17 +156,8 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
             </button>
           )}
           <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 backdrop-blur-md">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                </span>
-                <span className="text-[11px] font-medium tracking-wide text-white/70">
-                  Fourrure simulée · temps réel
-                </span>
-              </span>
-              {mutated && (
+            {mutated && (
+              <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span
                   className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
                   style={{
@@ -176,8 +168,8 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
                 >
                   {rarityName(globalRarity)}
                 </span>
-              )}
-            </div>
+              </div>
+            )}
             <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
               {species.name}
             </h1>
@@ -190,6 +182,14 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
 
         {/* Jauge de bonheur + accès marché */}
         <div className="flex items-center gap-2.5">
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1, ease: 'easeOut' }}
+          >
+            <CoinBalance className="backdrop-blur-md" />
+          </motion.div>
+
           <motion.button
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}

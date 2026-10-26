@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Dna, Trophy, ChevronDown, LogIn } from 'lucide-react';
 import PlushExperience from '@/components/plush/PlushExperience';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
+import CoinBalance from '@/components/plush/CoinBalance';
 import { SPECIES, PlushSpecies, getSpecies, getShapeLabel } from '@/lib/plush/species';
 import {
   PlushMutation,
@@ -235,13 +236,16 @@ function CollectionView({
             <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
               Ma <span className="bg-gradient-to-r from-fuchsia-400 to-pink-300 bg-clip-text text-transparent">collection</span>
             </h1>
-            <Link
-              href="/login"
-              className="inline-flex shrink-0 items-center gap-2 rounded-full border border-fuchsia-400/40 bg-fuchsia-500/15 px-4 py-2 text-xs font-semibold text-fuchsia-100 transition-all hover:bg-fuchsia-400/25 hover:text-white active:scale-95"
-            >
-              <LogIn className="h-3.5 w-3.5" aria-hidden />
-              Sign in With SimulQuest
-            </Link>
+            <div className="flex shrink-0 items-center gap-2">
+              <CoinBalance />
+              <Link
+                href="/login"
+                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-fuchsia-400/40 bg-fuchsia-500/15 px-4 py-2 text-xs font-semibold text-fuchsia-100 transition-all hover:bg-fuchsia-400/25 hover:text-white active:scale-95"
+              >
+                <LogIn className="h-3.5 w-3.5" aria-hidden />
+                Sign in With SimulQuest
+              </Link>
+            </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/50">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
