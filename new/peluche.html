@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Peluche Câline — Three.js vanilla</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: #070609;
+    color: #fff;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #app { position: fixed; inset: 0; overflow: hidden; }
+  #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  .top-fade {
+    pointer-events: none; position: absolute; top: 0; left: 0; right: 0; height: 8rem;
+    background: linear-gradient(to bottom, rgba(0,0,0,.5), transparent);
+  }
+
+  header {
+    pointer-events: none; position: absolute; top: 0; left: 0; right: 0;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+    padding: 1.25rem 1.25rem;
+  }
+  @media (min-width: 640px) { header { padding: 1.75rem; } }
+  .badge {
+    display: inline-flex; align-items: center; gap: .5rem; margin-bottom: .5rem;
+    padding: .25rem .75rem; border-radius: 9999px;
+    border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.05);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    font-size: 11px; font-weight: 500; letter-spacing: .025em; color: rgba(255,255,255,.7);
+  }
+  .dot { position: relative; width: 6px; height: 6px; border-radius: 9999px; background: #34d399; }
+  .dot::after {
+    content: ""; position: absolute; inset: 0; border-radius: 9999px; background: #34d399;
+    opacity: .7; animation: ping 1.5s cubic-bezier(0,0,.2,1) infinite;
+  }
+  @keyframes ping { 75%, 100% { transform: scale(2.2); opacity: 0; } }
+  h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -.025em; }
+  @media (min-width: 640px) { h1 { font-size: 1.875rem; } }
+  .sub {
+    margin: .3rem 0 0; font-size: .75rem; color: rgba(255,255,255,.5);
+    display: flex; align-items: center; gap: .35rem;
+  }
+  @media (min-width: 640px) { .sub { font-size: .875rem; } }
+  .sub svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  .happiness {
+    pointer-events: auto; display: flex; align-items: center; gap: .65rem;
+    padding: .6rem 1rem; border-radius: 9999px;
+    border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.05);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .happiness svg { width: 16px; height: 16px; color: rgba(255,255,255,.4); transition: color .3s; }
+  .happiness.full svg { color: #fb7185; fill: #fb7185; }
+  .track { width: 4rem; height: 6px; border-radius: 9999px; background: rgba(255,255,255,.1); overflow: hidden; }
+  @media (min-width: 640px) { .track { width: 6rem; } }
+  #happy-fill {
+    height: 100%; width: 0%; border-radius: 9999px;
+    background: linear-gradient(to right, #fb7185, #f9a8d4);
+    transition: width .2s;
+  }
+
+  #hint {
+    pointer-events: none; position: absolute; left: 0; right: 0; bottom: 8.5rem; z-index: 10;
+    display: flex; justify-content: center; padding: 0 1.5rem;
+    opacity: 0; transform: translateY(16px); transition: opacity .5s, transform .5s;
+  }
+  #hint.show { opacity: 1; transform: translateY(0); }
+  #hint .inner {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .5rem 1rem; border-radius: 9999px;
+    border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.4);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    font-size: .75rem; color: rgba(255,255,255,.75); text-align: center;
+  }
+  @media (min-width: 640px) { #hint .inner { font-size: .875rem; } }
+  #hint .inner svg { width: 16px; height: 16px; color: #f9a8d4; flex-shrink: 0; }
+
+  footer {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
+    display: flex; justify-content: center;
+    padding: 1rem; padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .controls {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .9rem;
+    width: 100%; max-width: 42rem;
+    padding: .9rem 1.1rem; border-radius: 1rem;
+    border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.055);
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,.5);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .swatches { display: flex; align-items: center; gap: .5rem; }
+  .swatch {
+    width: 28px; height: 28px; border-radius: 9999px; cursor: pointer; flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,.2); padding: 0;
+    transition: transform .2s, box-shadow .2s, border-color .2s;
+  }
+  .swatch:hover { transform: scale(1.1); }
+  .swatch:active { transform: scale(.95); }
+  .swatch.active { transform: scale(1.1); border-color: rgba(255,255,255,.9); box-shadow: 0 0 0 2px rgba(0,0,0,.6), 0 0 0 4px rgba(255,255,255,.25); }
+  .sep { display: none; width: 1px; height: 2rem; background: rgba(255,255,255,.1); }
+  @media (min-width: 640px) { .sep { display: block; } }
+  .slider-group { display: flex; flex-direction: column; align-items: center; gap: .4rem; }
+  @media (min-width: 640px) { .slider-group { flex-direction: row; gap: .5rem; } }
+  .slider-group .lab {
+    display: flex; align-items: center; gap: .25rem;
+    font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .075em;
+    color: rgba(255,255,255,.45);
+  }
+  .slider-group .lab svg { width: 12px; height: 12px; }
+  .slider-group input[type="range"] { width: 7.5rem; accent-color: #ff8fc7; cursor: pointer; }
+  #pet {
+    padding: .5rem 1rem; border-radius: 9999px; cursor: pointer;
+    border: 1px solid rgba(255,143,199,.4);
+    background: linear-gradient(to right, rgba(251,113,133,.25), rgba(249,168,212,.25));
+    color: #fff; font-size: .8rem; font-weight: 600; font-family: inherit;
+    transition: transform .15s, background .2s;
+  }
+  #pet:hover { background: linear-gradient(to right, rgba(251,113,133,.45), rgba(249,168,212,.45)); }
+  #pet:active { transform: scale(.95); }
+
+  #webgl-error {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem; text-align: center;
+  }
+  #webgl-error p { max-width: 28rem; font-size: .875rem; line-height: 1.6; color: rgba(255,255,255,.7); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="scene" role="img"
+    aria-label="Peluche interactive en trois dimensions. Déplacez le pointeur ou glissez le doigt pour caresser sa fourrure."></canvas>
+
+  <div id="webgl-error" hidden>
+    <p>Oups, votre navigateur ne prend pas en charge WebGL, nécessaire pour afficher
+    la peluche. Essayez avec un navigateur récent (Chrome, Safari, Firefox).</p>
+  </div>
+
+  <div class="top-fade"></div>
+
+  <header>
+    <div>
+      <div class="badge"><span class="dot"></span> Fourrure simulée · temps réel</div>
+      <h1>Peluche Câline</h1>
+      <p class="sub">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+        Survolez-la ou glissez le doigt pour caresser sa fourrure
+      </p>
+    </div>
+    <div class="happiness" id="happiness" aria-label="Niveau de bonheur : 0%">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      <div class="track"><div id="happy-fill"></div></div>
+    </div>
+  </header>
+
+  <div id="hint">
+    <div class="inner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+      <p>Faites glisser votre doigt ou la souris sur sa fourrure — elle adore ça&nbsp;!</p>
+    </div>
+  </div>
+
+  <footer>
+    <div class="controls">
+      <div class="swatches" id="swatches" role="group" aria-label="Couleur de pelage"></div>
+      <div class="sep"></div>
+      <label class="slider-group">
+        <span class="lab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.3 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg>
+          Poil
+        </span>
+        <input type="range" id="fur" min="0.55" max="1.7" step="0.01" value="1" aria-label="Longueur de la fourrure" />
+      </label>
+      <label class="slider-group">
+        <span class="lab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m6.08 9.5-3.5 1.6a1 1 0 0 0 0 1.81l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9a1 1 0 0 0 0-1.83L19.92 9.5"/></svg>
+          Densité
+        </span>
+        <input type="range" id="density" min="0.3" max="1" step="0.01" value="0.8" aria-label="Densité de la fourrure" />
+      </label>
+      <label class="slider-group">
+        <span class="lab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
+          Vent
+        </span>
+        <input type="range" id="wind" min="0" max="1" step="0.01" value="0.35" aria-label="Force du vent" />
+      </label>
+      <button id="pet" type="button">Câliner</button>
+    </div>
+  </footer>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================
+ * Forme mathématique du corps de la peluche (blob "mochi" avec
+ * deux oreilles) — portage vanilla de plush-shape.ts
+ * ============================================================ */
+
+const PRESETS = [
+  { id: 'sakura',  name: 'Sakura Mochi',     root: '#6d0e63', tip: '#ff8fe4', body: '#d02bbd', glow: '#ff3fd8' },
+  { id: 'minuit',  name: 'Velours Minuit',   root: '#170a2e', tip: '#a06bff', body: '#3c1d70', glow: '#8a3cff' },
+  { id: 'menthe',  name: 'Menthe Givrée',    root: '#0b4a38', tip: '#8fffd9', body: '#1fae80', glow: '#2effb0' },
+  { id: 'caramel', name: 'Caramel Fondant',  root: '#43200e', tip: '#ffbf80', body: '#a8622e', glow: '#ff9c40' },
+  { id: 'lavande', name: 'Lavande Douce',    root: '#3d2260', tip: '#dcbbff', body: '#8f66d4', glow: '#b26bff' },
+  { id: 'neige',   name: 'Neige Coton',      root: '#6f6878', tip: '#ffffff', body: '#e9e4f0', glow: '#cfd4ff' },
+];
+
+/** Directions des deux oreilles (petits renflements sur le dessus). */
+const EARS = [
+  { dir: new THREE.Vector3(-0.52, 0.83, 0.08).normalize(), amp: 0.44, sigma: 0.29 },
+  { dir: new THREE.Vector3(0.54, 0.83, 0.1).normalize(),  amp: 0.46, sigma: 0.3 },
+];
+
+/** Rayon du corps dans la direction `dir` (dir doit être normalisé). */
+function radiusAt(dir) {
+  let r = 1.0;
+  for (const e of EARS) {
+    const d = THREE.MathUtils.clamp(dir.dot(e.dir), -1, 1);
+    const ang = Math.acos(d);
+    r += e.amp * Math.exp(-(ang * ang) / (2 * e.sigma * e.sigma));
+  }
+  const front = Math.max(0, dir.z); // léger ventre vers l'avant
+  return r + 0.06 * front * front;
+}
+
+/** Point à la surface du corps pour la direction `dir` (non normalisé en sortie). */
+function surfacePoint(dir, out) {
+  const r = radiusAt(dir);
+  out.set(dir.x * r * 1.18, dir.y * r, dir.z * r * 1.06);
+  if (out.y < 0) out.y *= 0.76; // base aplatie : la peluche est assise
+  out.y += 0.08;
+  return out;
+}
+
+const _t1 = new THREE.Vector3();
+const _t2 = new THREE.Vector3();
+const _da = new THREE.Vector3();
+const _db = new THREE.Vector3();
+const _pa = new THREE.Vector3();
+const _pb = new THREE.Vector3();
+const _pc = new THREE.Vector3();
+const _pd = new THREE.Vector3();
+const _helper = new THREE.Vector3();
+
+/** Normale à la surface (différences finies sur le plan tangent). */
+function surfaceNormal(dir, out) {
+  _helper.set(0, 1, 0);
+  if (Math.abs(dir.y) > 0.9) _helper.set(1, 0, 0);
+  _t1.crossVectors(dir, _helper).normalize();
+  _t2.crossVectors(dir, _t1).normalize();
+  const eps = 0.012;
+
+  _da.copy(dir).addScaledVector(_t1, eps).normalize();
+  _db.copy(dir).addScaledVector(_t1, -eps).normalize();
+  surfacePoint(_da, _pa);
+  surfacePoint(_db, _pb);
+
+  _da.copy(dir).addScaledVector(_t2, eps).normalize();
+  _db.copy(dir).addScaledVector(_t2, -eps).normalize();
+  surfacePoint(_da, _pc);
+  surfacePoint(_db, _pd);
+
+  _da.subVectors(_pb, _pa);
+  _db.subVectors(_pd, _pc);
+  out.crossVectors(_da, _db).normalize();
+  if (out.dot(dir) < 0) out.negate();
+  return out;
+}
+
+/** Directions du visage (yeux, nez et raccourcissement de fourrure). */
+const FACE = {
+  eyeL: new THREE.Vector3(-0.45, 0.03, 0.89).normalize(),
+  eyeR: new THREE.Vector3(0.45, 0.03, 0.89).normalize(),
+  nose: new THREE.Vector3(0, -0.1, 1).normalize(),
+};
+/* ============================================================
+ * PlushEngine — peluche 3D interactive avec simulation de
+ * fourrure — portage vanilla de plush-engine.ts
+ *
+ * Principe : des milliers de brins (lames triangulaires croisées)
+ * sont ancrés sur le corps. Chaque brin possède un état de flexion
+ * (ressort amorti). Le pointeur pousse les brins proches dans la
+ * direction du mouvement : la fourrure se brosse puis revient.
+ * ============================================================ */
+
+const CENTER = new THREE.Vector3(0, 0.12, 0);
+const UP = new THREE.Vector3(0, 1, 0);
+
+// Physique des brins
+const SPRING_K = 46;      // raideur du rappel
+const SPRING_C = 8.2;     // amortissement
+const BRUSH_RADIUS = 0.7;
+const BRUSH_GAIN = 34;
+
+class PlushEngine {
+  constructor(canvas, cbs = {}) {
+    this.canvas = canvas;
+    this.cbs = cbs;
+    this.preset = PRESETS[0];
+
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      powerPreference: 'high-performance',
+    });
+    this.renderer.setClearColor(0x070609, 1);
+    this.renderer.toneMapping = THREE.NoToneMapping;
+
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.Fog(0x070609, 9, 16);
+
+    const isMobile = Math.min(window.innerWidth, window.innerHeight) < 620 || 'ontouchstart' in window;
+    const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+    this.camera = new THREE.PerspectiveCamera(aspect >= 1 ? 32 : 44, aspect, 0.1, 60);
+
+    this.rootGroup = new THREE.Group(); // respiration + écrasement + gigotement
+    this.scene.add(this.rootGroup);
+
+    this.eyesGroup = new THREE.Group();
+    this.eyeMeshes = [];
+    this.heartPool = [];
+
+    // Données de fourrure (typed arrays, zéro allocation dans la boucle)
+    this.strandCount = 0;
+    this.furLengthMul = 1;
+    this.density = 0.8;
+    this.wind = 0.35;
+    this.visibleStrands = 0;
+
+    // Interaction
+    this.raycaster = new THREE.Raycaster();
+    this.ndc = new THREE.Vector2(10, 10);
+    this.prevNdc = new THREE.Vector2(10, 10);
+    this.pointerActive = false;
+    this.hasInteracted = false;
+    this.brushLocal = new THREE.Vector3();
+    this.brushDeltaLocal = new THREE.Vector3();
+    this.hadBrush = false;
+    this.brushWorld = new THREE.Vector3();
+    this.prevBrushWorld = new THREE.Vector3();
+    this.petAccum = 0;
+    this.lastInteractTime = 0;
+    this.lastPointerDownTime = -10;
+
+    // État vivant
+    this.squish = 0;
+    this.squishVel = 0;
+    this.blinkStart = -10;
+    this.nextBlink = 2.5;
+    this.wiggleStart = -10;
+    this.eyeOffset = new THREE.Vector3();
+    this.eyeTarget = new THREE.Vector3();
+
+    // Auto-qualité (appareils lents)
+    this.fpsEma = 60;
+    this.quality = 1;
+    this.qualityApplied = 0;
+    this.basePixelRatio = 1;
+    this.lastHappyReported = -1;
+
+    this.clock = new THREE.Clock();
+    this.rafId = 0;
+    this.disposed = false;
+    this.paused = false;
+    this.tempV = new THREE.Vector3();
+    this.tempV2 = new THREE.Vector3();
+
+    this.buildLights();
+    this.buildBody();
+    this.buildFace();
+    this.buildFur(isMobile);
+    this.buildAmbience();
+    this.buildHearts();
+
+    this.onPointerMove = this.onPointerMove.bind(this);
+    this.onPointerDown = this.onPointerDown.bind(this);
+    this.onPointerLeave = this.onPointerLeave.bind(this);
+    this.onResize = this.onResize.bind(this);
+
+    this.resize();
+    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver.observe(canvas.parentElement ?? canvas);
+    window.addEventListener('resize', this.onResize);
+    canvas.addEventListener('pointermove', this.onPointerMove, { passive: true });
+    canvas.addEventListener('pointerdown', this.onPointerDown, { passive: true });
+    canvas.addEventListener('pointerleave', this.onPointerLeave, { passive: true });
+
+    this.loop = this.loop.bind(this);
+    this.clock.start();
+    this.loop();
+  }
+
+  // ============================================================ CONSTRUCTION
+
+  buildLights() {
+    this.scene.add(new THREE.HemisphereLight(0xfff0f6, 0x241428, 1.0));
+    const key = new THREE.DirectionalLight(0xffffff, 1.6);
+    key.position.set(2.4, 3.2, 3.6);
+    this.scene.add(key);
+    const rim = new THREE.DirectionalLight(0xff5ad5, 1.0);
+    rim.position.set(-2.8, 0.6, -2.4);
+    this.scene.add(rim);
+    const fill = new THREE.DirectionalLight(0xbfd4ff, 0.35);
+    fill.position.set(-1.5, -1, 2.5);
+    this.scene.add(fill);
+  }
+
+  buildBody() {
+    const geo = new THREE.SphereGeometry(1, 110, 78);
+    const pos = geo.attributes.position;
+    const dir = new THREE.Vector3();
+    const out = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      dir.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
+      surfacePoint(dir, out);
+      pos.setXYZ(i, out.x, out.y, out.z);
+    }
+    geo.computeVertexNormals();
+
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(this.preset.root).multiplyScalar(0.9),
+      roughness: 0.95,
+      metalness: 0,
+    });
+    this.bodyMesh = new THREE.Mesh(geo, mat);
+    this.rootGroup.add(this.bodyMesh);
+  }
+
+  buildFace() {
+    const out = new THREE.Vector3();
+    const n = new THREE.Vector3();
+
+    const eyeGeo = new THREE.SphereGeometry(1, 28, 22);
+    const eyeMat = new THREE.MeshStandardMaterial({
+      color: 0x0a0a10,
+      roughness: 0.16,
+      metalness: 0.08,
+    });
+
+    for (const ed of [FACE.eyeL, FACE.eyeR]) {
+      surfacePoint(ed, out);
+      surfaceNormal(ed, n);
+      const eye = new THREE.Mesh(eyeGeo, eyeMat);
+      eye.scale.setScalar(0.125);
+      eye.position.copy(out).addScaledVector(n, 0.03);
+      this.eyesGroup.add(eye);
+      this.eyeMeshes.push(eye);
+
+      // Reflets blancs (gros point + petit point), comme dans la vidéo
+      const dotGeo = new THREE.SphereGeometry(1, 12, 10);
+      const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const big = new THREE.Mesh(dotGeo, dotMat);
+      big.scale.setScalar(0.03);
+      big.position.copy(eye.position).addScaledVector(
+        new THREE.Vector3(0.45, 0.5, 0.74).normalize(), 0.115
+      );
+      this.eyesGroup.add(big);
+
+      const small = new THREE.Mesh(dotGeo, dotMat.clone());
+      small.scale.setScalar(0.014);
+      small.position.copy(eye.position).addScaledVector(
+        new THREE.Vector3(0.72, -0.2, 0.66).normalize(), 0.118
+      );
+      this.eyesGroup.add(small);
+    }
+
+    // Nez
+    surfacePoint(FACE.nose, out);
+    surfaceNormal(FACE.nose, n);
+    const noseGeo = new THREE.SphereGeometry(1, 16, 14);
+    const noseMat = new THREE.MeshStandardMaterial({
+      color: 0xff9fc2,
+      roughness: 0.4,
+      metalness: 0,
+    });
+    this.noseMesh = new THREE.Mesh(noseGeo, noseMat);
+    this.noseMesh.scale.set(0.048, 0.034, 0.026);
+    this.noseMesh.position.copy(out).addScaledVector(n, 0.02);
+    this.noseMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+    this.eyesGroup.add(this.noseMesh);
+
+    this.rootGroup.add(this.eyesGroup);
+  }
+  buildFur(isMobile) {
+    const N = isMobile ? 7000 : 13000;
+    this.strandCount = N;
+    this.bases = new Float32Array(N * 3);      // ancrage sur le corps
+    this.restDirs = new Float32Array(N * 3);   // direction au repos
+    this.lens = new Float32Array(N);           // longueur de base
+    this.phases = new Float32Array(N);         // phase de balancement
+    this.bends = new Float32Array(N * 3);      // flexion courante
+    this.bendVels = new Float32Array(N * 3);   // vitesse de flexion
+    this.positions = new Float32Array(N * 18); // 6 sommets × 3 par brin
+
+    const dir = new THREE.Vector3();
+    const out = new THREE.Vector3();
+    const n = new THREE.Vector3();
+    const rest = new THREE.Vector3();
+    const tan = new THREE.Vector3();
+    const randV = new THREE.Vector3();
+    const eyeL = FACE.eyeL, eyeR = FACE.eyeR, noseD = FACE.nose;
+
+    for (let i = 0; i < N; i++) {
+      // direction uniforme sur la sphère
+      const z = Math.random() * 2 - 1;
+      const th = Math.random() * Math.PI * 2;
+      const s = Math.sqrt(Math.max(0, 1 - z * z));
+      dir.set(s * Math.cos(th), z, s * Math.sin(th));
+
+      surfacePoint(dir, out);
+      surfaceNormal(dir, n);
+
+      // ébouriffage : direction de repos = normale + dérive tangentielle + léger port vers le haut
+      randV.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
+      tan.crossVectors(n, randV).normalize();
+      rest.copy(n)
+        .addScaledVector(tan, (Math.random() - 0.5) * 0.55)
+        .addScaledVector(UP, 0.1)
+        .normalize();
+
+      // longueur : sous-poil court + quelques poils guards plus longs
+      let len = 0.13 + 0.11 * Math.pow(Math.random(), 1.5);
+      if (Math.random() < 0.07) len += 0.06 + Math.random() * 0.05;
+
+      // le visage est dégagé : fourrure plus courte autour des yeux/nez
+      const dEyeL = dir.angleTo(eyeL);
+      const dEyeR = dir.angleTo(eyeR);
+      const dNose = dir.angleTo(noseD);
+      const faceProx = Math.min(dEyeL, dEyeR, dNose);
+      if (faceProx < 0.38) {
+        len *= 0.5 + 0.5 * THREE.MathUtils.smoothstep(faceProx, 0.08, 0.38);
+      }
+
+      const i3 = i * 3;
+      this.bases[i3] = out.x;
+      this.bases[i3 + 1] = out.y;
+      this.bases[i3 + 2] = out.z;
+      this.restDirs[i3] = rest.x;
+      this.restDirs[i3 + 1] = rest.y;
+      this.restDirs[i3 + 2] = rest.z;
+      this.lens[i] = len;
+      this.phases[i] = Math.random() * Math.PI * 2;
+
+      // 6 sommets : [bL1, bR1, tip1, bL2, bR2, tip2] (2 lames croisées)
+      const p = i * 18;
+      const w = 0.011 + Math.random() * 0.008;
+      const t1x = tan.x, t1y = tan.y, t1z = tan.z;
+      // t2 = cross(n, t1)
+      const cx = n.y * t1z - n.z * t1y;
+      const cy = n.z * t1x - n.x * t1z;
+      const cz = n.x * t1y - n.y * t1x;
+
+      this.positions[p]      = out.x + cx * w;
+      this.positions[p + 1]  = out.y + cy * w;
+      this.positions[p + 2]  = out.z + cz * w;
+      this.positions[p + 3]  = out.x - cx * w;
+      this.positions[p + 4]  = out.y - cy * w;
+      this.positions[p + 5]  = out.z - cz * w;
+      // tips remplis chaque frame
+      this.positions[p + 9]  = out.x + t1x * w;
+      this.positions[p + 10] = out.y + t1y * w;
+      this.positions[p + 11] = out.z + t1z * w;
+      this.positions[p + 12] = out.x - t1x * w;
+      this.positions[p + 13] = out.y - t1y * w;
+      this.positions[p + 14] = out.z - t1z * w;
+    }
+
+    const geo = new THREE.BufferGeometry();
+    this.posAttr = new THREE.BufferAttribute(this.positions, 3);
+    this.posAttr.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('position', this.posAttr);
+
+    // attributs statiques
+    const normals = new Float32Array(N * 18);
+    const ts = new Float32Array(N * 6);
+    const rands = new Float32Array(N * 6);
+    const indices = new Uint32Array(N * 6);
+    for (let i = 0; i < N; i++) {
+      const i3 = i * 3;
+      const v = i * 18;
+      for (let k = 0; k < 6; k++) {
+        normals[v + k * 3] = this.restDirs[i3];
+        normals[v + k * 3 + 1] = this.restDirs[i3 + 1];
+        normals[v + k * 3 + 2] = this.restDirs[i3 + 2];
+        ts[i * 6 + k] = (k === 2 || k === 5) ? 1 : 0;
+        rands[i * 6 + k] = Math.random();
+      }
+      const idx = i * 6;
+      const vo = i * 6;
+      indices[idx] = vo; indices[idx + 1] = vo + 1; indices[idx + 2] = vo + 2;
+      indices[idx + 3] = vo + 3; indices[idx + 4] = vo + 4; indices[idx + 5] = vo + 5;
+    }
+    geo.setAttribute('aNormal', new THREE.BufferAttribute(normals, 3));
+    geo.setAttribute('aT', new THREE.BufferAttribute(ts, 1));
+    geo.setAttribute('aRand', new THREE.BufferAttribute(rands, 1));
+    geo.setIndex(new THREE.BufferAttribute(indices, 1));
+    geo.setDrawRange(0, Math.floor(N * this.density) * 6);
+    this.visibleStrands = Math.floor(N * this.density);
+
+    this.furMaterial = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide,
+      uniforms: {
+        uRoot: { value: new THREE.Color(this.preset.root) },
+        uTip: { value: new THREE.Color(this.preset.tip) },
+        uLightDir: { value: new THREE.Vector3(2.4, 3.2, 3.6).normalize() },
+        uRimColor: { value: new THREE.Color('#ff5ad5') },
+        uHueShift: { value: this.preset.hueShift ?? 0 },
+      },
+      vertexShader: /* glsl */ `
+        attribute vec3 aNormal;
+        attribute float aT;
+        attribute float aRand;
+        varying float vT;
+        varying float vRand;
+        varying vec3 vN;
+        void main() {
+          vT = aT;
+          vRand = aRand;
+          vN = normalize(normalMatrix * aNormal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform vec3 uRoot;
+        uniform vec3 uTip;
+        uniform vec3 uLightDir;
+        uniform vec3 uRimColor;
+        uniform float uHueShift;
+        varying float vT;
+        varying float vRand;
+        varying vec3 vN;
+
+        // rotation de teinte autour de l'axe gris (préserve la luminance)
+        vec3 hueRotate(vec3 c, float a) {
+          const vec3 k = vec3(0.57735);
+          float ca = cos(a);
+          return c * ca + cross(k, c) * sin(a) + k * dot(k, c) * (1.0 - ca);
+        }
+
+        void main() {
+          vec3 N = normalize(vN);
+          vec3 L = normalize(uLightDir);
+          float diff = max(dot(N, L), 0.0);
+          // rim light en espace vue
+          float rim = pow(1.0 - max(dot(N, vec3(0.0, 0.0, 1.0)), 0.0), 2.2);
+
+          float grad = vT * (0.55 + 0.45 * vT);
+          vec3 col = mix(uRoot, uTip, grad);
+          col *= 0.55 + 0.62 * diff;
+          col += uRimColor * rim * (0.10 + 0.22 * vT);
+          col *= 0.88 + 0.24 * vRand;
+          col *= mix(0.62, 1.0, smoothstep(0.0, 0.3, vT)); // racines plus sombres
+
+          // pelage Mythique : chaque brin reçoit sa propre teinte (surtout aux pointes)
+          if (uHueShift > 0.0) {
+            float ang = uHueShift * mix(0.5, 6.2831, vRand) * smoothstep(0.12, 0.85, vT);
+            col = hueRotate(col, ang);
+          }
+
+          gl_FragColor = vec4(col, 1.0);
+          #include <colorspace_fragment>
+        }
+      `,
+    });
+
+    this.furMesh = new THREE.Mesh(geo, this.furMaterial);
+    this.furMesh.frustumCulled = false;
+    this.rootGroup.add(this.furMesh);
+  }
+
+  buildAmbience() {
+    // halo d'ambiance derrière la peluche
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width = glowCanvas.height = 256;
+    this.glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(glowCanvas),
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.55,
+    }));
+    this.glowSprite.position.set(0, 0.35, -2.2);
+    this.glowSprite.scale.setScalar(7.5);
+    this.scene.add(this.glowSprite);
+    this.paintGlow(this.preset.glow);
+
+    // ombre au sol
+    const shadowCanvas = document.createElement('canvas');
+    shadowCanvas.width = shadowCanvas.height = 256;
+    const sctx = shadowCanvas.getContext('2d');
+    const sgrad = sctx.createRadialGradient(128, 128, 8, 128, 128, 120);
+    sgrad.addColorStop(0, 'rgba(0,0,0,0.62)');
+    sgrad.addColorStop(0.55, 'rgba(0,0,0,0.28)');
+    sgrad.addColorStop(1, 'rgba(0,0,0,0)');
+    sctx.fillStyle = sgrad;
+    sctx.fillRect(0, 0, 256, 256);
+    const shadowTex = new THREE.CanvasTexture(shadowCanvas);
+    this.shadowMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.6, 3.0),
+      new THREE.MeshBasicMaterial({
+        map: shadowTex, transparent: true, depthWrite: false, opacity: 0.8,
+      })
+    );
+    this.shadowMesh.rotation.x = -Math.PI / 2;
+    this.shadowMesh.position.y = -0.92;
+    this.scene.add(this.shadowMesh);
+  }
+
+  paintGlow(color) {
+    const mat = this.glowSprite.material;
+    const tex = mat.map;
+    const ctx = tex.image.getContext('2d');
+    ctx.clearRect(0, 0, 256, 256);
+    const g = ctx.createRadialGradient(128, 128, 10, 128, 128, 126);
+    g.addColorStop(0, color);
+    g.addColorStop(0.4, color + '55');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
+    tex.needsUpdate = true;
+  }
+
+  buildHearts() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.translate(64, 70);
+    ctx.scale(1.6, 1.6);
+    ctx.beginPath();
+    ctx.moveTo(0, 18);
+    ctx.bezierCurveTo(-30, -6, -16, -30, 0, -12);
+    ctx.bezierCurveTo(16, -30, 30, -6, 0, 18);
+    ctx.closePath();
+    ctx.fillStyle = '#ff5f9e';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(-9, -10, 3.6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+
+    const tex = new THREE.CanvasTexture(c);
+    for (let i = 0; i < 7; i++) {
+      const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, transparent: true, depthWrite: false, opacity: 0,
+      }));
+      spr.visible = false;
+      this.scene.add(spr);
+      this.heartPool.push({
+        sprite: spr, vel: new THREE.Vector3(), life: 0, maxLife: 1.5, active: false,
+      });
+    }
+  }
+  // ============================================================ INTERACTION
+
+  updatePointerNdc(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    this.prevNdc.copy(this.ndc);
+    this.ndc.set(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+  }
+
+  onPointerMove(e) {
+    this.updatePointerNdc(e);
+    this.pointerActive = true;
+    this.lastInteractTime = this.clock.elapsedTime;
+    if (!this.hasInteracted) {
+      this.hasInteracted = true;
+      this.cbs.onFirstInteract?.();
+    }
+  }
+
+  onPointerDown(e) {
+    this.updatePointerNdc(e);
+    this.pointerActive = true;
+    this.lastInteractTime = this.clock.elapsedTime;
+    if (!this.hasInteracted) {
+      this.hasInteracted = true;
+      this.cbs.onFirstInteract?.();
+    }
+    // caresse ferme : écrasement + blink, si le pointeur touche le corps
+    this.raycaster.setFromCamera(this.ndc, this.camera);
+    const dist = this.raycaster.ray.closestPointToPoint(CENTER, this.tempV).distanceTo(CENTER);
+    if (dist < 1.45) {
+      this.squishVel += 5.4;
+      this.blinkStart = this.clock.elapsedTime;
+      this.petAccum += 0.5;
+      this.lastPointerDownTime = this.clock.elapsedTime;
+    }
+  }
+
+  onPointerLeave() {
+    this.pointerActive = false;
+  }
+
+  onResize() { this.resize(); }
+
+  resize() {
+    const parent = this.canvas.parentElement;
+    const w = parent?.clientWidth ?? window.innerWidth;
+    const h = parent?.clientHeight ?? window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, w < 700 ? 1.8 : 2);
+    this.basePixelRatio = dpr;
+    this.renderer.setPixelRatio(dpr * (this.quality < 1 ? 0.85 : 1));
+    this.renderer.setSize(w, h, false);
+    const aspect = w / Math.max(1, h);
+    this.camera.aspect = aspect;
+    this.camera.fov = aspect >= 1 ? 32 : THREE.MathUtils.clamp(32 + (1 - aspect) * 34, 32, 52);
+
+    // cadrage : la peluche (~2.9 u de haut, ~2.9 u de large) doit tenir
+    const fovRad = (this.camera.fov * Math.PI) / 180;
+    const t = Math.tan(fovRad / 2);
+    const distH = 1.72 / t;
+    const distW = 1.62 / (t * aspect);
+    this.camera.position.z = THREE.MathUtils.clamp(Math.max(distH, distW), 3.4, 11);
+    this.camera.updateProjectionMatrix();
+  }
+
+  // ============================================================ BOUCLE
+
+  loop() {
+    if (this.disposed) return;
+    this.rafId = requestAnimationFrame(this.loop);
+    const rawDt = this.clock.getDelta();
+    if (this.paused) return;
+    const dt = Math.min(rawDt, 1 / 30);
+    const t = this.clock.elapsedTime;
+
+    // moyenne glissante des FPS + dégradation progressive si l'appareil suit mal
+    if (rawDt > 0) this.fpsEma = this.fpsEma * 0.94 + (1 / rawDt) * 0.06;
+    if (t > 2.5 && this.qualityApplied < 3 && this.fpsEma < 32 && this.quality > 0.4) {
+      this.quality *= 0.7;
+      this.qualityApplied++;
+      this.renderer.setPixelRatio(this.basePixelRatio * (this.quality < 1 ? 0.85 : 1));
+      this.applyDensity();
+    }
+
+    this.updateBrush(dt);
+    this.updateStrands(dt, t);
+    this.updateLife(dt, t);
+    this.updateHearts(dt);
+
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  updateBrush(_dt) {
+    if (this.pointerActive) {
+      this.raycaster.setFromCamera(this.ndc, this.camera);
+      this.raycaster.ray.closestPointToPoint(CENTER, this.brushWorld);
+    }
+    // delta du point de brossage en espace local
+    this.rootGroup.updateMatrixWorld();
+    this.tempV.copy(this.brushWorld);
+    this.rootGroup.worldToLocal(this.tempV);
+    if (this.hadBrush && this.pointerActive) {
+      this.brushDeltaLocal.subVectors(this.tempV, this.brushLocal);
+    } else {
+      this.brushDeltaLocal.set(0, 0, 0);
+    }
+    this.brushLocal.copy(this.tempV);
+    this.hadBrush = this.pointerActive;
+  }
+  updateStrands(dt, t) {
+    const N = this.visibleStrands;
+    const bends = this.bends;
+    const bendVels = this.bendVels;
+    const bases = this.bases;
+    const restDirs = this.restDirs;
+    const lens = this.lens;
+    const phases = this.phases;
+    const pos = this.positions;
+    const bl = this.brushLocal;
+    const bd = this.brushDeltaLocal;
+
+    const brushOn = this.pointerActive;
+    const bdx = bd.x * BRUSH_GAIN;
+    const bdy = bd.y * BRUSH_GAIN;
+    const bdz = bd.z * BRUSH_GAIN;
+    const r2 = BRUSH_RADIUS * BRUSH_RADIUS;
+
+    const lenMul = this.furLengthMul;
+    const windAmp = this.wind * 0.045;
+    const k = SPRING_K, c = SPRING_C;
+
+    for (let i = 0; i < N; i++) {
+      const i3 = i * 3;
+      const p = i * 18;
+
+      // ---- impulsion de brossage
+      if (brushOn) {
+        const dx = bases[i3] - bl.x;
+        const dy = bases[i3 + 1] - bl.y;
+        const dz = bases[i3 + 2] - bl.z;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < r2) {
+          const w = 1 - d2 / r2;
+          const f = w * w;
+          bendVels[i3] += bdx * f;
+          bendVels[i3 + 1] += bdy * f;
+          bendVels[i3 + 2] += bdz * f;
+        }
+      }
+
+      // ---- ressort amorti
+      let bx = bends[i3], by = bends[i3 + 1], bz = bends[i3 + 2];
+      let vx = bendVels[i3], vy = bendVels[i3 + 1], vz = bendVels[i3 + 2];
+      vx += (-k * bx - c * vx) * dt;
+      vy += (-k * by - c * vy) * dt;
+      vz += (-k * bz - c * vz) * dt;
+      bx += vx * dt;
+      by += vy * dt;
+      bz += vz * dt;
+
+      // clamp de la flexion
+      const b2 = bx * bx + by * by + bz * bz;
+      const len = lens[i] * lenMul;
+      const maxB = len * 0.95;
+      if (b2 > maxB * maxB) {
+        const s = maxB / Math.sqrt(b2);
+        bx *= s; by *= s; bz *= s;
+        vx *= 0.4; vy *= 0.4; vz *= 0.4;
+      }
+      bends[i3] = bx; bends[i3 + 1] = by; bends[i3 + 2] = bz;
+      bendVels[i3] = vx; bendVels[i3 + 1] = vy; bendVels[i3 + 2] = vz;
+
+      // ---- balancement de vent
+      const ph = phases[i];
+      const sway = windAmp * len * (Math.sin(t * 1.25 + ph) + 0.5 * Math.sin(t * 2.3 + ph * 1.7));
+
+      // ---- position de la pointe
+      const tipX = bases[i3] + restDirs[i3] * len + bx + restDirs[i3 + 2] * sway;
+      const tipY = bases[i3 + 1] + restDirs[i3 + 1] * len + by + restDirs[i3] * sway;
+      const tipZ = bases[i3 + 2] + restDirs[i3 + 2] * len + bz - restDirs[i3 + 1] * sway * 0.5;
+
+      pos[p + 6] = tipX; pos[p + 7] = tipY; pos[p + 8] = tipZ;
+      pos[p + 15] = tipX; pos[p + 16] = tipY; pos[p + 17] = tipZ;
+    }
+
+    this.posAttr.needsUpdate = true;
+  }
+
+  updateLife(dt, t) {
+    // --- écrasement (squish) : ressort amorti
+    this.squishVel += (-70 * this.squish - 9 * this.squishVel) * dt;
+    this.squish += this.squishVel * dt;
+    this.squish = THREE.MathUtils.clamp(this.squish, -0.35, 0.5);
+
+    // --- respiration
+    const breath = 1 + 0.013 * Math.sin(t * 2.1);
+    const sy = breath * (1 - 0.2 * this.squish);
+    const sxz = 1 + 0.13 * this.squish;
+    this.rootGroup.scale.set(sxz, sy, sxz);
+    this.rootGroup.position.y = 0.018 * Math.sin(t * 2.1 + 0.8);
+    this.shadowMesh.scale.setScalar(1 + 0.1 * this.squish);
+
+    // --- gigotement de joie
+    const wt = t - this.wiggleStart;
+    if (wt < 1.3) {
+      this.rootGroup.rotation.z = Math.sin(wt * 17) * 0.055 * Math.exp(-2.6 * wt);
+    } else {
+      this.rootGroup.rotation.z *= 0.9;
+    }
+
+    // --- clignement des yeux
+    const bt = t - this.blinkStart;
+    let blinkScale = 1;
+    if (bt >= 0 && bt < 0.16) {
+      blinkScale = 1 - 0.94 * Math.sin((Math.PI * bt) / 0.16);
+    } else if (t > this.nextBlink) {
+      this.blinkStart = t;
+      this.nextBlink = t + 2.2 + Math.random() * 3.4;
+    }
+    for (const eye of this.eyeMeshes) {
+      eye.scale.set(0.125, 0.125 * blinkScale, 0.125);
+    }
+
+    // --- yeux qui suivent le pointeur / errance au repos
+    if (this.pointerActive) {
+      this.eyeTarget.set(
+        THREE.MathUtils.clamp(this.brushWorld.x * 0.35, -0.5, 0.5),
+        THREE.MathUtils.clamp((this.brushWorld.y - 0.15) * 0.3, -0.35, 0.35),
+        0,
+      );
+    } else if (t - this.lastInteractTime > 5) {
+      this.eyeTarget.set(
+        0.42 * Math.sin(t * 0.35),
+        0.22 * Math.sin(t * 0.23 + 1.4),
+        0,
+      );
+    }
+    this.eyeOffset.lerp(this.eyeTarget, 1 - Math.exp(-6 * dt));
+    this.eyesGroup.position.set(this.eyeOffset.x * 0.055, this.eyeOffset.y * 0.05, 0);
+
+    // --- caméra parallaxe douce
+    const camX = this.ndc.x < 9 ? this.ndc.x * 0.16 : 0;
+    const camY = 0.32 + (this.ndc.y < 9 ? this.ndc.y * 0.1 : 0);
+    this.camera.position.x += (camX - this.camera.position.x) * (1 - Math.exp(-3 * dt));
+    this.camera.position.y += (camY - this.camera.position.y) * (1 - Math.exp(-3 * dt));
+    this.camera.lookAt(0, 0.2, 0);
+
+    // --- bonheur : accumulation de caresses
+    const brushSpeed = this.brushDeltaLocal.length();
+    if (this.pointerActive && brushSpeed > 0.002) {
+      const contact = Math.max(0, 1 - this.brushLocal.length() / 2.2);
+      this.petAccum += brushSpeed * contact * 2.4;
+      this.lastInteractTime = t;
+    }
+    this.petAccum = Math.max(0, this.petAccum - dt * 0.22);
+    const h = Math.min(1, this.petAccum / 6);
+    // ne prévient l'UI que si la valeur a sensiblement changé (évite 60 maj/s)
+    if (Math.abs(h - this.lastHappyReported) > 0.02 || (h === 0 && this.lastHappyReported !== 0)) {
+      this.lastHappyReported = h;
+      this.cbs.onHappiness?.(h);
+    }
+    if (h >= 1) {
+      this.petAccum = 2.2;
+      this.wiggleStart = t;
+      this.spawnHearts(4);
+    }
+  }
+
+  updateHearts(dt) {
+    for (const hpart of this.heartPool) {
+      if (!hpart.active) continue;
+      hpart.life += dt;
+      const k = hpart.life / hpart.maxLife;
+      if (k >= 1) {
+        hpart.active = false;
+        hpart.sprite.visible = false;
+        continue;
+      }
+      hpart.sprite.position.addScaledVector(hpart.vel, dt);
+      hpart.vel.y += 0.12 * dt;
+      const pop = k < 0.18 ? k / 0.18 : 1;
+      hpart.sprite.scale.setScalar(0.16 + 0.1 * k);
+      hpart.sprite.material.opacity =
+        Math.min(1, pop) * (1 - Math.max(0, (k - 0.55) / 0.45));
+    }
+  }
+
+  spawnHearts(count) {
+    let spawned = 0;
+    for (const hpart of this.heartPool) {
+      if (spawned >= count) break;
+      if (hpart.active) continue;
+      hpart.active = true;
+      hpart.sprite.visible = true;
+      hpart.life = 0;
+      hpart.sprite.position.set(
+        (Math.random() - 0.5) * 1.1,
+        1.1 + Math.random() * 0.3,
+        0.45 + Math.random() * 0.35,
+      );
+      hpart.vel.set((Math.random() - 0.5) * 0.5, 0.75 + Math.random() * 0.35, 0.25);
+      spawned++;
+    }
+  }
+  // ============================================================ API PUBLIQUE
+
+  setPreset(preset) {
+    this.preset = preset;
+    this.furMaterial.uniforms.uRoot.value.set(preset.root);
+    this.furMaterial.uniforms.uTip.value.set(preset.tip);
+    this.bodyMesh.material.color.set(preset.root).multiplyScalar(0.9);
+    this.furMaterial.uniforms.uHueShift.value = preset.hueShift ?? 0;
+    this.paintGlow(preset.glow);
+  }
+
+  setFurLength(v) {
+    this.furLengthMul = THREE.MathUtils.clamp(v, 0.55, 1.7);
+  }
+
+  setDensity(v) {
+    this.density = THREE.MathUtils.clamp(v, 0.3, 1);
+    this.applyDensity();
+  }
+
+  applyDensity() {
+    this.visibleStrands = Math.floor(this.strandCount * this.density * this.quality);
+    this.furMesh.geometry.setDrawRange(0, this.visibleStrands * 6);
+  }
+
+  setWind(v) {
+    this.wind = THREE.MathUtils.clamp(v, 0, 1);
+  }
+
+  /** Petite caresse déclenchée depuis l'interface. */
+  pet() {
+    this.squishVel += 5.4;
+    this.blinkStart = this.clock.elapsedTime;
+    this.petAccum += 0.6;
+    this.spawnHearts(2);
+  }
+
+  /** Fête : gigotement de joie + cœur de cœurs. */
+  celebrate() {
+    this.wiggleStart = this.clock.elapsedTime;
+    this.squishVel += 4.2;
+    this.spawnHearts(6);
+  }
+
+  /** Suspend/reprend la simulation et le rendu (libère le GPU si besoin). */
+  setPaused(paused) {
+    this.paused = paused;
+    if (!paused) this.clock.getDelta(); // évite un saut de dt à la reprise
+  }
+
+  dispose() {
+    this.disposed = true;
+    cancelAnimationFrame(this.rafId);
+    window.removeEventListener('resize', this.onResize);
+    this.canvas.removeEventListener('pointermove', this.onPointerMove);
+    this.canvas.removeEventListener('pointerdown', this.onPointerDown);
+    this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
+    this.resizeObserver?.disconnect();
+    this.scene.traverse((obj) => {
+      const mesh = obj;
+      if (mesh.geometry) mesh.geometry.dispose();
+      const mat = mesh.material;
+      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+      else if (mat) mat.dispose();
+    });
+    this.renderer.dispose();
+  }
+}
+
+/* ============================================================
+ * Branchement de l'interface (vanilla)
+ * ============================================================ */
+
+const canvas = document.getElementById('scene');
+const hint = document.getElementById('hint');
+const happyFill = document.getElementById('happy-fill');
+const happyBox = document.getElementById('happiness');
+const errorBox = document.getElementById('webgl-error');
+let engine = null;
+
+// Astuce masquée après 9 s même sans interaction
+const hintTimer = setTimeout(() => hint.classList.remove('show'), 9000);
+
+try {
+  engine = new PlushEngine(canvas, {
+    onHappiness: (v) => {
+      happyFill.style.width = (v * 100) + '%';
+      happyBox.classList.toggle('full', v > 0.66);
+      happyBox.setAttribute('aria-label', 'Niveau de bonheur : ' + Math.round(v * 100) + '%');
+    },
+    onFirstInteract: () => {
+      hint.classList.remove('show');
+      clearTimeout(hintTimer);
+    },
+  });
+  engine.setFurLength(1);
+  engine.setDensity(0.8);
+  engine.setWind(0.35);
+  hint.classList.add('show');
+} catch (err) {
+  console.error('WebGL indisponible :', err);
+  errorBox.hidden = false;
+  hint.remove();
+}
+
+// Pastilles de préréglages de pelage
+const swatchesRoot = document.getElementById('swatches');
+let activeSwatch = null;
+PRESETS.forEach((p, idx) => {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'swatch' + (idx === 0 ? ' active' : '');
+  btn.title = p.name;
+  btn.setAttribute('aria-label', 'Pelage ' + p.name);
+  btn.setAttribute('aria-pressed', idx === 0 ? 'true' : 'false');
+  btn.style.background =
+    'radial-gradient(circle at 32% 28%, ' + p.tip + ' 0%, ' + p.body + ' 55%, ' + p.root + ' 100%)';
+  btn.addEventListener('click', () => {
+    if (activeSwatch) {
+      activeSwatch.classList.remove('active');
+      activeSwatch.setAttribute('aria-pressed', 'false');
+    }
+    btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
+    activeSwatch = btn;
+    engine?.setPreset(p);
+  });
+  swatchesRoot.appendChild(btn);
+  if (idx === 0) activeSwatch = btn;
+});
+
+// Réglages
+document.getElementById('fur').addEventListener('input', (e) => engine?.setFurLength(parseFloat(e.target.value)));
+document.getElementById('density').addEventListener('input', (e) => engine?.setDensity(parseFloat(e.target.value)));
+document.getElementById('wind').addEventListener('input', (e) => engine?.setWind(parseFloat(e.target.value)));
+
+// Câliner
+document.getElementById('pet').addEventListener('click', () => engine?.pet());
+</script>
+</body>
+</html>

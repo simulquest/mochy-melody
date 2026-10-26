@@ -1,0 +1,24 @@
+{
+  "id": "fantome",
+  "name": "Piou Fantôme",
+  "emoji": "👻",
+  "tagline": "Il flotte, il brille, et sa jupe ondule toute seule la nuit.",
+  "shape": "fantome",
+  "preset": {
+    "id": "piou",
+    "name": "Piou Fantôme",
+    "root": "#6f93c8",
+    "tip": "#e6f4ff",
+    "body": "#aecdf2",
+    "glow": "#9cc2ff"
+  },
+  "fur": {
+    "length": 0.55,
+    "density": 0.5,
+    "wind": 1.5,
+    "countMul": 0.35,
+    "lenMul": 1.65,
+    "widthMul": 1.25
+  },
+  "camDistMul": 1
+}

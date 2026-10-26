@@ -1,0 +1,279 @@
+'use client';
+
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Heart,
+  Hand,
+  Sparkles,
+  ArrowLeft,
+  Dna,
+  Store,
+} from 'lucide-react';
+import { PlushEngine } from '@/lib/plush/plush-engine';
+import { PlushPreset } from '@/lib/plush/plush-shape';
+import { PlushSpecies } from '@/lib/plush/species';
+import { PlushMutation, mutationRarity, rarityColor, rarityName } from '@/lib/plush/mutations';
+import Lootbox from '@/components/plush/Lootbox';
+import { getEquippedPreset } from '@/lib/plush/lootbox';
+
+interface PlushExperienceProps {
+  species: PlushSpecies;
+  onBack?: () => void;
+}
+
+export default function PlushExperience({ species, onBack }: PlushExperienceProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<PlushEngine | null>(null);
+  const router = useRouter();
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [happiness, setHappiness] = useState(0);
+  const [showHint, setShowHint] = useState(true);
+  const [webglError, setWebglError] = useState(false);
+  const [equippedLootId, setEquippedLootId] = useState<string | null>(null);
+  const [mut, setMut] = useState<PlushMutation | null>(null);
+  const [toast, setToast] = useState<{ text: string; color: string } | null>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    let engine: PlushEngine | null = null;
+    let cancelled = false;
+
+    // Initialisation différée (hors corps synchrone de l'effet)
+    const rafId = requestAnimationFrame(() => {
+      if (cancelled) return;
+      try {
+        engine = new PlushEngine(
+          canvasRef.current!,
+          {
+            onHappiness: (v) => setHappiness(v),
+            onFirstInteract: () => setShowHint(false),
+          },
+          { species },
+        );
+        // Paramètres de fourrure figés par le config JSON (plus aucun réglage utilisateur)
+        engine.setFurLength(species.furLength);
+        engine.setDensity(species.furDensity);
+        engine.setWind(0.35);
+        // Apparence de base de l'espèce (preset issu du config JSON)
+        engine.setPreset(species.preset);
+        engine.setMutations(null);
+        setMut(null);
+        setEquippedLootId(null);
+        // Restaure la peluche lootbox équipée uniquement si elle appartient à
+        // cette espèce. Sinon la vue doit montrer la variante sélectionnée.
+        const equipped = getEquippedPreset();
+        if (equipped && equipped.speciesId === species.id) {
+          engine.setPreset(equipped);
+          setEquippedLootId(equipped.id);
+          if (equipped.mutation) {
+            engine.setMutations(equipped.mutation);
+            setMut(equipped.mutation);
+          }
+        }
+        engineRef.current = engine;
+      } catch (err) {
+        console.error('WebGL indisponible :', err);
+        setWebglError(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      engine?.dispose();
+      engineRef.current = null;
+    };
+  }, [species]);
+
+  // Masque l'astuce après 9 s même sans interaction
+  useEffect(() => {
+    const id = setTimeout(() => setShowHint(false), 9000);
+    return () => clearTimeout(id);
+  }, []);
+
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
+
+  const fireToast = useCallback((text: string, color: string) => {
+    setToast({ text, color });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  }, []);
+
+  /** Équipe une peluche gagnée à la lootbox (vrai modèle + preset + mutation). */
+  const equipLoot = useCallback(
+    (preset: PlushPreset, id: string, mutation: PlushMutation | null = null) => {
+      setEquippedLootId(id);
+      engineRef.current?.setPreset(preset);
+      engineRef.current?.setMutations(mutation ?? null);
+      setMut(mutation ?? null);
+    },
+    [],
+  );
+
+  const globalRarity = mut ? mutationRarity(mut) : 'commune';
+  const mutated = !!mut;
+
+  return (
+    <div className="relative h-[100dvh] w-full overflow-hidden bg-[#070609] select-none">
+      {/* Canvas 3D */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 h-full w-full touch-none"
+        aria-label={`${species.name}, peluche interactive en trois dimensions. Déplacez le pointeur ou glissez le doigt pour caresser sa fourrure.`}
+        role="img"
+      />
+
+      {webglError && (
+        <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+          <p className="max-w-md text-balance text-sm leading-relaxed text-white/70">
+            Oups, votre navigateur ne prend pas en charge WebGL, nécessaire pour afficher
+            la peluche. Essayez avec un navigateur récent (Chrome, Safari, Firefox).
+          </p>
+        </div>
+      )}
+
+      {/* Halo supérieur pour la lisibilité du titre */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/50 to-transparent" />
+
+      {/* En-tête */}
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-4 p-5 sm:p-7">
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+          className="flex items-start gap-3"
+        >
+          {onBack && (
+            <button
+              onClick={onBack}
+              aria-label="Retour à l'accueil"
+              className="pointer-events-auto mt-1 shrink-0 rounded-full border border-white/10 bg-white/5 p-2.5 text-white/70 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+            </button>
+          )}
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 backdrop-blur-md">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                </span>
+                <span className="text-[11px] font-medium tracking-wide text-white/70">
+                  Fourrure simulée · temps réel
+                </span>
+              </span>
+              {mutated && (
+                <span
+                  className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+                  style={{
+                    color: rarityColor(globalRarity),
+                    background: `${rarityColor(globalRarity)}1f`,
+                    border: `1px solid ${rarityColor(globalRarity)}55`,
+                  }}
+                >
+                  {rarityName(globalRarity)}
+                </span>
+              )}
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              {species.name}
+            </h1>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50 sm:text-sm">
+              <Hand className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {species.tagline}
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Jauge de bonheur + accès marché */}
+        <div className="flex items-center gap-2.5">
+          <motion.button
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1, ease: 'easeOut' }}
+            onClick={() => router.push('/market')}
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-white/80 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="Ouvrir le marché des cartes"
+          >
+            <Store className="h-4 w-4 text-amber-300" aria-hidden />
+            <span className="hidden text-xs font-medium sm:inline">Marché</span>
+          </motion.button>
+
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.15, ease: 'easeOut' }}
+            className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 backdrop-blur-md"
+            aria-label={`Niveau de bonheur : ${Math.round(happiness * 100)}%`}
+          >
+            <Heart
+              className={`h-4 w-4 transition-colors duration-300 ${
+                happiness > 0.66 ? 'fill-rose-400 text-rose-400' : 'text-white/40'
+              }`}
+              aria-hidden
+            />
+            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/10 sm:w-24">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-rose-400 to-pink-300 transition-[width] duration-200"
+                style={{ width: `${happiness * 100}%` }}
+              />
+            </div>
+          </motion.div>
+        </div>
+      </header>
+
+      {/* Astuce flottante (montée + disparition animée via AnimatePresence) */}
+      <AnimatePresence>
+        {showHint && !webglError && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.5 }}
+            className="pointer-events-none absolute inset-x-0 bottom-[13.5rem] z-10 flex justify-center px-6 sm:bottom-44"
+          >
+            <div className="flex items-center gap-2.5 rounded-full border border-white/10 bg-black/40 px-4 py-2 backdrop-blur-lg">
+              <Sparkles className="h-4 w-4 shrink-0 text-pink-300" aria-hidden />
+              <p className="text-center text-xs text-white/75 sm:text-sm">
+                Caressez-la du doigt ou de la souris&nbsp;!
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast de mutation */}
+      {toast && (
+        <motion.div
+          initial={{ opacity: 0, y: -14, scale: 0.94 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -10, scale: 0.96 }}
+          transition={{ duration: 0.28 }}
+          className="pointer-events-none absolute left-1/2 top-40 z-[65] -translate-x-1/2 px-4"
+        >
+          <div
+            className="flex items-center gap-2.5 rounded-2xl border bg-black/60 px-4 py-2.5 backdrop-blur-xl"
+            style={{ borderColor: `${toast.color}80` }}
+          >
+            <Dna className="h-4 w-4 shrink-0" style={{ color: toast.color }} aria-hidden />
+            <p className="text-center text-xs font-medium text-white/90 sm:text-sm">
+              {toast.text}
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Lootbox : caisses à peluches + collection */}
+      <Lootbox
+        speciesId={species.id}
+        equippedId={equippedLootId}
+        onEquip={equipLoot}
+        onCelebrate={() => engineRef.current?.celebrate()}
+        onPauseMain={(paused) => engineRef.current?.setPaused(paused)}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,24 @@
+{
+  "id": "mochi",
+  "name": "Mochi Chat",
+  "emoji": "🐱",
+  "tagline": "Le classique tout rond, doux comme un mochi frais.",
+  "shape": "mochi",
+  "preset": {
+    "id": "sakura",
+    "name": "Sakura Mochi",
+    "root": "#6d0e63",
+    "tip": "#ff8fe4",
+    "body": "#d02bbd",
+    "glow": "#ff3fd8"
+  },
+  "fur": {
+    "length": 0.65,
+    "density": 1,
+    "wind": 1,
+    "countMul": 1,
+    "lenMul": 1,
+    "widthMul": 1.25
+  },
+  "camDistMul": 1
+}

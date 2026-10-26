@@ -1,0 +1,24 @@
+{
+  "id": "lapin",
+  "name": "Pompon Lapin",
+  "emoji": "🐰",
+  "tagline": "Tout en hauteur avec de grandes oreilles et un cœur tout doux.",
+  "shape": "lapin",
+  "preset": {
+    "id": "pompon",
+    "name": "Pompon Lapin",
+    "root": "#b59ada",
+    "tip": "#ffe9f4",
+    "body": "#e9def4",
+    "glow": "#d9b3ff"
+  },
+  "fur": {
+    "length": 0.6,
+    "density": 1,
+    "wind": 1.15,
+    "countMul": 1.05,
+    "lenMul": 1.2,
+    "widthMul": 1.15
+  },
+  "camDistMul": 1.14
+}
