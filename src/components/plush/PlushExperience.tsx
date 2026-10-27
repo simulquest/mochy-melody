@@ -170,13 +170,9 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
                 </span>
               </div>
             )}
-            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">
               {species.name}
             </h1>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50 sm:text-sm">
-              <Hand className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {species.tagline}
-            </p>
           </div>
         </motion.div>
 
@@ -224,6 +220,20 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
           </motion.div>
         </div>
       </header>
+
+      {/* Halo inférieur pour la lisibilité de la description */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 to-transparent" />
+
+      {/* Description de la peluche — en bas à gauche */}
+      <motion.p
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' }}
+        className="pointer-events-none absolute bottom-6 left-5 z-10 flex max-w-[min(20rem,calc(100vw-8rem))] items-start gap-1.5 text-xs leading-relaxed text-white/55 sm:bottom-8 sm:left-7 sm:text-sm"
+      >
+        <Hand className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/40" aria-hidden />
+        <span>{species.tagline}</span>
+      </motion.p>
 
       {/* Astuce flottante (montée + disparition animée via AnimatePresence) */}
       <AnimatePresence>

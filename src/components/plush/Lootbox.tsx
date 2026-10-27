@@ -480,27 +480,6 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
                 />
               )}
             </motion.button>
-            <div className="rounded-full bg-black/45 px-2 py-0.5 text-center backdrop-blur-md">
-              {locked ? (
-                <span className="flex items-center gap-1 text-[10px] font-bold text-amber-200/90">
-                  <Clock className="h-3 w-3" aria-hidden />
-                  {formatCooldown(remaining)}
-                </span>
-              ) : (
-                <>
-                  <span className="text-[10px] font-semibold" style={{ color: rarity.color }}>
-                    {rarity.name}
-                  </span>
-                  <span className="ml-1.5 text-[10px] text-white/60">
-                    {progress}/{rarity.clicks}
-                  </span>
-                  <span className="ml-2 flex items-center gap-1 text-[10px] font-bold text-amber-300/90">
-                    <span className="h-3 w-3" aria-hidden>🎁</span>
-                    {chestsAvailable}/{MAX_CHESTS}
-                  </span>
-                </>
-              )}
-            </div>
           </div>
         </div>
       )}
