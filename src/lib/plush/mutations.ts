@@ -79,6 +79,10 @@ export const TINT_POOL: TintMut[] = [
   { id: 'charbon', label: 'Charbon', kind: 'charbon', rarity: 'epique', w: 4 },
 ];
 
+/** Nombre de mutations distinctes que le tirage peut produire. */
+export const MUTATION_VARIANT_COUNT =
+  EYE_POOL.length * FUR_POOL.length * TINT_POOL.length * EYE_POOL.length;
+
 // ---------------------------------------------------------------------------
 
 export interface PlushMutation {

@@ -25,10 +25,9 @@ import {
  */
 
 export interface EngineCallbacks {
-  onHappiness?: (v: number) => void;
   onFirstInteract?: () => void;
   /**
-   * Barre de bonheur remplie → gerbe de cœurs (caresse aboutie).
+   * Accumulation de caresses complète → gerbe de cœurs.
    * C'est le moment où l'interface crédite les MochyHearts.
    */
   onLove?: () => void;
@@ -104,7 +103,6 @@ export class PlushEngine {
   private quality = 1;
   private qualityApplied = 0;
   private basePixelRatio = 1;
-  private lastHappyReported = -1;
 
   private clock = new THREE.Timer();
   private rafId = 0;
@@ -888,11 +886,6 @@ export class PlushEngine {
     }
     this.petAccum = Math.max(0, this.petAccum - dt * 0.22);
     const h = Math.min(1, this.petAccum / 6);
-    // n'avertit React que si la valeur a sensiblement changé (évite 60 re-renders/s)
-    if (Math.abs(h - this.lastHappyReported) > 0.02 || (h === 0 && this.lastHappyReported !== 0)) {
-      this.lastHappyReported = h;
-      this.cbs.onHappiness?.(h);
-    }
     if (h >= 1) {
       this.petAccum = 2.2;
       this.wiggleStart = t;

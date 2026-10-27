@@ -382,6 +382,9 @@ function MineTab({
   onBid: (l: ListingView) => void;
 }) {
   const myListings = me.myListings.filter((l) => l.status === 'active');
+  const distinctCardCount = new Set(
+    me.inventory.map((item) => `${item.card_id}::${item.mutation_key}`),
+  ).size;
 
   return (
     <div className="space-y-8">
@@ -391,7 +394,7 @@ function MineTab({
           <h2 className="text-sm font-bold text-white/85">
             Mon inventaire
             <span className="ml-2 text-xs font-normal text-white/40">
-              {me.inventory.length} carte{me.inventory.length > 1 ? 's' : ''}
+              {distinctCardCount} carte{distinctCardCount > 1 ? 's' : ''}
             </span>
           </h2>
         </div>

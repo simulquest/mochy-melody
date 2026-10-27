@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Heart,
   Hand,
   Sparkles,
   ArrowLeft,
@@ -41,7 +40,6 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
   const engineRef = useRef<PlushEngine | null>(null);
   const router = useRouter();
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [happiness, setHappiness] = useState(0);
   const [showHint, setShowHint] = useState(true);
   const [webglError, setWebglError] = useState(false);
   const [equippedLootId, setEquippedLootId] = useState<string | null>(null);
@@ -70,10 +68,8 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
         engine = new PlushEngine(
           canvasRef.current!,
           {
-            onHappiness: (v) => setHappiness(v),
             onFirstInteract: () => setShowHint(false),
-            // Barre de bonheur remplie → gerbe de cœurs : on crédite alors
-            // les MochyHearts (voir `awardHearts`).
+            // Une gerbe de cœurs crédite les MochyHearts (voir `awardHearts`).
             onLove: () => petRef.current(),
           },
           { species },
@@ -314,27 +310,6 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
             <Tag className="h-4 w-4 text-amber-300" aria-hidden />
             <span className="text-xs font-semibold">Vendre</span>
           </motion.button>
-
-          <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.15, ease: 'easeOut' }}
-            className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 backdrop-blur-md"
-            aria-label={`Niveau de bonheur : ${Math.round(happiness * 100)}%`}
-          >
-            <Heart
-              className={`h-4 w-4 transition-colors duration-300 ${
-                happiness > 0.66 ? 'fill-rose-400 text-rose-400' : 'text-white/40'
-              }`}
-              aria-hidden
-            />
-            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/10 sm:w-24">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-rose-400 to-pink-300 transition-[width] duration-200"
-                style={{ width: `${happiness * 100}%` }}
-              />
-            </div>
-          </motion.div>
         </div>
       </header>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ChevronDown, Store } from 'lucide-react';
@@ -17,9 +17,15 @@ import {
   rarityName,
   isDefaultMutation,
   MutationBook,
+  MUTATION_VARIANT_COUNT,
 } from '@/lib/plush/mutations';
 import { loadUnlocked, isUnlocked } from '@/lib/plush/unlock';
-import { getEquippedPreset } from '@/lib/plush/lootbox';
+import { getEquippedPreset, PLUSH_POOL, loadPersist } from '@/lib/plush/lootbox';
+import {
+  fetchRemoteOwned,
+  isUnauthorized,
+  ownedStackKey,
+} from '@/lib/plush/lootbox-remote';
 
 type View = { type: 'collection' } | { type: 'species'; id: string };
 
@@ -27,6 +33,7 @@ export default function PlushWorld() {
   const [view, setView] = useState<View>({ type: 'collection' });
   const [muts, setMuts] = useState<MutationBook | null>(null);
   const [unlocked, setUnlocked] = useState<string[]>([]);
+  const [ownedCardCount, setOwnedCardCount] = useState<number | null>(null);
   const [equippedSpeciesId, setEquippedSpeciesId] = useState<string | null>(null);
   const [selectedByShape, setSelectedByShape] = useState<Record<string, string>>({});
   const prevEquippedRef = useRef<string | null>(null);
@@ -51,6 +58,27 @@ export default function PlushWorld() {
     return () => cancelAnimationFrame(raf);
   }, [view]);
 
+  const refreshOwnedCardCount = useCallback(async () => {
+    const localOwned = loadPersist().owned;
+    setOwnedCardCount(new Set(localOwned.map(ownedStackKey)).size);
+
+    try {
+      const remoteOwned = await fetchRemoteOwned();
+      setOwnedCardCount(new Set(remoteOwned.map(ownedStackKey)).size);
+    } catch (error) {
+      if (!isUnauthorized(error)) {
+        console.error('Chargement du compteur de cartes :', error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      void refreshOwnedCardCount();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [refreshOwnedCardCount, view]);
+
   const viewKey =
     view.type === 'species' ? `species-${view.id}` : 'collection';
 
@@ -72,6 +100,7 @@ export default function PlushWorld() {
           <CollectionView
             muts={muts}
             unlocked={unlocked}
+            ownedCardCount={ownedCardCount}
             equippedSpeciesId={equippedSpeciesId}
             selectedByShape={selectedByShape}
             onSelectVariant={selectVariant}
@@ -188,6 +217,7 @@ function SpeciesView({
 function CollectionView({
   muts,
   unlocked,
+  ownedCardCount,
   equippedSpeciesId,
   selectedByShape,
   onSelectVariant,
@@ -195,6 +225,7 @@ function CollectionView({
 }: {
   muts: MutationBook | null;
   unlocked: string[];
+  ownedCardCount: number | null;
   equippedSpeciesId: string | null;
   selectedByShape: Record<string, string>;
   onSelectVariant: (shape: string, speciesId: string) => void;
@@ -202,8 +233,9 @@ function CollectionView({
 }) {
   const [expandedShape, setExpandedShape] = useState<string | null>(null);
   const collection = SPECIES.filter((sp) => isUnlocked(sp.id, unlocked));
-  const ownedCards = new Set(collection.map((sp) => sp.id)).size;
-  const totalCards = new Set(SPECIES.map((sp) => sp.id)).size;
+  const totalCards =
+    new Set(PLUSH_POOL.flat().map((card) => card.id)).size *
+    MUTATION_VARIANT_COUNT;
   // Une carte par famille de forme 3D (Ours, Renard…). La carte affiche la
   // variante sélectionnée et un clic déplie les variantes possédées.
   const families = useMemo(() => {
@@ -247,7 +279,7 @@ function CollectionView({
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/50">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-              {ownedCards}/{totalCards} cartes différentes
+              {ownedCardCount ?? '…'}/{totalCards.toLocaleString('fr-FR')} cartes différentes
             </span>
           </div>
         </header>
