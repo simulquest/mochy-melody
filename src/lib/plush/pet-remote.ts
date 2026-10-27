@@ -46,6 +46,28 @@ export async function remotePetAward(speciesId: string, rarityIdx: number): Prom
   };
 }
 
+export interface HeartConversion {
+  convertedHearts: number;
+  coins: number;
+  hearts: number;
+}
+
+/** POST /api/pet/convert — convertit chaque tranche complète de 100 cœurs. */
+export async function convertRemoteHearts(): Promise<HeartConversion> {
+  const res = await fetch('/api/pet/convert', {
+    method: 'POST',
+    cache: 'no-store',
+  });
+  if (res.status === 401) throw unauthorized();
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `Erreur ${res.status}`);
+  return {
+    convertedHearts: Number(json.convertedHearts) || 0,
+    coins: Number(json.coins) || 0,
+    hearts: Number(json.hearts) || 0,
+  };
+}
+
 /** Résultat d'une caresse en mode local (hors connexion). */
 export function localPetAward(speciesId: string, rarityIdx: number): PetAward {
   return awardPetLocal(speciesId, rarityIdx);
@@ -63,5 +85,5 @@ function unauthorized(): Error {
 }
 
 export function isUnauthorized(err: unknown): boolean {
-  return !!(err as { unauthorized?: boolean })?.unauthorized;
+  return !!(err as { unauthorized?: boolean } | null)?.unauthorized;
 }

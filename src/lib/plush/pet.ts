@@ -19,6 +19,8 @@ import { RARITIES } from './lootbox';
 export const PET_MAX_CHARGES = 3;
 /** Fenêtre de recharge des caresses : 3 h. */
 export const PET_WINDOW_MS = 3 * 60 * 60 * 1000;
+/** Taux de conversion entre MochyHearts et MochyCoins. */
+export const HEARTS_PER_COIN = 100;
 /** Clé de stockage local (repli hors connexion). */
 export const PET_STORAGE_KEY = 'pv-mochyhearts-v1';
 

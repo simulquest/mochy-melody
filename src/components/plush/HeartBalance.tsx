@@ -13,6 +13,8 @@ interface HeartBalanceProps {
   hearts: number | null;
   /** Caresses restantes pour l'espèce affichée. */
   charges?: PetCharges | null;
+  /** Masque le compteur de caresses hors de la vue d'une espèce. */
+  showCharges?: boolean;
   className?: string;
 }
 
@@ -20,7 +22,12 @@ interface HeartBalanceProps {
  * Solde de MochyHearts + caresses restantes pour l'espèce courante (3 / 3 h).
  * Le décompte se rafraîchit toutes les 30 s quand la fenêtre est épuisée.
  */
-export default function HeartBalance({ hearts, charges, className = '' }: HeartBalanceProps) {
+export default function HeartBalance({
+  hearts,
+  charges,
+  showCharges = true,
+  className = '',
+}: HeartBalanceProps) {
   const [, setTick] = useState(0);
   const used = charges?.used ?? 0;
   const exhausted = used >= PET_MAX_CHARGES;
@@ -36,9 +43,11 @@ export default function HeartBalance({ hearts, charges, className = '' }: HeartB
   if (hearts === null) return null;
 
   const left = Math.max(0, PET_MAX_CHARGES - used);
-  const label = exhausted
-    ? `${hearts} MochyHearts — plus de caresses, retour dans ${formatWindow(remaining)}`
-    : `${hearts} MochyHearts — ${left} caresse${left > 1 ? 's' : ''} restante${left > 1 ? 's' : ''}`;
+  const label = !showCharges
+    ? `${hearts} MochyHearts`
+    : exhausted
+      ? `${hearts} MochyHearts — plus de caresses, retour dans ${formatWindow(remaining)}`
+      : `${hearts} MochyHearts — ${left} caresse${left > 1 ? 's' : ''} restante${left > 1 ? 's' : ''}`;
 
   return (
     <span
@@ -49,16 +58,20 @@ export default function HeartBalance({ hearts, charges, className = '' }: HeartB
     >
       <Heart className="h-4 w-4 fill-rose-400 text-rose-400" aria-hidden />
       {hearts}
-      <span
-        className={`text-[11px] font-semibold ${exhausted ? 'text-amber-200/80' : 'text-white/45'}`}
-        aria-hidden
-      >
-        {used}/{PET_MAX_CHARGES}
-      </span>
-      {exhausted && (
-        <span className="hidden text-[11px] font-semibold text-white/45 sm:inline" aria-hidden>
-          {formatWindow(remaining)}
-        </span>
+      {showCharges && (
+        <>
+          <span
+            className={`text-[11px] font-semibold ${exhausted ? 'text-amber-200/80' : 'text-white/45'}`}
+            aria-hidden
+          >
+            {used}/{PET_MAX_CHARGES}
+          </span>
+          {exhausted && (
+            <span className="hidden text-[11px] font-semibold text-white/45 sm:inline" aria-hidden>
+              {formatWindow(remaining)}
+            </span>
+          )}
+        </>
       )}
     </span>
   );

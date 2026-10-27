@@ -29,7 +29,11 @@ export default function CoinBalance({ className = '', showLabel = true }: CoinBa
     // sur l'onglet.
     const onFocus = () => load();
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    window.addEventListener('plushverse:coins-updated', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('plushverse:coins-updated', onFocus);
+    };
   }, [load]);
 
   if (coins === null) return null;

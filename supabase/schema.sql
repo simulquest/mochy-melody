@@ -292,6 +292,50 @@ begin
 end;
 $$;
 
+-- Convertir atomiquement chaque tranche complète de 100 MochyHearts en 1 MochyCoin.
+create or replace function public.pet_convert_hearts(p_user_id text)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_hearts          bigint;
+  v_coins           bigint;
+  v_converted_hearts bigint;
+begin
+  if p_user_id is null or length(trim(p_user_id)) = 0 then
+    raise exception 'user_id manquant';
+  end if;
+
+  perform public.market_ensure_profile(p_user_id);
+
+  select hearts into v_hearts
+    from public.profiles
+   where user_id = p_user_id
+     for update;
+
+  v_coins := v_hearts / 100;
+  v_converted_hearts := v_coins * 100;
+
+  if v_coins > 0 then
+    update public.profiles
+       set hearts = hearts - v_converted_hearts,
+           coins = coins + v_coins,
+           updated_at = now()
+     where user_id = p_user_id
+     returning hearts into v_hearts;
+  end if;
+
+  return jsonb_build_object(
+    'converted_hearts', v_converted_hearts,
+    'coins', v_coins,
+    'hearts', v_hearts
+  );
+end;
+$$;
+
+revoke all on function public.pet_convert_hearts(text) from public, anon, authenticated;
+grant execute on function public.pet_convert_hearts(text) to service_role;
+
 -- Créditer une carte (gain lootbox / restitution). Upsert de la pile.
 create or replace function public.market_grant_card(p_item jsonb)
 returns void

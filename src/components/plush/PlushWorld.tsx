@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Dna, Trophy, ChevronDown, Store } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Store } from 'lucide-react';
 import PlushExperience from '@/components/plush/PlushExperience';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import CoinBalance from '@/components/plush/CoinBalance';
+import MochyWallet from '@/components/plush/MochyWallet';
 import { SPECIES, PlushSpecies, getSpecies, getShapeLabel } from '@/lib/plush/species';
 import {
   PlushMutation,
@@ -201,12 +202,8 @@ function CollectionView({
 }) {
   const [expandedShape, setExpandedShape] = useState<string | null>(null);
   const collection = SPECIES.filter((sp) => isUnlocked(sp.id, unlocked));
-  const mutated = collection.filter((sp) => {
-    const m = muts?.[sp.id];
-    return m && !isDefaultMutation(m);
-  });
-  const mythiques = mutated.filter((sp) => mutationRarity(muts![sp.id]) === 'mythique').length;
-
+  const ownedCards = new Set(collection.map((sp) => sp.id)).size;
+  const totalCards = new Set(SPECIES.map((sp) => sp.id)).size;
   // Une carte par famille de forme 3D (Ours, Renard…). La carte affiche la
   // variante sélectionnée et un clic déplie les variantes possédées.
   const families = useMemo(() => {
@@ -238,6 +235,7 @@ function CollectionView({
             </h1>
             <div className="flex shrink-0 items-center gap-2">
               <CoinBalance />
+              <MochyWallet />
               <Link
                 href="/market"
                 className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80 transition-all hover:bg-white/10 hover:text-white active:scale-95"
@@ -249,12 +247,7 @@ function CollectionView({
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/50">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-              <Dna className="h-3.5 w-3.5 text-fuchsia-300" aria-hidden />
-              {mutated.length}/{SPECIES.length} espèces mutées
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-              <Trophy className="h-3.5 w-3.5 text-amber-300" aria-hidden />
-              {mythiques} mythique{mythiques > 1 ? 's' : ''}
+              {ownedCards}/{totalCards} cartes différentes
             </span>
           </div>
         </header>
