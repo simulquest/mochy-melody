@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ChevronDown, Store } from 'lucide-react';
 import PlushExperience from '@/components/plush/PlushExperience';
@@ -9,6 +10,7 @@ import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import CoinBalance from '@/components/plush/CoinBalance';
 import MochyWallet from '@/components/plush/MochyWallet';
 import GameTutorial from '@/components/plush/GameTutorial';
+import Lootbox from '@/components/plush/Lootbox';
 import { SPECIES, PlushSpecies, getSpecies, getShapeLabel } from '@/lib/plush/species';
 import {
   PlushMutation,
@@ -19,7 +21,7 @@ import {
   MUTATION_VARIANT_COUNT,
 } from '@/lib/plush/mutations';
 import { isUnlocked, STARTER_SPECIES } from '@/lib/plush/unlock';
-import { getEquippedPreset, PLUSH_POOL } from '@/lib/plush/lootbox';
+import { getEquippedPreset, PLUSH_POOL, type OwnedPlush } from '@/lib/plush/lootbox';
 import {
   fetchRemoteOwned,
   ownedStackKey,
@@ -28,6 +30,7 @@ import {
 type View = { type: 'collection' } | { type: 'species'; id: string };
 
 export default function PlushWorld() {
+  const router = useRouter();
   const [view, setView] = useState<View>({ type: 'collection' });
   const [muts, setMuts] = useState<Record<string, PlushMutation> | null>(null);
   const [unlocked, setUnlocked] = useState<string[]>([]);
@@ -35,6 +38,7 @@ export default function PlushWorld() {
   const [equippedSpeciesId, setEquippedSpeciesId] = useState<string | null>(null);
   const [selectedByShape, setSelectedByShape] = useState<Record<string, string>>({});
   const prevEquippedRef = useRef<string | null>(null);
+  const unlockedRef = useRef<string[]>([]);
 
   useEffect(() => {
     try {
@@ -70,22 +74,27 @@ export default function PlushWorld() {
     return () => cancelAnimationFrame(raf);
   }, [view]);
 
+  const updateOwnedCards = useCallback((remoteOwned: OwnedPlush[]) => {
+    setOwnedCardCount(new Set(remoteOwned.map(ownedStackKey)).size);
+    const speciesIds = Array.from(new Set(remoteOwned.map((card) => card.speciesId)));
+    unlockedRef.current = speciesIds;
+    setUnlocked(speciesIds);
+    const mutations: Record<string, PlushMutation> = {};
+    for (const card of remoteOwned) {
+      if (card.mutation && !mutations[card.speciesId]) {
+        mutations[card.speciesId] = card.mutation;
+      }
+    }
+    setMuts(mutations);
+  }, []);
+
   const refreshOwnedCardCount = useCallback(async () => {
     try {
-      const remoteOwned = await fetchRemoteOwned();
-      setOwnedCardCount(new Set(remoteOwned.map(ownedStackKey)).size);
-      setUnlocked(Array.from(new Set(remoteOwned.map((card) => card.speciesId))));
-      const mutations: Record<string, PlushMutation> = {};
-      for (const card of remoteOwned) {
-        if (card.mutation && !mutations[card.speciesId]) {
-          mutations[card.speciesId] = card.mutation;
-        }
-      }
-      setMuts(mutations);
+      updateOwnedCards(await fetchRemoteOwned());
     } catch (error) {
       console.error('Chargement de la collection :', error);
     }
-  }, []);
+  }, [updateOwnedCards]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -100,6 +109,15 @@ export default function PlushWorld() {
   const selectVariant = (shape: string, speciesId: string) => {
     setSelectedByShape((prev) => ({ ...prev, [shape]: speciesId }));
   };
+
+  const openFirstOwnedPlush = useCallback(() => {
+    const firstUnlocked = SPECIES.find((sp) => isUnlocked(sp.id, unlockedRef.current));
+    if (firstUnlocked) setView({ type: 'species', id: firstUnlocked.id });
+  }, []);
+
+  const navigateToMarket = useCallback(() => {
+    router.push('/market?tutorial=market');
+  }, [router]);
 
   return (
     <>
@@ -119,6 +137,7 @@ export default function PlushWorld() {
             ownedCardCount={ownedCardCount}
             equippedSpeciesId={equippedSpeciesId}
             selectedByShape={selectedByShape}
+            onInventoryChanged={updateOwnedCards}
             onSelectVariant={selectVariant}
             onOpen={(id) => setView({ type: 'species', id })}
           />
@@ -133,12 +152,8 @@ export default function PlushWorld() {
       </motion.div>
       </AnimatePresence>
       <GameTutorial
-        onOpenPlush={() => {
-          const firstUnlocked =
-            SPECIES.find((sp) => isUnlocked(sp.id, unlocked)) ??
-            getSpecies(STARTER_SPECIES);
-          setView({ type: 'species', id: firstUnlocked.id });
-        }}
+        onOpenPlush={openFirstOwnedPlush}
+        onNavigateToMarket={navigateToMarket}
       />
     </>
   );
@@ -208,7 +223,7 @@ function SpeciesView({
 }) {
   const sp = SPECIES.find((s) => s.id === id);
   if (!sp) return null;
-  if (!isUnlocked(id, unlocked) && id !== STARTER_SPECIES) {
+  if (!isUnlocked(id, unlocked)) {
     return (
       <div className="h-full overflow-y-auto overscroll-contain bg-[#070609]">
         <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:pt-20 text-center">
@@ -245,6 +260,7 @@ function CollectionView({
   ownedCardCount,
   equippedSpeciesId,
   selectedByShape,
+  onInventoryChanged,
   onSelectVariant,
   onOpen,
 }: {
@@ -253,6 +269,7 @@ function CollectionView({
   ownedCardCount: number | null;
   equippedSpeciesId: string | null;
   selectedByShape: Record<string, string>;
+  onInventoryChanged: (owned: OwnedPlush[]) => void;
   onSelectVariant: (shape: string, speciesId: string) => void;
   onOpen: (id: string) => void;
 }) {
@@ -320,15 +337,16 @@ function CollectionView({
             >
               <h2 className="text-xl font-bold text-white">Votre collection commence ici</h2>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/55">
-                La peluche Chat reste disponible pour découvrir le jeu, mais elle ne compte pas comme carte possédée. Ouvrez un coffre pour obtenir votre première carte.
+                Ouvrez un coffre de bienvenue pour découvrir votre premier mochy et commencer votre collection.
               </p>
-              <button
-                type="button"
-                onClick={() => onOpen(STARTER_SPECIES)}
-                className="mt-5 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-fuchsia-950/30 transition-transform hover:scale-[1.03]"
-              >
-                Découvrir la peluche de départ
-              </button>
+              <Lootbox
+                speciesId={STARTER_SPECIES}
+                equippedId={null}
+                onEquip={() => {}}
+                onCelebrate={() => {}}
+                onInventoryChanged={onInventoryChanged}
+                embedded
+              />
             </section>
           ) : families.map(({ shape, label, variants, selected }) => {
             const expanded = expandedShape === shape;

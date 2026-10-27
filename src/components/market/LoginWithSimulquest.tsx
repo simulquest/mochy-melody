@@ -14,7 +14,7 @@ interface LoginWithSimulquestProps {
  * Simulquest puis revient via le callback OAuth.
  */
 export default function LoginWithSimulquest({
-  redirect = '/market',
+  redirect = '/',
   className = '',
   label = 'S’inscrire / se connecter avec Simulquest',
 }: LoginWithSimulquestProps) {

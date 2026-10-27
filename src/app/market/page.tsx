@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation';
 import Marketplace from '@/components/market/Marketplace';
 import LoginWithSimulquest from '@/components/market/LoginWithSimulquest';
 import Link from 'next/link';
@@ -12,10 +11,10 @@ export const metadata = {
 export default async function MarketPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sell?: string }>;
+  searchParams: Promise<{ sell?: string; tutorial?: string }>;
 }) {
   const session = await getSession();
-  const { sell } = await searchParams;
+  const { sell, tutorial } = await searchParams;
 
   if (!session) {
     return (
@@ -32,11 +31,11 @@ export default async function MarketPage({
             des peluches.
           </p>
           <div className="mt-7">
-            <LoginWithSimulquest redirect="/market" />
+            <LoginWithSimulquest redirect="/" />
           </div>
           <div className="mt-6">
             <Link
-              href="/login?redirect=%2Fmarket"
+              href="/login?redirect=%2F"
               className="text-xs text-white/40 transition-colors hover:text-white/70"
             >
               Plus d&apos;options de connexion
@@ -47,5 +46,6 @@ export default async function MarketPage({
     );
   }
 
-  return <Marketplace initialSellId={sell ?? null} />;
+  const tutorialStep = tutorial === 'market' ? 6 : undefined;
+  return <Marketplace initialSellId={sell ?? null} tutorialStep={tutorialStep} />;
 }

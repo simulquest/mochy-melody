@@ -18,6 +18,7 @@ import ListingCard from '@/components/market/ListingCard';
 import SellDialog from '@/components/market/SellDialog';
 import BidDialog from '@/components/market/BidDialog';
 import CardPriceChart from '@/components/market/CardPriceChart';
+import GameTutorial from '@/components/plush/GameTutorial';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import { getSpecies, SPECIES } from '@/lib/plush/species';
 import { RARITIES } from '@/lib/plush/lootbox';
@@ -38,9 +39,10 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ classNam
 
 interface MarketplaceProps {
   initialSellId?: string | null;
+  tutorialStep?: number;
 }
 
-export default function Marketplace({ initialSellId }: MarketplaceProps) {
+export default function Marketplace({ initialSellId, tutorialStep }: MarketplaceProps) {
   const { data: me, loading, reload: reloadMe } = useMe();
   // Pré-sélection d'une vente via ?sell=<inventoryId> ou ?sell=species:<id>.
   // L'onglet par défaut est « Mes ventes » : c'est là que se vend une carte.
@@ -52,6 +54,11 @@ export default function Marketplace({ initialSellId }: MarketplaceProps) {
   const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(null);
   // Incrémenté après chaque action pour recharger la liste des enchères.
   const [tick, setTick] = useState(0);
+
+  const handleTutorialStep = useCallback((stepIndex: number) => {
+    if (stepIndex === 6) setTab('mine');
+    if (stepIndex === 7) setTab('sales');
+  }, []);
 
   // Toast auto-disparition
   useEffect(() => {
@@ -163,6 +170,13 @@ export default function Marketplace({ initialSellId }: MarketplaceProps) {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
+                data-tutorial={
+                  t.id === 'mine'
+                    ? 'market-sell'
+                    : t.id === 'sales'
+                      ? 'market-sales'
+                      : undefined
+                }
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                   active
                     ? 'bg-fuchsia-500/20 text-fuchsia-100'
@@ -249,6 +263,12 @@ export default function Marketplace({ initialSellId }: MarketplaceProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      {tutorialStep !== undefined && (
+        <GameTutorial
+          initialStep={tutorialStep}
+          onStepChange={handleTutorialStep}
+        />
+      )}
 
       {/* Toast */}
       <AnimatePresence>

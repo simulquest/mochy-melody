@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, Backpack, Sparkles, X, Check, Clock, ChevronDown } from 'lucide-react';
 import { PlushPreset } from '@/lib/plush/plush-shape';
@@ -89,9 +90,19 @@ interface LootboxProps {
   onEquip: (preset: PlushPreset, id: string, mutation: PlushMutation | null) => void;
   onCelebrate: () => void;
   onPauseMain?: (paused: boolean) => void;
+  onInventoryChanged?: (owned: OwnedPlush[]) => void;
+  embedded?: boolean;
 }
 
-export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, onPauseMain }: LootboxProps) {
+export default function Lootbox({
+  speciesId,
+  equippedId,
+  onEquip,
+  onCelebrate,
+  onPauseMain,
+  onInventoryChanged,
+  embedded = false,
+}: LootboxProps) {
   const [persist, setPersist] = useState<LootboxPersist | null>(null);
   const [mounted, setMounted] = useState(false);
   const [reveal, setReveal] = useState<OwnedPlush | null>(null);
@@ -272,9 +283,10 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
       // accepté pendant le rafraîchissement de l'inventaire.
       setScenePhase('opening');
       fetchRemoteOwned()
-        .then((owned) =>
-          setPersist(serverStateToPersist(serverBox, owned, equippedKeyRef.current)),
-        )
+        .then((owned) => {
+          setPersist(serverStateToPersist(serverBox, owned, equippedKeyRef.current));
+          onInventoryChanged?.(owned);
+        })
         .catch(() => {
           setLoadError('La carte a été gagnée, mais la collection n’a pas pu être actualisée.');
         });
@@ -284,7 +296,7 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
     // progress
     setSceneBox((sb) => ({ ...sb, progress: serverBox.progress }));
     vibrate(12);
-  }, []);
+  }, [onInventoryChanged]);
 
   /** Un coup sur le coffre 3D. */
   const handleBoxClick = useCallback(() => {
@@ -411,7 +423,13 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
     <>
       {/* ---------- Boutons flottants ---------- */}
       {mounted && (
-        <div className="absolute bottom-[7.75rem] right-4 z-30 flex flex-col items-center gap-2.5 sm:bottom-7 sm:right-6">
+        <div
+          className={
+            embedded
+              ? 'mt-5 flex flex-col items-center gap-2.5'
+              : 'absolute bottom-[7.75rem] right-4 z-30 flex flex-col items-center gap-2.5 sm:bottom-7 sm:right-6'
+          }
+        >
           {loadError && (
             <p
               role="status"
@@ -421,7 +439,7 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
             </p>
           )}
           {/* Collection */}
-          <motion.button
+          {!embedded && <motion.button
             initial={{ opacity: 0, scale: 0.6 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.5, type: 'spring', stiffness: 260, damping: 18 }}
@@ -440,10 +458,10 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
                 {ownedForShape.length}
               </span>
             )}
-          </motion.button>
+          </motion.button>}
 
           {/* Caisse — ouvre la lootbox 3D */}
-          <div className="flex flex-col items-center gap-1.5">
+          <div className={embedded ? 'flex w-full justify-center' : 'flex flex-col items-center gap-1.5'}>
             <motion.button
               initial={{ opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -461,7 +479,9 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
                   ? `Lootbox en recharge — prochain coffre dans ${formatCooldown(remaining)}.`
                   : `Ouvrir la lootbox 3D — caisse ${rarity.name}, progression ${progress} sur ${rarity.clicks}. Coffres dispo : ${chestsAvailable}/${MAX_CHESTS}.`
               }
-              className="relative flex h-16 w-16 items-center justify-center rounded-2xl border bg-white/[0.07] backdrop-blur-xl"
+              className={embedded
+                ? 'relative flex min-h-14 items-center justify-center gap-3 rounded-full border bg-white/[0.07] px-5 py-2.5 text-sm font-bold text-white backdrop-blur-xl'
+                : 'relative flex h-16 w-16 items-center justify-center rounded-2xl border bg-white/[0.07] backdrop-blur-xl'}
               style={{
                 borderColor: locked ? 'rgba(255,255,255,0.14)' : `${rarity.color}66`,
                 boxShadow: locked
@@ -470,31 +490,42 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
               }}
             >
               {/* anneau de progression */}
-              <svg className="absolute -left-[3px] -top-[3px] h-[70px] w-[70px]" aria-hidden>
-                <circle cx="35" cy="35" r="26" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
-                <circle
-                  cx="35" cy="35" r="26" fill="none"
-                  stroke={locked ? '#fbbf24' : rarity.color}
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeDasharray={C}
-                  strokeDashoffset={C * (1 - ringRatio)}
-                  transform="rotate(-90 35 35)"
-                  style={{ transition: 'stroke-dashoffset 0.25s ease, stroke 0.4s ease' }}
-                />
-              </svg>
-              {locked ? (
-                <Clock className="h-7 w-7 text-amber-200/85" aria-hidden />
-              ) : (
-                <>
-                  <Gift className="h-7 w-7" style={{ color: rarity.color }} aria-hidden />
-                  {chestsAvailable > 1 && (
-                    <span className="absolute -right-1 -top-1 flex h-5 min-w-[16px] items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-bold text-black">
-                      {chestsAvailable}
-                    </span>
-                  )}
-                </>
-              )}
+              <span className={embedded
+                ? 'relative flex h-9 w-9 shrink-0 items-center justify-center'
+                : 'pointer-events-none absolute inset-0 flex items-center justify-center'}>
+                <svg
+                  className={embedded
+                    ? 'absolute -left-[3px] -top-[3px] h-[42px] w-[42px]'
+                    : 'absolute -left-[3px] -top-[3px] h-[70px] w-[70px]'}
+                  viewBox="0 0 70 70"
+                  aria-hidden
+                >
+                  <circle cx="35" cy="35" r="26" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
+                  <circle
+                    cx="35" cy="35" r="26" fill="none"
+                    stroke={locked ? '#fbbf24' : rarity.color}
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray={C}
+                    strokeDashoffset={C * (1 - ringRatio)}
+                    transform="rotate(-90 35 35)"
+                    style={{ transition: 'stroke-dashoffset 0.25s ease, stroke 0.4s ease' }}
+                  />
+                </svg>
+                {locked ? (
+                  <Clock className="h-5 w-5 text-amber-200/85" aria-hidden />
+                ) : (
+                  <>
+                    <Gift className={embedded ? 'h-5 w-5' : 'h-7 w-7'} style={{ color: rarity.color }} aria-hidden />
+                    {chestsAvailable > 1 && (
+                      <span className="absolute -right-2 -top-1 flex h-5 min-w-[16px] items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-bold text-black">
+                        {chestsAvailable}
+                      </span>
+                    )}
+                  </>
+                )}
+              </span>
+              {embedded && <span>{locked ? `Prochain coffre dans ${formatCooldown(remaining)}` : 'Ouvrir un coffre'}</span>}
               {mythic && !locked && (
                 <span
                   className="pointer-events-none absolute inset-0 rounded-2xl animate-pulse"
@@ -509,7 +540,8 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
       {/* ---------- Scène 3D : la véritable lootbox ---------- */}
       <AnimatePresence>
         {sceneOpen && persist && (
-          <LootboxScene
+          embedded && typeof document !== 'undefined'
+            ? createPortal(<LootboxScene
             rarityIdx={sceneBox.rarityIdx}
             progress={sceneBox.progress}
             phase={scenePhase}
@@ -521,7 +553,20 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
             onClick={handleBoxClick}
             onOpenComplete={handleOpenComplete}
             onClose={closeScene}
-          />
+          />, document.body)
+            : <LootboxScene
+                rarityIdx={sceneBox.rarityIdx}
+                progress={sceneBox.progress}
+                phase={scenePhase}
+                won={wonPlush}
+                flash={flash}
+                chestsAvailable={chestsAvailable}
+                nextRefillAt={nextRefillAt}
+                onFlashDone={() => setFlash(null)}
+                onClick={handleBoxClick}
+                onOpenComplete={handleOpenComplete}
+                onClose={closeScene}
+              />
         )}
       </AnimatePresence>
 

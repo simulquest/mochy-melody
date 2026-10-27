@@ -2,7 +2,7 @@ const INTERNAL_ORIGIN = 'https://plushverse.invalid';
 
 export function safeInternalPath(
   value: string | null,
-  fallback = '/market',
+  fallback = '/',
 ): string {
   if (
     !value ||

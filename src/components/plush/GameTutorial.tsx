@@ -5,7 +5,10 @@ import { ArrowLeft, ArrowRight, Sparkles, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface GameTutorialProps {
-  onOpenPlush: () => void;
+  onOpenPlush?: () => void;
+  onNavigateToMarket?: () => void;
+  initialStep?: number;
+  onStepChange?: (stepIndex: number) => void;
 }
 
 interface TutorialStep {
@@ -14,19 +17,20 @@ interface TutorialStep {
   target: string;
   openPlush?: boolean;
   placement?: 'top';
+  navigateToMarket?: boolean;
 }
 
 const STEPS: TutorialStep[] = [
   {
     title: 'Votre collection',
     description:
-      'Retrouvez ici les cartes et variantes que vous avez obtenues. La carte Chat ne vous est plus attribuée au départ : ouvrez un coffre pour commencer votre collection.',
+      'Retrouvez ici les cartes et variantes que vous avez obtenues.',
     target: '[data-tutorial="collection"]',
   },
   {
     title: 'Votre progression',
     description:
-      'Ce compteur indique le nombre de cartes différentes obtenues, sans compter les exemplaires identiques.',
+      'Voici le nombre de cartes de votre collection. Il évoluera au fil des mises à jour.',
     target: '[data-tutorial="card-counter"]',
   },
   {
@@ -36,41 +40,45 @@ const STEPS: TutorialStep[] = [
     target: '[data-tutorial="wallet"]',
   },
   {
-    title: 'Caressez votre mochy',
+    title: 'Découvrez votre premier mochy',
     description:
-      'Votre premier mochy est prêt à jouer, sans être ajouté à la collection. Frottez-le avec la souris ou le doigt : sa fourrure réagit, des cœurs apparaissent et vous pouvez gagner des MochyHearts.',
-    target: '[data-tutorial="petting"]',
-    openPlush: true,
-  },
-  {
-    title: 'Ouvrez les coffres',
-    description:
-      'Frappez le coffre pour obtenir des cartes et des mutations. Les nouveaux comptes commencent avec 5 coffres.',
+      'Vous commencez avec cinq coffres. Ouvrez-en un pour découvrir votre premier mochy et l’ajouter à votre collection.',
     target: '[data-tutorial="lootbox"]',
     placement: 'top',
   },
   {
+    title: 'Caressez votre mochy',
+    description:
+      'Caressez votre mochy avec la souris ou le doigt : sa fourrure réagit, des cœurs apparaissent et vous pouvez gagner des MochyHearts.',
+    target: '[data-tutorial="petting"]',
+    openPlush: true,
+  },
+  {
     title: 'Découvrez le marché',
     description:
-      'Le bouton Marché ouvre l’espace d’échange. Vous y trouverez vos ventes, les enchères des joueurs et le cours des cartes.',
+      'Vous allez être redirigé vers le marché pour continuer la visite guidée.',
     target: '[data-tutorial="market"]',
+    navigateToMarket: true,
   },
   {
     title: 'Vendez vos cartes',
     description:
       'Dans « Mes ventes », choisissez une carte de votre inventaire, fixez son prix de départ et sa durée, puis suivez vos enchères en cours.',
-    target: '[data-tutorial="market"]',
+    target: '[data-tutorial="market-sell"]',
   },
   {
     title: 'Enchérissez et suivez les cours',
     description:
       'Dans « Toutes les ventes », filtrez par espèce ou rareté et enchérissez sur les cartes. « Cours des cartes » vous aide à comparer les prix.',
-    target: '[data-tutorial="market"]',
+    target: '[data-tutorial="market-sales"]',
   },
 ];
 
 export default function GameTutorial({
   onOpenPlush,
+  onNavigateToMarket,
+  initialStep = 0,
+  onStepChange,
 }: GameTutorialProps) {
   const [stepIndex, setStepIndex] = useState<number | null>(null);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -86,7 +94,7 @@ export default function GameTutorial({
         return (await response.json()) as { completed: boolean };
       })
       .then((result) => {
-        if (active && result && !result.completed) setStepIndex(0);
+        if (active && result && !result.completed) setStepIndex(initialStep);
       })
       .catch((cause: unknown) => {
         console.error('Chargement du tutoriel :', cause);
@@ -95,9 +103,21 @@ export default function GameTutorial({
     return () => {
       active = false;
     };
-  }, []);
+  }, [initialStep]);
 
   const step = stepIndex === null ? null : STEPS[stepIndex];
+
+  useEffect(() => {
+    if (stepIndex === null) return;
+    onStepChange?.(stepIndex);
+    if (step?.openPlush) onOpenPlush?.();
+  }, [stepIndex, step, onOpenPlush, onStepChange]);
+
+  useEffect(() => {
+    if (stepIndex === null || !STEPS[stepIndex]?.navigateToMarket || !onNavigateToMarket) return;
+    const timer = setTimeout(onNavigateToMarket, 1200);
+    return () => clearTimeout(timer);
+  }, [stepIndex, onNavigateToMarket]);
 
   useEffect(() => {
     if (!step?.target) return;
@@ -134,7 +154,7 @@ export default function GameTutorial({
 
   const advance = async () => {
     setError(null);
-    if (step.openPlush) onOpenPlush();
+    if (step.navigateToMarket && onNavigateToMarket) return;
     if (stepIndex < STEPS.length - 1) {
       setStepIndex(stepIndex + 1);
       return;
@@ -183,7 +203,7 @@ export default function GameTutorial({
   return (
     <>
       <div
-        className="fixed inset-0 z-[100] bg-black/75"
+        className="pointer-events-none fixed inset-0 z-[100] bg-black/75"
         style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
         aria-hidden
       />
@@ -235,7 +255,7 @@ export default function GameTutorial({
           <button
             type="button"
             onClick={finish}
-            disabled={saving}
+            disabled={saving || step.navigateToMarket}
             className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold text-white/45 transition-colors hover:text-white/80 disabled:opacity-50"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
@@ -246,7 +266,7 @@ export default function GameTutorial({
               <button
                 type="button"
                   onClick={() => setStepIndex(stepIndex - 1)}
-                disabled={saving}
+                disabled={saving || step.navigateToMarket}
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-semibold text-white/75 transition-colors hover:bg-white/10 disabled:opacity-50"
               >
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
@@ -256,10 +276,10 @@ export default function GameTutorial({
             <button
               type="button"
               onClick={advance}
-              disabled={saving}
+              disabled={saving || step.navigateToMarket}
               className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-fuchsia-950/30 transition-transform hover:scale-[1.03] disabled:opacity-50"
             >
-              {stepIndex === STEPS.length - 1 ? 'Terminer' : 'Suivant'}
+              {step.navigateToMarket ? 'Redirection…' : stepIndex === STEPS.length - 1 ? 'Terminer' : 'Suivant'}
               {stepIndex < STEPS.length - 1 && <ArrowRight className="h-3.5 w-3.5" aria-hidden />}
             </button>
           </div>
