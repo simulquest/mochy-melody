@@ -270,7 +270,7 @@ function CollectionView({
                 key={shape}
                 className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.05]"
               >
-                <div className="flex items-center gap-3 p-4 sm:gap-4">
+                <div className="relative flex items-center gap-3 p-4 sm:gap-4">
                   <button
                     onClick={() => {
                       if (canExpand) setExpandedShape(expanded ? null : shape);
@@ -288,15 +288,6 @@ function CollectionView({
                           {variants.length} variante{variants.length > 1 ? 's' : ''}
                         </span>
                         <RarityBadge mut={m} />
-                        {canExpand && (
-                          <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-fuchsia-300/80">
-                            {expanded ? 'Masquer' : 'Voir les variantes'}
-                            <ChevronDown
-                              className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`}
-                              aria-hidden
-                            />
-                          </span>
-                        )}
                       </div>
                       <p className="mt-1.5 text-xs leading-relaxed text-white/55">
                         Sélection : <span className="font-semibold text-white/80">{selected.name}</span>
@@ -324,6 +315,23 @@ function CollectionView({
                   >
                     Ouvrir
                   </button>
+
+                  {/* Dépliage des variantes — en bas à droite de la carte */}
+                  {canExpand && (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedShape(expanded ? null : shape)}
+                      aria-expanded={expanded}
+                      aria-label={`${expanded ? 'Masquer' : 'Voir'} les variantes ${label}`}
+                      className="absolute bottom-4 right-4 inline-flex items-center gap-1 text-[11px] font-semibold text-fuchsia-300/80 transition-colors hover:text-fuchsia-200"
+                    >
+                      {expanded ? 'Masquer' : 'Voir les variantes'}
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      />
+                    </button>
+                  )}
                 </div>
 
                 <AnimatePresence initial={false}>
