@@ -284,9 +284,6 @@ function CollectionView({
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-base font-bold text-white">{label}</span>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-white/55">
-                          {variants.length} variante{variants.length > 1 ? 's' : ''}
-                        </span>
                         <RarityBadge mut={m} />
                       </div>
                       <p className="mt-1.5 text-xs leading-relaxed text-white/55">
@@ -315,6 +312,11 @@ function CollectionView({
                   >
                     Ouvrir
                   </button>
+
+                  {/* Nombre de variantes — en haut à droite de la carte */}
+                  <span className="absolute right-4 top-4 whitespace-nowrap text-[10px] font-medium text-white/45">
+                    {variants.length} variante{variants.length > 1 ? 's' : ''}
+                  </span>
 
                   {/* Dépliage des variantes — en bas à droite de la carte */}
                   {canExpand && (
