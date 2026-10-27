@@ -18,6 +18,7 @@ export interface Profile {
   display_name: string;
   avatar_url: string | null;
   coins: number;
+  onboarding_completed: boolean;
 }
 
 export interface InventoryItem {

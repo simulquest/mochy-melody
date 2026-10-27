@@ -208,6 +208,7 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
       {/* Canvas 3D */}
       <canvas
         ref={canvasRef}
+        data-tutorial="petting"
         className="absolute inset-0 h-full w-full touch-none"
         aria-label={`${species.name}, peluche interactive en trois dimensions. Déplacez le pointeur ou glissez le doigt pour caresser sa fourrure.`}
         role="img"
@@ -291,6 +292,7 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1, ease: 'easeOut' }}
             onClick={() => router.push('/market')}
+            data-tutorial="market"
             className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-white/80 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Ouvrir le marché des cartes"
           >

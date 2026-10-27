@@ -8,6 +8,7 @@ import PlushExperience from '@/components/plush/PlushExperience';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import CoinBalance from '@/components/plush/CoinBalance';
 import MochyWallet from '@/components/plush/MochyWallet';
+import GameTutorial from '@/components/plush/GameTutorial';
 import { SPECIES, PlushSpecies, getSpecies, getShapeLabel } from '@/lib/plush/species';
 import {
   PlushMutation,
@@ -87,7 +88,8 @@ export default function PlushWorld() {
   };
 
   return (
-    <AnimatePresence mode="wait">
+    <>
+      <AnimatePresence mode="wait">
       <motion.div
         key={viewKey}
         initial={{ opacity: 0, y: 14 }}
@@ -115,7 +117,15 @@ export default function PlushWorld() {
           />
         )}
       </motion.div>
-    </AnimatePresence>
+      </AnimatePresence>
+      <GameTutorial
+        onOpenPlush={() => {
+          const firstUnlocked = SPECIES.find((sp) => isUnlocked(sp.id, loadUnlocked()));
+          if (firstUnlocked) setView({ type: 'species', id: firstUnlocked.id });
+        }}
+        onBackToCollection={() => setView({ type: 'collection' })}
+      />
+    </>
   );
 }
 
@@ -266,10 +276,13 @@ function CollectionView({
               Ma <span className="bg-gradient-to-r from-fuchsia-400 to-pink-300 bg-clip-text text-transparent">collection</span>
             </h1>
             <div className="flex shrink-0 items-center gap-2">
-              <CoinBalance />
-              <MochyWallet />
+              <span data-tutorial="wallet" className="inline-flex items-center gap-2">
+                <CoinBalance />
+                <MochyWallet />
+              </span>
               <Link
                 href="/market"
+                data-tutorial="market"
                 className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80 transition-all hover:bg-white/10 hover:text-white active:scale-95"
               >
                 <Store className="h-3.5 w-3.5 text-amber-300" aria-hidden />
@@ -278,7 +291,7 @@ function CollectionView({
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/50">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+            <span data-tutorial="card-counter" className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
               {ownedCardCount ?? '…'}/{totalCards.toLocaleString('fr-FR')} cartes différentes
             </span>
           </div>
@@ -293,10 +306,12 @@ function CollectionView({
             return (
               <div
                 key={shape}
+                data-tutorial={shape === collection[0]?.shape ? 'collection' : undefined}
                 className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.05]"
               >
                 <div className="relative flex items-center gap-3 p-4 sm:gap-4">
                   <button
+                    data-tutorial={shape === collection[0]?.shape ? 'creature-card' : undefined}
                     onClick={() => {
                       if (canExpand) setExpandedShape(expanded ? null : shape);
                       else onOpen(selected.id);

@@ -30,7 +30,7 @@ export const RARITIES: Rarity[] = [
 ];
 
 /** Nombre max de coffres en réserve. */
-export const MAX_CHESTS = 3;
+export const MAX_CHESTS = 5;
 /** Intervalle de recharge d'un coffre : 4 min 30. */
 export const CHEST_REFILL_MS = 4 * 60_000 + 30_000;
 

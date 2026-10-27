@@ -13,6 +13,7 @@ export interface PublicProfile {
 
 export interface Profile extends PublicProfile {
   coins: number;
+  onboarding_completed: boolean;
 }
 
 export interface InventoryItem {

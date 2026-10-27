@@ -16,7 +16,7 @@
 --   prix de départ minimum   = 1
 --   durée d'enchère minimum  = 1 h   (max 30 j, anti-abus)
 --   incrément d'enchère min  = +1    (prix courant + 1)
---   coffres max              = 3, recharge 4 min 30
+--   coffres max              = 5, recharge 4 min 30
 --   caresses MochyHearts     = 3 par espèce toutes les 3 h, gain 1..5
 -- =====================================================================
 
@@ -32,6 +32,7 @@ create table if not exists public.profiles (
   coins        bigint not null default 10 check (coins >= 0),
   -- MochyHearts : monnaie gagnée en caressant (1..5 selon la rareté)
   hearts       bigint not null default 0 check (hearts >= 0),
+  onboarding_completed boolean not null default false,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
@@ -63,10 +64,19 @@ create table if not exists public.lootbox_state (
   user_id          text primary key references public.profiles(user_id) on delete cascade,
   rarity_idx       int not null default 0 check (rarity_idx between 0 and 4),
   progress         int not null default 0,
-  chests_available int not null default 1 check (chests_available between 0 and 3),
+  chests_available int not null default 5 check (chests_available between 0 and 5),
   next_refill_at   timestamptz,
   updated_at       timestamptz not null default now()
 );
+
+alter table public.profiles
+  add column if not exists onboarding_completed boolean not null default false;
+alter table public.lootbox_state
+  alter column chests_available set default 5;
+alter table public.lootbox_state
+  drop constraint if exists lootbox_state_chests_available_check;
+alter table public.lootbox_state
+  add constraint lootbox_state_chests_available_check check (chests_available between 0 and 5);
 
 -- ---------------------------------------------------------------------
 -- PLUSH_PET — caresses payantes (MochyHearts) : PAR ESPÈCE de mochy,
@@ -199,21 +209,33 @@ language plpgsql security definer set search_path = public
 as $$
 declare
   prof public.profiles;
+  v_created int;
 begin
   if p_user_id is null or length(trim(p_user_id)) = 0 then
     raise exception 'user_id manquant';
   end if;
 
-  insert into public.profiles (user_id, display_name, avatar_url)
+  insert into public.profiles (user_id, display_name, avatar_url, onboarding_completed)
   values (
     p_user_id,
     coalesce(nullif(trim(p_user_name), ''), 'Plushie'),
-    nullif(p_avatar_url, '')
+    nullif(p_avatar_url, ''),
+    false
   )
-  on conflict (user_id) do update
-    set display_name = coalesce(nullif(trim(excluded.display_name), ''), public.profiles.display_name),
-        avatar_url   = coalesce(excluded.avatar_url, public.profiles.avatar_url),
-        updated_at   = now();
+  on conflict (user_id) do nothing;
+  get diagnostics v_created = row_count;
+
+  if v_created = 0 then
+    update public.profiles
+    set display_name = coalesce(nullif(trim(p_user_name), ''), display_name),
+        avatar_url   = coalesce(nullif(p_avatar_url, ''), public.profiles.avatar_url),
+        updated_at   = now()
+    where user_id = p_user_id;
+  else
+    insert into public.lootbox_state (user_id, chests_available)
+    values (p_user_id, 5)
+    on conflict (user_id) do nothing;
+  end if;
 
   select * into prof from public.profiles where user_id = p_user_id;
   return prof;
@@ -435,8 +457,8 @@ declare
   v_next   timestamptz := p_next_refill;
   v_now    timestamptz := now();
 begin
-  if v_chests >= 3 then
-    return query select p_rarity, p_progress, 3, null::timestamptz;
+  if v_chests >= 5 then
+    return query select p_rarity, p_progress, 5, null::timestamptz;
     return;
   end if;
 
@@ -444,12 +466,12 @@ begin
     v_next := v_now + interval '4 minutes 30 seconds';
   end if;
 
-  while v_next <= v_now and v_chests < 3 loop
+  while v_next <= v_now and v_chests < 5 loop
     v_chests := v_chests + 1;
     v_next   := v_next + interval '4 minutes 30 seconds';
   end loop;
 
-  if v_chests >= 3 then
+  if v_chests >= 5 then
     v_next := null;
   end if;
 
@@ -510,7 +532,7 @@ begin
   if st.rarity_idx = 0 and st.progress = 0 and st.chests_available <= 1 then
     st.rarity_idx       := greatest(0, least(4, coalesce(p_rarity_idx, 0)));
     st.progress         := greatest(0, coalesce(p_progress, 0));
-    st.chests_available := greatest(0, least(3, coalesce(p_chests, st.chests_available)));
+    st.chests_available := greatest(0, least(5, coalesce(p_chests, st.chests_available)));
     if p_next_refill_ms is not null and p_next_refill_ms > 0 then
       st.next_refill_at := to_timestamp(p_next_refill_ms / 1000.0);
     else
@@ -635,7 +657,7 @@ begin
           progress         = 0,
           chests_available = st.chests_available - 1,
           next_refill_at   = case
-            when st.chests_available >= 3 and st.next_refill_at is null
+            when st.chests_available >= 5 and st.next_refill_at is null
               then now() + interval '4 minutes 30 seconds'
             else st.next_refill_at
           end,

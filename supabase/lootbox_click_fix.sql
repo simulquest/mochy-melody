@@ -109,7 +109,7 @@ begin
           progress         = 0,
           chests_available = st.chests_available - 1,
           next_refill_at   = case
-            when st.chests_available >= 3 and st.next_refill_at is null
+            when st.chests_available >= 5 and st.next_refill_at is null
               then now() + interval '4 minutes 30 seconds'
             else st.next_refill_at
           end,

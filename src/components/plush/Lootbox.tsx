@@ -495,6 +495,7 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
                 setSceneBox({ ...persist.box });
                 setSceneOpen(true);
               }}
+              data-tutorial="lootbox"
               aria-label={
                 locked
                   ? `Lootbox en recharge — prochain coffre dans ${formatCooldown(remaining)}.`
