@@ -7,13 +7,7 @@ import {
   oauthStateCookie,
 } from '@/lib/auth/simulquest';
 import { signSession, SESSION_COOKIE } from '@/lib/auth/session';
-
-/** N'accepte qu'un chemin interne (évite les redirections ouvertes). */
-function safeInternalPath(value: string | null): string {
-  if (!value) return '/market';
-  if (!value.startsWith('/') || value.startsWith('//')) return '/market';
-  return value;
-}
+import { safeInternalPath } from '@/lib/auth/redirect';
 
 /**
  * Redirige l'utilisateur vers la page de connexion Simul Account.

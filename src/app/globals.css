@@ -140,3 +140,15 @@ canvas {
   from { filter: hue-rotate(0deg); }
   to { filter: hue-rotate(360deg); }
 }
+
+/* Aperçus des cartes : balancement léger (le rendu 3D est copié une fois
+   dans un canvas 2D pour n'avoir qu'un seul contexte WebGL par application). */
+@keyframes plush-sway {
+  0%,
+  100% {
+    transform: rotateY(-5deg) translateY(0px);
+  }
+  50% {
+    transform: rotateY(5deg) translateY(-2px);
+  }
+}

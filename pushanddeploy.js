@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * pushanddeploy — commit + push GitHub + deploy Vercel en une seule commande.
  *

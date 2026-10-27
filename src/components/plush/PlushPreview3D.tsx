@@ -14,6 +14,41 @@ interface PlushPreview3DProps {
   size?: number;
 }
 
+/**
+ * UN SEUL contexte WebGL pour toutes les previews de l'application.
+ *
+ * Chaque carte créait son propre WebGLRenderer : dès qu'une quinzaine de
+ * cartes étaient visibles en même temps (marché, inventaire, variantes
+ * dépliées), le navigateur révoquait les plus anciens contextes → preview
+ * blanche, absente ou « pixelisée ».
+ *
+ * On rend donc UNE fois via ce renderer partagé, puis on copie l'image dans
+ * le canvas 2D de la carte : les cartes ne conservent aucun contexte WebGL,
+ * seulement une image nette (denseurs de pixels compris).
+ */
+let sharedRenderer: THREE.WebGLRenderer | null = null;
+const CONTEXT_RESTORED_EVENT = 'plush-preview-context-restored';
+
+function getSharedRenderer(): THREE.WebGLRenderer {
+  if (!sharedRenderer) {
+    const canvas = document.createElement('canvas');
+    sharedRenderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: true,
+      preserveDrawingBuffer: true,
+      powerPreference: 'high-performance',
+    });
+    canvas.addEventListener('webglcontextlost', (event) => {
+      event.preventDefault();
+    });
+    canvas.addEventListener('webglcontextrestored', () => {
+      window.dispatchEvent(new Event(CONTEXT_RESTORED_EVENT));
+    });
+  }
+  return sharedRenderer;
+}
+
 /** Aperçu 3D d'une peluche dans un petit canvas (carte de révélation /
  * collection). Affiche le vrai modèle de l'espèce, pas un dessin CSS. */
 export default function PlushPreview3D({
@@ -29,19 +64,14 @@ export default function PlushPreview3D({
     if (!canvas) return;
     const w = size;
     const h = Math.round(size * 0.88);
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
 
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      alpha: true,
-      antialias: true,
-      powerPreference: 'high-performance',
-    });
-    renderer.setSize(w, h, false);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     const scene = new THREE.Scene();
     // Lumière généreuse : même les presets sombres restent lisibles en petit.
@@ -79,34 +109,31 @@ export default function PlushPreview3D({
     camera.position.set(0, center.y, center.z + fitDist * 1.18);
     camera.lookAt(0, center.y, center.z);
 
-    let t = 0;
-    let raf = 0;
-    let running = true;
-    const start = performance.now();
-    const loop = () => {
-      if (!running) return;
-      raf = requestAnimationFrame(loop);
-      t = (performance.now() - start) / 1000;
-      // Vue de trois quarts très légère, face visible : on reconnaît la
-      // peluche obtenue (au lieu d'un dos ou d'un profil).
-      group.rotation.y = 0.08 + Math.sin(t * 1.1) * 0.1;
+    const render = () => {
+      const renderer = getSharedRenderer();
+      if (renderer.getContext().isContextLost()) return;
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(w, h, false);
       renderer.render(scene, camera);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(renderer.domElement, 0, 0, canvas.width, canvas.height);
     };
-    loop();
+    const onContextRestored = () => render();
+    window.addEventListener(CONTEXT_RESTORED_EVENT, onContextRestored);
+    render();
 
     return () => {
-      running = false;
-      cancelAnimationFrame(raf);
-      renderer.renderLists.dispose();
-      renderer.dispose();
-      scene.traverse((o: any) => {
-        if (o.geometry) o.geometry.dispose();
-        if (o.material) {
-          const m = o.material;
-          if (Array.isArray(m)) m.forEach((x: any) => x.dispose());
-          else m.dispose();
+      window.removeEventListener(CONTEXT_RESTORED_EVENT, onContextRestored);
+      scene.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        if (Array.isArray(object.material)) {
+          object.material.forEach((material) => material.dispose());
+        } else {
+          object.material.dispose();
         }
       });
+      scene.clear();
     };
   }, [species, preset, mutation, size]);
 
@@ -117,9 +144,20 @@ export default function PlushPreview3D({
         width: size,
         height: Math.round(size * 0.88),
         background: `radial-gradient(circle at 50% 46%, ${preset.glow}38 0%, ${preset.glow}12 45%, transparent 72%)`,
+        perspective: '480px',
       }}
     >
-      <canvas ref={canvasRef} className="block h-full w-full" aria-hidden />
+      <canvas
+        ref={canvasRef}
+        className="block h-full w-full"
+        style={{
+          // Le rendu est une image figée : un balancement léger lui rend son
+          // mouvement (transform GPU, aucun coût de rendu).
+          animation: 'plush-sway 5.5s ease-in-out infinite',
+          transformOrigin: '50% 62%',
+        }}
+        aria-hidden
+      />
     </div>
   );
 }

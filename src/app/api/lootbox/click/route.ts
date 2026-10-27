@@ -62,7 +62,9 @@ export async function POST(_req: NextRequest) {
     return Response.json({
       type: res.type,
       newRarityIdx: res.new_rarity_idx,
-      won: event.type === 'open' ? event.won : undefined,
+      // Seule la transition réellement appliquée par SQL crédite une carte
+      // (un événement « open » périmé est rétrogradé côté serveur).
+      won: res.type === 'open' && event.type === 'open' ? event.won : undefined,
       persist: res.persist,
     });
   } catch (err) {

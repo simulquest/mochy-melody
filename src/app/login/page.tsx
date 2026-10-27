@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import LoginWithSimulquest from '@/components/market/LoginWithSimulquest';
 import { getSession } from '@/lib/auth/session';
+import { safeInternalPath } from '@/lib/auth/redirect';
 
 const ERROR_MESSAGES: Record<string, string> = {
   no_code: 'Le service Simulquest ne nous a pas renvoyé de code.',
@@ -32,10 +33,10 @@ export default async function LoginPage({
 
   // Déjà connecté : on renvoie directement vers l'app.
   if (session) {
-    redirect(next || '/market');
+    redirect(safeInternalPath(next ?? null));
   }
 
-  const target = next || '/market';
+  const target = safeInternalPath(next ?? null);
   let message = error ? ERROR_MESSAGES[error] : null;
   if (error === 'exchange_failed' && got) {
     message += ` (reçu : ${got})`;

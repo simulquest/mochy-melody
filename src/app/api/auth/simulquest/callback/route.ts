@@ -6,18 +6,11 @@ import {
   devUser,
 } from '@/lib/auth/simulquest';
 import { signSession, verifyValue, SESSION_COOKIE } from '@/lib/auth/session';
+import { safeInternalPath } from '@/lib/auth/redirect';
 
 interface OAuthState {
   n: string;
   r: string;
-}
-
-/** N'accepte que des chemins internes (évite les redirections ouvertes). */
-function safeRedirect(value: string | null, origin: string): URL {
-  const fallback = new URL('/market', origin);
-  if (!value) return fallback;
-  if (!value.startsWith('/') || value.startsWith('//')) return fallback;
-  return new URL(value, origin);
 }
 
 /**
@@ -34,7 +27,10 @@ export async function GET(req: NextRequest) {
 
   // Destination mémorisée dans le cookie d'état posé avant la redirection.
   const state = verifyValue<OAuthState>(req.cookies.get(oauthStateCookie())?.value);
-  const redirect = safeRedirect(state?.r ?? params.get('redirect'), origin);
+  const redirect = new URL(
+    safeInternalPath(state?.r ?? params.get('redirect')),
+    origin,
+  );
 
   if (isDevMode()) {
     const res = NextResponse.redirect(redirect);

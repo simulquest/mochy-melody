@@ -22,7 +22,8 @@ export interface ServerLootboxState {
 
 /** Événement de clic renvoyé par le serveur (miroir du ClickEvent local). */
 export type RemoteClickEvent =
-  | { type: 'locked' }
+  /** Rafale / état périmé : rien d'appliqué, `persist` contient l'état réel. */
+  | { type: 'locked'; persist?: ServerLootboxState }
   | { type: 'progress'; persist: ServerLootboxState }
   | { type: 'upgrade'; persist: ServerLootboxState; newRarityIdx: number }
   | {

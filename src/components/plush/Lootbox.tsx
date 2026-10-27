@@ -30,7 +30,11 @@ import {
   runOneTimeImport,
   serverStateToPersist,
   isUnauthorized,
+  type RemoteClickEvent,
 } from '@/lib/plush/lootbox-remote';
+
+/** Coups mémorisés pendant une requête en vol (rejoués ensuite, bornés). */
+const MAX_QUEUED_TAPS = 3;
 
 function RarityChip({ idx, className = '' }: { idx: number; className?: string }) {
   const r = RARITIES[idx];
@@ -115,6 +119,15 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
   const [mode, setMode] = useState<'server' | 'local' | null>(null);
   // Peluche équipée (cosmétique), mémorisée localement quel que soit le mode.
   const equippedKeyRef = useRef<string | null>(null);
+  // ---- Garde-fou anti-rafale -----------------------------------------------
+  // Une seule requête /api/lootbox/click à la fois ; les coups reçus pendant
+  // ce temps sont mémorisés puis rejoués après la réponse. Deux taps lancés
+  // AVANT la réponse faisaient calculer deux « open » au serveur, qui
+  // appliquait alors 2 décrémentations → les coffres en réserve disparaissaient
+  // (et 2 cartes étaient créditées pour une seule ouverture).
+  const clickPendingRef = useRef(false);
+  const queuedTapsRef = useRef(0);
+  const clickFnRef = useRef<(() => void) | null>(null);
 
   // La collection ouverte depuis une peluche regroupe les variantes de la même
   // forme 3D (ex. Ours Caramel + Ours Polaire). Une seule carte est affichée ;
@@ -235,9 +248,64 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
     onPauseMain?.(sceneOpen);
   }, [sceneOpen, onPauseMain]);
 
+  /** Applique l'événement renvoyé par le serveur (mode connecté). */
+  const applyServerEvent = useCallback((ev: RemoteClickEvent) => {
+    if (ev.type === 'locked') {
+      // État périmé (rafale de clics, autre onglet…) : rien n'a été appliqué,
+      // on resynchronise l'affichage sur la vérité serveur.
+      const st = ev.persist;
+      if (st) {
+        setPersist((p) => (p ? serverStateToPersist(st, p.owned, equippedKeyRef.current) : p));
+      }
+      setNow(Date.now());
+      return;
+    }
+
+    const serverBox = ev.persist; // état serveur après transition
+    setPersist((p) =>
+      p ? serverStateToPersist(serverBox, p.owned, equippedKeyRef.current) : p,
+    );
+
+    if (ev.type === 'upgrade') {
+      const rarityIdx = ev.newRarityIdx;
+      setSceneBox({ rarityIdx, progress: serverBox.progress });
+      setFlash({ color: RARITIES[rarityIdx].color, id: Date.now() });
+      setUpgradeToast(rarityIdx);
+      return;
+    }
+
+    if (ev.type === 'open') {
+      const won = ev.won;
+      vibrate([20, 60, 30, 60, 80]);
+      const wonWithMut: OwnedPlush = { ...won };
+      addUnlocked(wonWithMut.speciesId, loadUnlocked());
+      wonPlushRef.current = wonWithMut;
+      setWonPlush(wonWithMut);
+      openDoneRef.current = false;
+      queuedTapsRef.current = 0;
+      // La scène bascule immédiatement : aucun coup supplémentaire n'est
+      // accepté pendant le rafraîchissement de l'inventaire.
+      setScenePhase('opening');
+      fetchRemoteOwned()
+        .then((owned) =>
+          setPersist(serverStateToPersist(serverBox, owned, equippedKeyRef.current)),
+        )
+        .catch(() => {
+          // Inventaire indisponible : on garde les piles déjà affichées.
+        });
+      return;
+    }
+
+    // progress
+    setSceneBox((sb) => ({ ...sb, progress: serverBox.progress }));
+    vibrate(12);
+  }, []);
+
   /** Un coup sur le coffre 3D. */
   const handleBoxClick = useCallback(() => {
     if (!persist) return;
+    // Ouverture en cours / carte de révélation : la caisse ne réagit plus.
+    if (scenePhase !== 'idle') return;
     if (persist.chestsAvailable <= 0) {
       setNow(Date.now());
       return;
@@ -245,42 +313,29 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
 
     // ---- Mode serveur : le tirage a lieu côté serveur ----
     if (mode === 'server') {
+      // Anti-rafale : une seule requête à la fois. Les coups reçus pendant la
+      // volée sont mémorisés puis rejoués — sinon le serveur appliquait
+      // plusieurs « open » et perdait des coffres (voir supabase/lootbox_click_fix.sql).
+      if (clickPendingRef.current) {
+        queuedTapsRef.current = Math.min(queuedTapsRef.current + 1, MAX_QUEUED_TAPS);
+        return;
+      }
+      clickPendingRef.current = true;
       (async () => {
+        let ev: RemoteClickEvent | null = null;
         try {
-          const ev = await remoteClick();
-          if (ev.type === 'locked') {
-            setNow(Date.now());
-            return;
-          }
-          if (ev.type === 'upgrade') {
-            setPersist((p) =>
-              p
-                ? { ...p, box: { rarityIdx: ev.newRarityIdx, progress: ev.persist.progress } }
-                : p,
-            );
-            setSceneBox({ rarityIdx: ev.newRarityIdx, progress: ev.persist.progress });
-            setFlash({ color: RARITIES[ev.newRarityIdx].color, id: Date.now() });
-            setUpgradeToast(ev.newRarityIdx);
-          } else if (ev.type === 'open') {
-            vibrate([20, 60, 30, 60, 80]);
-            const wonWithMut: OwnedPlush = { ...ev.won };
-            addUnlocked(wonWithMut.speciesId, loadUnlocked());
-            wonPlushRef.current = wonWithMut;
-            setWonPlush(wonWithMut);
-            // Recharge l'inventaire serveur (la carte vient d'être créditée).
-            const owned = await fetchRemoteOwned();
-            setPersist(serverStateToPersist(ev.persist, owned, equippedKeyRef.current));
-            openDoneRef.current = false;
-            setScenePhase('opening');
-          } else {
-            setPersist((p) =>
-              p ? { ...p, box: { ...p.box, progress: ev.persist.progress } } : p,
-            );
-            setSceneBox((sb) => ({ ...sb, progress: ev.persist.progress }));
-            vibrate(12);
-          }
-        } catch {
-          // réseau / erreur : on ignore (la caisse reste à son état)
+          ev = await remoteClick();
+        } catch (error) {
+          console.error('Clic sur le coffre impossible :', error);
+          queuedTapsRef.current = 0;
+        }
+        clickPendingRef.current = false;
+        if (ev) applyServerEvent(ev);
+        if (ev?.type === 'open') return;
+        if (queuedTapsRef.current > 0) {
+          queuedTapsRef.current -= 1;
+          // Laisse React appliquer le nouvel état avant de rejouer le clic.
+          setTimeout(() => clickFnRef.current?.(), 0);
         }
       })();
       return;
@@ -318,7 +373,13 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
       setSceneBox({ rarityIdx: res.persist.box.rarityIdx, progress: res.persist.box.progress });
       vibrate(12);
     }
-  }, [persist, mode]);
+  }, [persist, mode, scenePhase, applyServerEvent]);
+
+  // Mémorise la dernière version de handleBoxClick (état frais) pour rejouer
+  // les coups mis en attente pendant une requête.
+  useEffect(() => {
+    clickFnRef.current = handleBoxClick;
+  }, [handleBoxClick]);
 
   /** L'animation d'ouverture 3D est terminée → carte de révélation. */
   const handleOpenComplete = useCallback(() => {
