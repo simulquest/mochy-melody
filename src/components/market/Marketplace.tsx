@@ -19,7 +19,7 @@ import SellDialog from '@/components/market/SellDialog';
 import BidDialog from '@/components/market/BidDialog';
 import CardPriceChart from '@/components/market/CardPriceChart';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
-import { getSpecies } from '@/lib/plush/species';
+import { getSpecies, SPECIES } from '@/lib/plush/species';
 import { RARITIES } from '@/lib/plush/lootbox';
 import { useMe, useListings, useCards } from '@/hooks/use-market';
 import { apiPost, formatCoins, type ListingView, type InventoryItem } from '@/lib/market-client';
@@ -300,7 +300,15 @@ function SalesTab({
 }) {
   const [sort, setSort] = useState('ending_soon');
   const [status, setStatus] = useState('active');
-  const { listings, loading, reload } = useListings({ status, sort, pollMs: 8000 });
+  const [speciesId, setSpeciesId] = useState('');
+  const [rarity, setRarity] = useState('');
+  const { listings, loading, reload } = useListings({
+    status,
+    sort,
+    speciesId: speciesId || undefined,
+    rarity: rarity || undefined,
+    pollMs: 8000,
+  });
 
   // Recharge après une action (enchère, vente, annulation).
   useEffect(() => {
@@ -329,6 +337,27 @@ function SalesTab({
             { value: 'price_asc', label: 'Prix croissant' },
             { value: 'price_desc', label: 'Prix décroissant' },
             { value: 'recent', label: 'Plus récentes' },
+          ]}
+        />
+        <Select
+          value={speciesId}
+          onChange={setSpeciesId}
+          options={[
+            { value: '', label: 'Toutes les espèces' },
+            ...[...SPECIES]
+              .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+              .map((species) => ({ value: species.id, label: species.name })),
+          ]}
+        />
+        <Select
+          value={rarity}
+          onChange={setRarity}
+          options={[
+            { value: '', label: 'Toutes les raretés' },
+            ...RARITIES.map((item, index) => ({
+              value: String(index),
+              label: item.name,
+            })),
           ]}
         />
         <button

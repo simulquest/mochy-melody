@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getSession } from '@/lib/auth/session';
 
 export const metadata = {
-  title: 'Marché — PlushVerse',
+  title: 'Marché — Mochy Melody',
   description: 'Enchérissez, vendez vos peluches et suivez le cours des cartes.',
 };
 

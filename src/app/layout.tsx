@@ -14,15 +14,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PlushVerse — Peluches vivantes, mutations & lootbox",
+  title: "Mochy Melody",
   description:
     "Quatre peluches 3D interactives (chat, dragon, lapin, fantôme) dont la fourrure réagit au toucher. Faites-les muter : yeux rares, pelages exceptionnels, et lootbox à peluches exclusives.",
   keywords: ["peluche", "fourrure", "interactive", "WebGL", "3D", "kawaii", "mutation", "lootbox"],
   openGraph: {
-    title: "PlushVerse — Peluches vivantes, mutations & lootbox",
+    title: "Mochy Melody",
     description:
       "Quatre peluches vivantes à caresser et à faire muter. Compatible téléphone et ordinateur.",
-    siteName: "PlushVerse",
+    siteName: "Mochy Melody",
     type: "website",
   },
 };

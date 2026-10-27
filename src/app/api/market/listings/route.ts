@@ -14,7 +14,7 @@ import {
  * GET /api/market/listings — toutes les ventes (active / sold / cancelled /
  * expired), avec filtres et tri.
  *
- * Query : status, cardId, rarity, sort (ending_soon|price_asc|price_desc|recent),
+ * Query : status, cardId, speciesId, rarity, sort (ending_soon|price_asc|price_desc|recent),
  *         page, pageSize, mine.
  */
 export async function GET(req: NextRequest) {
@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
 
     const status = sp.get('status') || 'active';
     const cardId = sp.get('cardId');
+    const speciesId = sp.get('speciesId');
     const rarity = sp.get('rarity');
     const sort = sp.get('sort') || 'ending_soon';
     const mine = sp.get('mine') === 'true';
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
       query = query.eq('status', status);
     }
     if (cardId) query = query.eq('card_id', cardId);
+    if (speciesId) query = query.eq('species_id', speciesId);
     if (rarity) query = query.eq('rarity_idx', Number(rarity));
     if (mine) query = query.eq('seller_id', user.id);
 

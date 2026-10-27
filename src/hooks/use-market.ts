@@ -41,6 +41,7 @@ export function useListings(
     status?: string;
     sort?: string;
     cardId?: string;
+    speciesId?: string;
     rarity?: string;
     mine?: boolean;
     pollMs?: number;
@@ -52,11 +53,12 @@ export function useListings(
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { status = 'active', sort = 'ending_soon', cardId, rarity, mine, pollMs = 0 } = params;
+  const { status = 'active', sort = 'ending_soon', cardId, speciesId, rarity, mine, pollMs = 0 } = params;
 
   const load = useCallback(() => {
     const sp = new URLSearchParams({ status, sort });
     if (cardId) sp.set('cardId', cardId);
+    if (speciesId) sp.set('speciesId', speciesId);
     if (rarity) sp.set('rarity', rarity);
     if (mine) sp.set('mine', 'true');
     apiGet<{ listings: ListingView[]; total: number }>(`/api/market/listings?${sp.toString()}`)
@@ -71,7 +73,7 @@ export function useListings(
       .finally(() => {
         setLoading(false);
       });
-  }, [status, sort, cardId, rarity, mine]);
+  }, [status, sort, cardId, speciesId, rarity, mine]);
 
   useEffect(() => {
     load();
