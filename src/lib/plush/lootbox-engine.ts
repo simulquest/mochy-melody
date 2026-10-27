@@ -6,7 +6,7 @@ import { rollMutation, mutationKey, type PlushMutation } from './mutations';
  * Moteur de lootbox côté SERVEUR (source unique de vérité).
  *
  * La logique de progression / ouverture est identique au `clickBox` client,
- * mais ici elle n'écrit JAMAIS dans localStorage : elle renvoie simplement
+ * mais ici elle n'écrit jamais dans le navigateur : elle renvoie simplement
  * l'événement à appliquer, que la route API transmet à la fonction SQL
  * transactionnelle `lootbox_click`.
  */

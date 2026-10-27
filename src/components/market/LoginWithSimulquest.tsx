@@ -16,7 +16,7 @@ interface LoginWithSimulquestProps {
 export default function LoginWithSimulquest({
   redirect = '/market',
   className = '',
-  label = 'Sign in With SimulQuest',
+  label = 'S’inscrire / se connecter avec Simulquest',
 }: LoginWithSimulquestProps) {
   const href = `/api/auth/simulquest/login?redirect=${encodeURIComponent(redirect)}`;
 

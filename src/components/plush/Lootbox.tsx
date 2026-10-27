@@ -2,22 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gift, Backpack, Sparkles, X, Check, RotateCcw, Clock, ChevronDown } from 'lucide-react';
+import { Gift, Backpack, Sparkles, X, Check, Clock, ChevronDown } from 'lucide-react';
 import { PlushPreset } from '@/lib/plush/plush-shape';
-import { PlushMutation, rollMutation } from '@/lib/plush/mutations';
-import { addUnlocked, loadUnlocked } from '@/lib/plush/unlock';
+import { PlushMutation } from '@/lib/plush/mutations';
 import {
   RARITIES,
   MAX_CHESTS,
   CHEST_REFILL_MS,
   LootboxPersist,
   OwnedPlush,
-  clickBox,
-  applyRefills,
   formatCooldown,
-  loadPersist,
-  savePersist,
-  resetPersist,
+  getEquippedPreset,
+  setEquippedPreset,
   vibrate,
 } from '@/lib/plush/lootbox';
 import LootboxScene, { LootboxPhase } from '@/components/plush/LootboxScene';
@@ -27,9 +23,7 @@ import {
   fetchRemoteState,
   fetchRemoteOwned,
   remoteClick,
-  runOneTimeImport,
   serverStateToPersist,
-  isUnauthorized,
   type RemoteClickEvent,
 } from '@/lib/plush/lootbox-remote';
 
@@ -112,12 +106,11 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
   // garde sa teinte de rareté (sinon il repasserait au gris de Commune dès l'open).
   const [sceneBox, setSceneBox] = useState({ rarityIdx: 0, progress: 0 });
   const [flash, setFlash] = useState<{ color: string; id: number } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   // Horloge du cooldown (rafraîchie chaque seconde quand un coffre recharge).
   const [now, setNow] = useState(() => Date.now());
   const [showVariants, setShowVariants] = useState(false);
-  // 'server' = tirage côté serveur (connecté) ; 'local' = repli localStorage.
-  const [mode, setMode] = useState<'server' | 'local' | null>(null);
-  // Peluche équipée (cosmétique), mémorisée localement quel que soit le mode.
+  // La caisse est toujours autorisée côté serveur.
   const equippedKeyRef = useRef<string | null>(null);
   // ---- Garde-fou anti-rafale -----------------------------------------------
   // Une seule requête /api/lootbox/click à la fois ; les coups reçus pendant
@@ -147,25 +140,17 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
     null;
 
   useEffect(() => {
-    // Hydratation différée : tente d'abord le serveur (si connecté),
-    // sinon repli sur le localStorage.
     let cancelled = false;
     (async () => {
       try {
-        await runOneTimeImport(); // importe la progression locale (une fois)
-        const st = await fetchRemoteState();
-        const owned = await fetchRemoteOwned();
+        const [st, owned] = await Promise.all([fetchRemoteState(), fetchRemoteOwned()]);
         if (cancelled) return;
-        equippedKeyRef.current =
-          window.localStorage.getItem('pv-equipped') ?? null;
+        equippedKeyRef.current = getEquippedPreset()?.id ?? null;
         setPersist(serverStateToPersist(st, owned, equippedKeyRef.current));
-        setMode('server');
-      } catch {
+        setLoadError(null);
+      } catch (error) {
         if (cancelled) return;
-        const local = applyRefills(loadPersist());
-        equippedKeyRef.current = local.equippedId;
-        setPersist(local);
-        setMode('local');
+        setLoadError(error instanceof Error ? error.message : 'Chargement du coffre impossible');
       } finally {
         if (!cancelled) setMounted(true);
       }
@@ -196,15 +181,16 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
       if (t >= end) {
         clearInterval(id);
         clearTimeout(first);
-        // Le délai est écoulé : on applique la recharge pour que le coffre
-        // soit réellement disponible et que le timer reparte (sinon il reste
-        // bloqué à 0 puisque rien ne créditait le coffre en temps réel).
-        setPersist((prev) => {
-          if (!prev) return prev;
-          const next = applyRefills(prev);
-          savePersist(next);
-          return next;
-        });
+        void fetchRemoteState()
+          .then((state) => {
+            setPersist((prev) =>
+              prev ? serverStateToPersist(state, prev.owned, equippedKeyRef.current) : prev,
+            );
+            setLoadError(null);
+          })
+          .catch((error: unknown) => {
+            setLoadError(error instanceof Error ? error.message : 'Actualisation du coffre impossible');
+          });
       }
     };
     const tick = refresh;
@@ -248,7 +234,7 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
     onPauseMain?.(sceneOpen);
   }, [sceneOpen, onPauseMain]);
 
-  /** Applique l'événement renvoyé par le serveur (mode connecté). */
+  /** Applique l'événement renvoyé par le serveur. */
   const applyServerEvent = useCallback((ev: RemoteClickEvent) => {
     if (ev.type === 'locked') {
       // État périmé (rafale de clics, autre onglet…) : rien n'a été appliqué,
@@ -278,7 +264,6 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
       const won = ev.won;
       vibrate([20, 60, 30, 60, 80]);
       const wonWithMut: OwnedPlush = { ...won };
-      addUnlocked(wonWithMut.speciesId, loadUnlocked());
       wonPlushRef.current = wonWithMut;
       setWonPlush(wonWithMut);
       openDoneRef.current = false;
@@ -291,7 +276,7 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
           setPersist(serverStateToPersist(serverBox, owned, equippedKeyRef.current)),
         )
         .catch(() => {
-          // Inventaire indisponible : on garde les piles déjà affichées.
+          setLoadError('La carte a été gagnée, mais la collection n’a pas pu être actualisée.');
         });
       return;
     }
@@ -311,69 +296,31 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
       return;
     }
 
-    // ---- Mode serveur : le tirage a lieu côté serveur ----
-    if (mode === 'server') {
-      // Anti-rafale : une seule requête à la fois. Les coups reçus pendant la
-      // volée sont mémorisés puis rejoués — sinon le serveur appliquait
-      // plusieurs « open » et perdait des coffres (voir supabase/lootbox_click_fix.sql).
-      if (clickPendingRef.current) {
-        queuedTapsRef.current = Math.min(queuedTapsRef.current + 1, MAX_QUEUED_TAPS);
-        return;
+    // Anti-rafale : une seule requête à la fois.
+    if (clickPendingRef.current) {
+      queuedTapsRef.current = Math.min(queuedTapsRef.current + 1, MAX_QUEUED_TAPS);
+      return;
+    }
+    clickPendingRef.current = true;
+    (async () => {
+      let ev: RemoteClickEvent | null = null;
+      try {
+        ev = await remoteClick();
+        setLoadError(null);
+      } catch (error) {
+        console.error('Clic sur le coffre impossible :', error);
+        setLoadError(error instanceof Error ? error.message : 'Clic sur le coffre impossible');
+        queuedTapsRef.current = 0;
       }
-      clickPendingRef.current = true;
-      (async () => {
-        let ev: RemoteClickEvent | null = null;
-        try {
-          ev = await remoteClick();
-        } catch (error) {
-          console.error('Clic sur le coffre impossible :', error);
-          queuedTapsRef.current = 0;
-        }
-        clickPendingRef.current = false;
-        if (ev) applyServerEvent(ev);
-        if (ev?.type === 'open') return;
-        if (queuedTapsRef.current > 0) {
-          queuedTapsRef.current -= 1;
-          // Laisse React appliquer le nouvel état avant de rejouer le clic.
-          setTimeout(() => clickFnRef.current?.(), 0);
-        }
-      })();
-      return;
-    }
-
-    // ---- Mode local (repli hors connexion) ----
-    const res = clickBox(persist);
-    if (res.type === 'locked') {
-      setNow(Date.now());
-      return;
-    }
-    setPersist(res.persist);
-
-    if (res.type === 'upgrade') {
-      setSceneBox({ rarityIdx: res.newRarityIdx, progress: res.persist.box.progress });
-      setFlash({ color: RARITIES[res.newRarityIdx].color, id: Date.now() });
-      setUpgradeToast(res.newRarityIdx);
-    } else if (res.type === 'open') {
-      vibrate([20, 60, 30, 60, 80]);
-      const wonWithMut: OwnedPlush = { ...res.won, mutation: rollMutation() };
-      addUnlocked(wonWithMut.speciesId, loadUnlocked());
-      wonPlushRef.current = wonWithMut;
-      setWonPlush(wonWithMut);
-      const nextPersist: LootboxPersist = {
-        ...res.persist,
-        owned: res.persist.owned.map((o) =>
-          o.id === wonWithMut.id ? wonWithMut : o,
-        ),
-      };
-      savePersist(nextPersist);
-      setPersist(nextPersist);
-      openDoneRef.current = false;
-      setScenePhase('opening');
-    } else {
-      setSceneBox({ rarityIdx: res.persist.box.rarityIdx, progress: res.persist.box.progress });
-      vibrate(12);
-    }
-  }, [persist, mode, scenePhase, applyServerEvent]);
+      clickPendingRef.current = false;
+      if (ev) applyServerEvent(ev);
+      if (ev?.type === 'open') return;
+      if (queuedTapsRef.current > 0) {
+        queuedTapsRef.current -= 1;
+        setTimeout(() => clickFnRef.current?.(), 0);
+      }
+    })();
+  }, [persist, scenePhase, applyServerEvent]);
 
   // Mémorise la dernière version de handleBoxClick (état frais) pour rejouer
   // les coups mis en attente pendant une requête.
@@ -426,13 +373,9 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
     (p: OwnedPlush) => {
       if (!persist) return;
       onEquip(p, p.id, p.mutation ?? null);
-      // L'équipement est cosmétique : mémorisé localement (quel que soit le mode).
       equippedKeyRef.current = p.id;
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('pv-equipped', p.id);
-      }
+      setEquippedPreset(p);
       const next: LootboxPersist = { ...persist, equippedId: p.id };
-      if (mode === 'local') savePersist(next);
       setPersist(next);
       setReveal(null);
       setCollectionOpen(false);
@@ -442,24 +385,41 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
       setSceneBox({ ...persist.box });
       onCelebrate();
     },
-    [persist, mode, onEquip, onCelebrate],
+    [persist, onEquip, onCelebrate],
   );
 
-  const reset = useCallback(() => {
-    const fresh = resetPersist();
-    setPersist(fresh);
-    setCollectionOpen(false);
-    setShowVariants(false);
-    window.location.reload();
-  }, []);
-
   const C = 2 * Math.PI * 26;
+
+  if (mounted && !persist) {
+    return (
+      <div className="absolute bottom-28 right-4 z-40 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-rose-300/20 bg-black/80 p-4 text-sm text-white/80 shadow-xl backdrop-blur-xl sm:bottom-7 sm:right-6">
+        <p role="alert">
+          {loadError ?? 'Impossible de charger votre coffre.'}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-3 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/10"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
       {/* ---------- Boutons flottants ---------- */}
       {mounted && (
         <div className="absolute bottom-[7.75rem] right-4 z-30 flex flex-col items-center gap-2.5 sm:bottom-7 sm:right-6">
+          {loadError && (
+            <p
+              role="status"
+              className="max-w-56 rounded-xl border border-rose-300/20 bg-black/75 px-3 py-2 text-center text-[11px] text-rose-100/80 backdrop-blur-xl"
+            >
+              {loadError}
+            </p>
+          )}
           {/* Collection */}
           <motion.button
             initial={{ opacity: 0, scale: 0.6 }}
@@ -827,12 +787,6 @@ export default function Lootbox({ speciesId, equippedId, onEquip, onCelebrate, o
                       <div className="flex h-18 w-18 items-center justify-center rounded-full bg-white/5 text-white/40 text-2xl">?</div>
                     </div>
                   )}
-                  <button
-                    onClick={reset}
-                    className="mt-auto flex h-9 items-center justify-center gap-2 self-center rounded-lg px-3 text-[11px] text-white/35 transition-colors hover:bg-white/5 hover:text-white/60"
-                  >
-                    <RotateCcw className="h-3 w-3" aria-hidden /> Réinitialiser la progression
-                  </button>
                 </div>
               )}
             </motion.div>

@@ -26,8 +26,6 @@ import {
 import {
   fetchPetState,
   remotePetAward,
-  localPetAward,
-  localPetStateFor,
 } from '@/lib/plush/pet-remote';
 
 interface PlushExperienceProps {
@@ -47,7 +45,8 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
   const [toast, setToast] = useState<{ text: string; color: string } | null>(null);
   // MochyHearts : solde + caresses restantes pour cette espèce (3 / 3 h).
   const [pet, setPet] = useState<{ hearts: number; charges: PetCharges } | null>(null);
-  const [petMode, setPetMode] = useState<'server' | 'local' | null>(null);
+  const [petLoaded, setPetLoaded] = useState(false);
+  const [petError, setPetError] = useState<string | null>(null);
   // Rareté de la peluche lootbox équipée (0 = espèce naturelle, Commune).
   const [lootRarityIdx, setLootRarityIdx] = useState(0);
   const petBusy = useRef(false);
@@ -143,7 +142,7 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
     : 0;
   const rewardRarityIdx = Math.max(lootRarityIdx, mutRarityIdx);
 
-  // ---- MochyHearts : état initial (serveur si connecté, sinon local) ----
+  // ---- MochyHearts : état initial depuis le serveur ----
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -151,12 +150,11 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
         const st = await fetchPetState(species.id);
         if (cancelled) return;
         setPet({ hearts: st.hearts, charges: { used: st.used, resetAt: st.resetAt } });
-        setPetMode('server');
-      } catch {
+        setPetLoaded(true);
+        setPetError(null);
+      } catch (error) {
         if (cancelled) return;
-        const local = localPetStateFor(species.id);
-        setPet({ hearts: local.hearts, charges: { used: local.used, resetAt: local.resetAt } });
-        setPetMode('local');
+        setPetError(error instanceof Error ? error.message : 'Solde indisponible');
       }
     })();
     return () => {
@@ -166,17 +164,15 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
 
   /** Une gerbe de cœurs (barre de bonheur pleine) → gain de MochyHearts. */
   const awardHearts = useCallback(() => {
-    if (petMode === null || petBusy.current) return;
+    if (!petLoaded || petBusy.current) return;
     const speciesId = species.id;
     const rarityIdx = rewardRarityIdx;
     petBusy.current = true;
     (async () => {
       try {
-        const res =
-          petMode === 'server'
-            ? await remotePetAward(speciesId, rarityIdx)
-            : localPetAward(speciesId, rarityIdx);
+        const res = await remotePetAward(speciesId, rarityIdx);
         setPet({ hearts: res.hearts, charges: { used: res.used, resetAt: res.resetAt } });
+        setPetError(null);
         if (res.awarded) {
           fireToast(`+${res.amount} MochyHearts`, '#ff5f9e');
         } else if (Date.now() - emptyToastAt.current > 15_000) {
@@ -187,13 +183,13 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
           );
         }
       } catch (err) {
-        // réseau / erreur serveur : aucun crédit, on n'interrompt pas la caresse
         console.error('Gain de MochyHearts :', err);
+        setPetError(err instanceof Error ? err.message : 'Gain de MochyHearts impossible');
       } finally {
         petBusy.current = false;
       }
     })();
-  }, [petMode, species.id, rewardRarityIdx, fireToast]);
+  }, [petLoaded, species.id, rewardRarityIdx, fireToast]);
 
   // Le moteur (créé une fois) appelle toujours la dernière version.
   useEffect(() => {
@@ -314,6 +310,14 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
           </motion.button>
         </div>
       </header>
+      {petError && (
+        <p
+          role="status"
+          className="absolute right-5 top-20 z-20 max-w-xs rounded-xl border border-rose-300/20 bg-black/70 px-3 py-2 text-right text-[11px] text-rose-100/80 backdrop-blur-md sm:right-7"
+        >
+          Solde MochyHearts indisponible : {petError}
+        </p>
+      )}
 
       {/* Halo inférieur pour la lisibilité de la description */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 to-transparent" />

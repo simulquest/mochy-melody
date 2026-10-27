@@ -6,20 +6,21 @@ import { motion } from 'framer-motion';
 
 interface GameTutorialProps {
   onOpenPlush: () => void;
-  onBackToCollection: () => void;
 }
 
-const STEPS = [
-  {
-    title: 'Bienvenue dans Mochy Melody !',
-    description:
-      'Voici une visite rapide pour découvrir votre collection, vos peluches et les principales fonctionnalités du jeu.',
-    target: null,
-  },
+interface TutorialStep {
+  title: string;
+  description: string;
+  target: string;
+  openPlush?: boolean;
+  placement?: 'top';
+}
+
+const STEPS: TutorialStep[] = [
   {
     title: 'Votre collection',
     description:
-      'Retrouvez ici les familles de peluches et les variantes que vous avez débloquées. Choisissez une carte pour rencontrer votre mochy.',
+      'Retrouvez ici les cartes et variantes que vous avez obtenues. La carte Chat ne vous est plus attribuée au départ : ouvrez un coffre pour commencer votre collection.',
     target: '[data-tutorial="collection"]',
   },
   {
@@ -35,35 +36,41 @@ const STEPS = [
     target: '[data-tutorial="wallet"]',
   },
   {
-    title: 'Rencontrez une peluche',
-    description:
-      'Vos mochys sont des cartes interactives. Passons sur la première peluche pour découvrir ce qu’elle peut faire.',
-    target: '[data-tutorial="creature-card"]',
-    openPlush: true,
-  },
-  {
     title: 'Caressez votre mochy',
     description:
-      'Frottez la peluche avec la souris ou le doigt : sa fourrure réagit, des particules de cœur apparaissent et vous pouvez gagner des MochyHearts.',
+      'Votre premier mochy est prêt à jouer, sans être ajouté à la collection. Frottez-le avec la souris ou le doigt : sa fourrure réagit, des cœurs apparaissent et vous pouvez gagner des MochyHearts.',
     target: '[data-tutorial="petting"]',
+    openPlush: true,
   },
   {
     title: 'Ouvrez les coffres',
     description:
       'Frappez le coffre pour obtenir des cartes et des mutations. Les nouveaux comptes commencent avec 5 coffres.',
     target: '[data-tutorial="lootbox"]',
+    placement: 'top',
   },
   {
-    title: 'Le marché',
+    title: 'Découvrez le marché',
     description:
-      'Vendez vos cartes, enchérissez sur celles des autres joueurs et suivez leur cours depuis le marché.',
+      'Le bouton Marché ouvre l’espace d’échange. Vous y trouverez vos ventes, les enchères des joueurs et le cours des cartes.',
+    target: '[data-tutorial="market"]',
+  },
+  {
+    title: 'Vendez vos cartes',
+    description:
+      'Dans « Mes ventes », choisissez une carte de votre inventaire, fixez son prix de départ et sa durée, puis suivez vos enchères en cours.',
+    target: '[data-tutorial="market"]',
+  },
+  {
+    title: 'Enchérissez et suivez les cours',
+    description:
+      'Dans « Toutes les ventes », filtrez par espèce ou rareté et enchérissez sur les cartes. « Cours des cartes » vous aide à comparer les prix.',
     target: '[data-tutorial="market"]',
   },
 ];
 
 export default function GameTutorial({
   onOpenPlush,
-  onBackToCollection,
 }: GameTutorialProps) {
   const [stepIndex, setStepIndex] = useState<number | null>(null);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -100,7 +107,12 @@ export default function GameTutorial({
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const element = document.querySelector(step.target!);
-        setTargetRect(element?.getBoundingClientRect() ?? null);
+        const rect = element?.getBoundingClientRect() ?? null;
+        if (rect) {
+          setTargetRect(rect);
+        } else {
+          setTargetRect(null);
+        }
       });
     };
 
@@ -156,12 +168,12 @@ export default function GameTutorial({
     }
   };
 
-  const spotlight = step.target && targetRect
+  const spotlight = targetRect
     ? {
-        left: Math.max(0, targetRect.left - 10),
-        top: Math.max(0, targetRect.top - 10),
-        width: Math.min(window.innerWidth, targetRect.width + 20),
-        height: Math.min(window.innerHeight, targetRect.height + 20),
+      left: targetRect.left + targetRect.width / 2 - Math.min(targetRect.width + 20, 260) / 2,
+      top: targetRect.top + targetRect.height / 2 - Math.min(targetRect.height + 20, 260) / 2,
+      width: Math.min(targetRect.width + 20, 260),
+      height: Math.min(targetRect.height + 20, 260),
       }
     : null;
   const mask = spotlight
@@ -193,7 +205,11 @@ export default function GameTutorial({
         aria-labelledby="tutorial-title"
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="fixed inset-x-4 bottom-4 z-[102] mx-auto w-auto max-w-lg rounded-3xl border border-fuchsia-300/25 bg-[#17121f]/95 p-5 shadow-[0_0_45px_rgba(192,38,211,0.2)] backdrop-blur-xl sm:bottom-8 sm:p-6"
+        className={`fixed inset-x-4 z-[102] mx-auto w-auto max-w-lg rounded-3xl border border-fuchsia-300/25 bg-[#17121f]/95 p-5 shadow-[0_0_45px_rgba(192,38,211,0.2)] backdrop-blur-xl sm:p-6 ${
+          step.placement === 'top'
+            ? 'top-4 bottom-auto sm:bottom-8 sm:top-auto'
+            : 'bottom-4 sm:bottom-8'
+        }`}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-200/80">
@@ -229,10 +245,7 @@ export default function GameTutorial({
             {stepIndex > 0 && (
               <button
                 type="button"
-                onClick={() => {
-                  if (stepIndex === 5) onBackToCollection();
-                  setStepIndex(stepIndex - 1);
-                }}
+                  onClick={() => setStepIndex(stepIndex - 1)}
                 disabled={saving}
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-semibold text-white/75 transition-colors hover:bg-white/10 disabled:opacity-50"
               >

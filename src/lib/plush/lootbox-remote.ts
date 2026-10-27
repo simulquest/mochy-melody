@@ -1,14 +1,11 @@
 /**
  * Adaptateur « lootbox distante » : appelle les routes API serveur
- * (state / click / import) et convertit les réponses en la forme utilisée
+ * (state / click) et convertit les réponses en la forme utilisée
  * par `Lootbox.tsx`.
  *
- * Un repli local est prévu si l'utilisateur n'est pas connecté (401) : la
- * caisse continue de fonctionner en localStorage, mais les gains ne seront
- * pas sauvegardés côté serveur.
  */
 
-import { loadPersist, savePersist, type LootboxPersist, type OwnedPlush } from './lootbox';
+import { type LootboxPersist, type OwnedPlush } from './lootbox';
 import { mutationKey } from './mutations';
 
 /** État de la caisse renvoyé par le serveur. */
@@ -20,7 +17,7 @@ export interface ServerLootboxState {
   next_refill_at: string | null;
 }
 
-/** Événement de clic renvoyé par le serveur (miroir du ClickEvent local). */
+/** Événement de clic renvoyé par le serveur. */
 export type RemoteClickEvent =
   /** Rafale / état périmé : rien d'appliqué, `persist` contient l'état réel. */
   | { type: 'locked'; persist?: ServerLootboxState }
@@ -37,21 +34,12 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
   });
-  if (res.status === 401) {
-    const err = new Error('unauthenticated') as Error & { unauthorized?: boolean };
-    err.unauthorized = true;
-    throw err;
-  }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || `Erreur ${res.status}`);
   return json as T;
 }
 
-export function isUnauthorized(err: unknown): boolean {
-  return !!(err as { unauthorized?: boolean })?.unauthorized;
-}
-
-/** Convertit l'état serveur vers la forme locale LootboxPersist (partie caisse). */
+/** Convertit l'état serveur vers la forme attendue par l'interface. */
 export function serverStateToPersist(
   st: ServerLootboxState,
   owned: OwnedPlush[],
@@ -78,27 +66,6 @@ export async function remoteClick(): Promise<RemoteClickEvent> {
   return api<RemoteClickEvent>('/api/lootbox/click', { method: 'POST' });
 }
 
-/** POST /api/lootbox/import — importe la progression locale (une fois). */
-export async function importRemoteLootbox(persist: LootboxPersist): Promise<void> {
-  await api('/api/lootbox/import', {
-    method: 'POST',
-    body: JSON.stringify({
-      rarityIdx: persist.box.rarityIdx,
-      progress: persist.box.progress,
-      chestsAvailable: persist.chestsAvailable,
-      nextRefillAt: persist.nextRefillAt,
-    }),
-  });
-}
-
-/** POST /api/inventory/import — importe la collection locale (une fois). */
-export async function importRemoteInventory(owned: OwnedPlush[]): Promise<void> {
-  await api('/api/inventory/import', {
-    method: 'POST',
-    body: JSON.stringify({ owned }),
-  });
-}
-
 /** GET /api/inventory — piles de l'utilisateur, vers la forme OwnedPlush. */
 export async function fetchRemoteOwned(): Promise<OwnedPlush[]> {
   const res = await api<{ items: Array<{
@@ -122,43 +89,6 @@ export async function fetchRemoteOwned(): Promise<OwnedPlush[]> {
     quantity: it.quantity,
     wonAt: new Date(it.updated_at).getTime(),
   }));
-}
-
-const IMPORT_FLAG = 'peluche-remote-imported-v1';
-
-/** Importe la progression + collection locales vers le serveur (une seule fois). */
-export async function runOneTimeImport(): Promise<boolean> {
-  if (typeof window === 'undefined') return false;
-  if (window.localStorage.getItem(IMPORT_FLAG) === 'true') return true;
-
-  const local = loadPersist();
-  // N'importe que s'il y a quelque chose à importer.
-  const hasData = local.owned.length > 0 || local.box.progress > 0 || local.chestsAvailable > 0;
-  if (!hasData) {
-    window.localStorage.setItem(IMPORT_FLAG, 'true');
-    return true;
-  }
-
-  try {
-    await importRemoteLootbox(local);
-    if (local.owned.length > 0) {
-      await importRemoteInventory(local.owned);
-    }
-    window.localStorage.setItem(IMPORT_FLAG, 'true');
-    return true;
-  } catch (err) {
-    if (isUnauthorized(err)) return false;
-    // Erreur non bloquante : on réessaiera au prochain lancement.
-    console.error('Import distant :', err);
-    return false;
-  }
-}
-
-/** Persiste localement un état serveur (repli / équipement). */
-export function persistFromServer(st: ServerLootboxState, owned: OwnedPlush[], equippedId: string | null) {
-  const p = serverStateToPersist(st, owned, equippedId);
-  savePersist(p);
-  return p;
 }
 
 /** Calcule la signature de pile d'une peluche (pour référence). */

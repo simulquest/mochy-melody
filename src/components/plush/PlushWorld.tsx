@@ -12,19 +12,16 @@ import GameTutorial from '@/components/plush/GameTutorial';
 import { SPECIES, PlushSpecies, getSpecies, getShapeLabel } from '@/lib/plush/species';
 import {
   PlushMutation,
-  loadMutations,
   mutationRarity,
   rarityColor,
   rarityName,
   isDefaultMutation,
-  MutationBook,
   MUTATION_VARIANT_COUNT,
 } from '@/lib/plush/mutations';
-import { loadUnlocked, isUnlocked } from '@/lib/plush/unlock';
-import { getEquippedPreset, PLUSH_POOL, loadPersist } from '@/lib/plush/lootbox';
+import { isUnlocked, STARTER_SPECIES } from '@/lib/plush/unlock';
+import { getEquippedPreset, PLUSH_POOL } from '@/lib/plush/lootbox';
 import {
   fetchRemoteOwned,
-  isUnauthorized,
   ownedStackKey,
 } from '@/lib/plush/lootbox-remote';
 
@@ -32,19 +29,33 @@ type View = { type: 'collection' } | { type: 'species'; id: string };
 
 export default function PlushWorld() {
   const [view, setView] = useState<View>({ type: 'collection' });
-  const [muts, setMuts] = useState<MutationBook | null>(null);
+  const [muts, setMuts] = useState<Record<string, PlushMutation> | null>(null);
   const [unlocked, setUnlocked] = useState<string[]>([]);
   const [ownedCardCount, setOwnedCardCount] = useState<number | null>(null);
   const [equippedSpeciesId, setEquippedSpeciesId] = useState<string | null>(null);
   const [selectedByShape, setSelectedByShape] = useState<Record<string, string>>({});
   const prevEquippedRef = useRef<string | null>(null);
 
-  // Hydratation différée (compatible lint) à chaque changement de vue,
-  // afin de refléter les déblocages faits depuis la lootbox.
+  useEffect(() => {
+    try {
+      for (const key of [
+        'peluche-lootbox-v1',
+        'peluche-unlocked-v1',
+        'peluche-mutations-v1',
+        'peluche-remote-imported-v1',
+        'pv-mochyhearts-v1',
+        'pv-equipped',
+      ]) {
+        window.localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.error('Suppression des anciennes données locales impossible :', error);
+    }
+  }, []);
+
+  // Hydratation différée pour refléter l'équipement après un changement de vue.
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
-      setMuts(loadMutations());
-      setUnlocked(loadUnlocked());
       const equipped = getEquippedPreset();
       const equippedId = equipped?.speciesId ?? null;
       setEquippedSpeciesId(equippedId);
@@ -60,16 +71,19 @@ export default function PlushWorld() {
   }, [view]);
 
   const refreshOwnedCardCount = useCallback(async () => {
-    const localOwned = loadPersist().owned;
-    setOwnedCardCount(new Set(localOwned.map(ownedStackKey)).size);
-
     try {
       const remoteOwned = await fetchRemoteOwned();
       setOwnedCardCount(new Set(remoteOwned.map(ownedStackKey)).size);
-    } catch (error) {
-      if (!isUnauthorized(error)) {
-        console.error('Chargement du compteur de cartes :', error);
+      setUnlocked(Array.from(new Set(remoteOwned.map((card) => card.speciesId))));
+      const mutations: Record<string, PlushMutation> = {};
+      for (const card of remoteOwned) {
+        if (card.mutation && !mutations[card.speciesId]) {
+          mutations[card.speciesId] = card.mutation;
+        }
       }
+      setMuts(mutations);
+    } catch (error) {
+      console.error('Chargement de la collection :', error);
     }
   }, []);
 
@@ -120,10 +134,11 @@ export default function PlushWorld() {
       </AnimatePresence>
       <GameTutorial
         onOpenPlush={() => {
-          const firstUnlocked = SPECIES.find((sp) => isUnlocked(sp.id, loadUnlocked()));
-          if (firstUnlocked) setView({ type: 'species', id: firstUnlocked.id });
+          const firstUnlocked =
+            SPECIES.find((sp) => isUnlocked(sp.id, unlocked)) ??
+            getSpecies(STARTER_SPECIES);
+          setView({ type: 'species', id: firstUnlocked.id });
         }}
-        onBackToCollection={() => setView({ type: 'collection' })}
       />
     </>
   );
@@ -193,7 +208,7 @@ function SpeciesView({
 }) {
   const sp = SPECIES.find((s) => s.id === id);
   if (!sp) return null;
-  if (!isUnlocked(id, unlocked)) {
+  if (!isUnlocked(id, unlocked) && id !== STARTER_SPECIES) {
     return (
       <div className="h-full overflow-y-auto overscroll-contain bg-[#070609]">
         <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:pt-20 text-center">
@@ -233,7 +248,7 @@ function CollectionView({
   onSelectVariant,
   onOpen,
 }: {
-  muts: MutationBook | null;
+  muts: Record<string, PlushMutation> | null;
   unlocked: string[];
   ownedCardCount: number | null;
   equippedSpeciesId: string | null;
@@ -298,7 +313,24 @@ function CollectionView({
         </header>
 
         <div className="mt-8 flex flex-col gap-4">
-          {families.map(({ shape, label, variants, selected }) => {
+          {families.length === 0 ? (
+            <section
+              data-tutorial="collection"
+              className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 text-center sm:p-9"
+            >
+              <h2 className="text-xl font-bold text-white">Votre collection commence ici</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/55">
+                La peluche Chat reste disponible pour découvrir le jeu, mais elle ne compte pas comme carte possédée. Ouvrez un coffre pour obtenir votre première carte.
+              </p>
+              <button
+                type="button"
+                onClick={() => onOpen(STARTER_SPECIES)}
+                className="mt-5 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-fuchsia-950/30 transition-transform hover:scale-[1.03]"
+              >
+                Découvrir la peluche de départ
+              </button>
+            </section>
+          ) : families.map(({ shape, label, variants, selected }) => {
             const expanded = expandedShape === shape;
             const canExpand = variants.length > 1;
             const m = muts?.[selected.id];
@@ -311,7 +343,6 @@ function CollectionView({
               >
                 <div className="relative flex items-center gap-3 p-4 sm:gap-4">
                   <button
-                    data-tutorial={shape === collection[0]?.shape ? 'creature-card' : undefined}
                     onClick={() => {
                       if (canExpand) setExpandedShape(expanded ? null : shape);
                       else onOpen(selected.id);

@@ -51,11 +51,11 @@ export default async function LoginPage({
           </div>
 
           <h1 className="text-2xl font-black tracking-tight text-white">
-            PlushVerse
+            Mochy Melody
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-white/55">
-            Connectez-vous pour accéder au marché, vendre vos cartes et suivre
-            le cours des peluches.
+            Connectez-vous ou créez un compte Simulquest pour accéder au jeu,
+            à votre collection et au marché.
           </p>
 
           {message && (
@@ -72,10 +72,6 @@ export default async function LoginPage({
           </div>
 
           <div className="mt-6 flex items-center justify-center gap-4 text-xs text-white/40">
-            <Link href="/" className="transition-colors hover:text-white/70">
-              Retour au jeu
-            </Link>
-            <span aria-hidden>·</span>
             <Link
               href="/market"
               className="transition-colors hover:text-white/70"

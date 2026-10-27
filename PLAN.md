@@ -9,11 +9,11 @@
 
 | Sujet | Décision |
 |---|---|
-| Auth | Simulquest (bouton `Login with Simulquest`, stub prêt, branchement réel plus tard) |
+| Auth | Simulquest, session signée HttpOnly ; connexion obligatoire pour accéder au jeu |
 | Monnaie | MochyCoins — colonne DB `coins` — solde initial **10** |
 | Enchères | Prix de départ ≥ 1 · chaque enchère ≥ prix courant **+ 1** · durée ≥ 1 h (pas de max) · pas d'anti-snipe |
 | Annulation | Uniquement si aucune enchère reçue |
-| Lootbox & inventaire | **Serveur-authoritative** (tirage des coffres via API Next + Supabase) |
+| Lootbox & inventaire | **Serveur-authoritative** (tirage et inventaire via API Next + Supabase, sans repli local) |
 | Doublons | Piles dans Supabase, badge `xN` |
 | Commission | Aucune pour l'instant |
 | Graphiques | Dériver de la table `sales` (recharts déjà installé) |
@@ -51,7 +51,6 @@
 - [x] `src/lib/plush/mutations.ts` — helpers `mutationKey()` / `stackKey()` (pas de fichier `stack.ts` séparé)
 - [x] `GET /api/lootbox/state` — état + recharges rattrapées côté serveur
 - [x] `POST /api/lootbox/click` — tirage serveur, monte la rareté, ouvre le coffre, crédite l'inventaire
-- [x] `POST /api/lootbox/import` — import unique de la progression + inventaire locaux
 - [x] Refactor `src/components/plush/Lootbox.tsx` — appelle l'API, joue les animations, badges `xN`, équipement par pile
 
 ## 5. API Market
@@ -119,7 +118,7 @@ Le **cours actuel** d'une carte = dernier prix de vente ; à défaut, plus basse
 
 ## Scénarios de test
 
-1. Import d'inventaire depuis `localStorage` → piles créées, import non rejouable.
+1. Accès à `/` sans session → redirection vers `/login`.
 2. Mise en vente d'une pile `x2` → stock passe à `x1`.
 3. Enchère valide → solde bloqué, remboursement de l'ancien enchérisseur.
 4. Surencère de +1 → acceptée ; de +0 → refusée.
@@ -142,7 +141,7 @@ Le **cours actuel** d'une carte = dernier prix de vente ; à défaut, plus basse
   `SIMULQUEST_GET_UNIQ_ID`, `SIMULQUEST_URL_RETURN` ajoutées sur Vercel · flux complet testé en
   prod (login → state signé → callback → `pv_session` → `/market`). Reste à déclarer le site dans
   `autorizedurl` + `config` côté Simul Account (détail plus bas).
-- **Lootbox** : RNG côté serveur via `/api/lootbox/*` quand connecté, repli localStorage sinon ; import unique ; badges `×N`.
+- **Lootbox** : RNG et progression uniquement côté serveur via `/api/lootbox/*` ; badges `×N`.
 - **Marché** : enchères serveur (escrow, min = courant + 1, durée ≥ 1 h), inventaire en piles, cours via `sales`.
 
 ### Corrections UI (session du 26/10)
