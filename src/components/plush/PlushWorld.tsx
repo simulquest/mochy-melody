@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Dna, Trophy, ChevronDown, LogIn } from 'lucide-react';
+import { ArrowLeft, Dna, Trophy, ChevronDown, Store } from 'lucide-react';
 import PlushExperience from '@/components/plush/PlushExperience';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import CoinBalance from '@/components/plush/CoinBalance';
@@ -239,11 +239,11 @@ function CollectionView({
             <div className="flex shrink-0 items-center gap-2">
               <CoinBalance />
               <Link
-                href="/login"
-                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-fuchsia-400/40 bg-fuchsia-500/15 px-4 py-2 text-xs font-semibold text-fuchsia-100 transition-all hover:bg-fuchsia-400/25 hover:text-white active:scale-95"
+                href="/market"
+                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80 transition-all hover:bg-white/10 hover:text-white active:scale-95"
               >
-                <LogIn className="h-3.5 w-3.5" aria-hidden />
-                Sign in With SimulQuest
+                <Store className="h-3.5 w-3.5 text-amber-300" aria-hidden />
+                Marché
               </Link>
             </div>
           </div>
