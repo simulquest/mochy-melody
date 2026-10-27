@@ -310,6 +310,13 @@ function CollectionView({
                       )}
                     </div>
                   </button>
+                  <Link
+                    href={`/market?sell=species:${selected.id}`}
+                    aria-label={`Vendre ${selected.name} sur le marché`}
+                    className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white/70 transition-colors hover:border-amber-300/40 hover:bg-amber-300/10 hover:text-white"
+                  >
+                    Vendre
+                  </Link>
                   <button
                     onClick={() => onOpen(selected.id)}
                     aria-label={`Entrer dans l'univers de ${selected.name}`}

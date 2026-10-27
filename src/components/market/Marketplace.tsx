@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -26,6 +26,9 @@ import { apiPost, formatCoins, type ListingView, type InventoryItem } from '@/li
 
 type Tab = 'sales' | 'mine' | 'bids' | 'cours';
 
+/** Préfixe de `?sell=` pour cibler une espèce (vendre depuis le jeu). */
+const SELL_SPECIES_PREFIX = 'species:';
+
 const TABS: Array<{ id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'sales', label: 'Toutes les ventes', icon: Gavel },
   { id: 'mine', label: 'Mes ventes', icon: Backpack },
@@ -39,8 +42,9 @@ interface MarketplaceProps {
 
 export default function Marketplace({ initialSellId }: MarketplaceProps) {
   const { data: me, loading, reload: reloadMe } = useMe();
-  // Pré-sélection d'une vente via ?sell=<inventoryId> → état initial dérivé du prop.
-  const [tab, setTab] = useState<Tab>(initialSellId ? 'mine' : 'sales');
+  // Pré-sélection d'une vente via ?sell=<inventoryId> ou ?sell=species:<id>.
+  // L'onglet par défaut est « Mes ventes » : c'est là que se vend une carte.
+  const [tab, setTab] = useState<Tab>('mine');
   const [sellOpen, setSellOpen] = useState<boolean>(!!initialSellId);
   const [sellPreselect, setSellPreselect] = useState<string | null>(initialSellId ?? null);
   const [bidTarget, setBidTarget] = useState<ListingView | null>(null);
@@ -55,6 +59,17 @@ export default function Marketplace({ initialSellId }: MarketplaceProps) {
     const id = setTimeout(() => setToast(null), 3200);
     return () => clearTimeout(id);
   }, [toast]);
+
+  // ?sell=species:<id> — bouton « Vendre » de la collection / d'une peluche :
+  // résolu en fonction de l'inventaire (dérivé, sans effet) pour pré-sélectionner
+  // la première pile de cette espèce ; sinon la modale ouvre la 1ʳᵉ carte.
+  const resolvedSellPreselect = useMemo(() => {
+    if (!sellPreselect) return null;
+    if (!sellPreselect.startsWith(SELL_SPECIES_PREFIX)) return sellPreselect;
+    const speciesId = sellPreselect.slice(SELL_SPECIES_PREFIX.length);
+    const match = me?.inventory.find((i) => i.species_id === speciesId && i.quantity > 0);
+    return match ? match.id : null;
+  }, [sellPreselect, me]);
 
   const fireToast = useCallback((text: string, ok = true) => {
     setToast({ text, ok });
@@ -189,10 +204,14 @@ export default function Marketplace({ initialSellId }: MarketplaceProps) {
       <AnimatePresence>
         {sellOpen && (
           <SellDialog
-            key={sellPreselect ?? 'sell'}
+            key={resolvedSellPreselect ?? 'sell'}
             inventory={me.inventory}
-            preselectId={sellPreselect}
-            onClose={() => setSellOpen(false)}
+            preselectId={resolvedSellPreselect}
+            onClose={() => {
+              setSellOpen(false);
+              // Après la modale, on retombe sur l'inventaire (onglet « Mes ventes »).
+              setTab('mine');
+            }}
             onSubmit={handleSell}
           />
         )}
@@ -250,19 +269,18 @@ export default function Marketplace({ initialSellId }: MarketplaceProps) {
         )}
       </AnimatePresence>
 
-      {/* Bouton vendre flottant (onglet Mes ventes) */}
-      {tab === 'mine' && (
-        <button
-          onClick={() => {
-            setSellPreselect(null);
-            setSellOpen(true);
-          }}
-          className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 px-5 py-3 text-sm font-bold text-white shadow-2xl shadow-fuchsia-900/40 transition-transform hover:scale-105 active:scale-95"
-        >
-          <Tag className="h-4 w-4" aria-hidden />
-          Vendre
-        </button>
-      )}
+      {/* Bouton vendre flottant — visible sur TOUS les onglets */}
+      <button
+        onClick={() => {
+          setTab('mine');
+          setSellPreselect(null);
+          setSellOpen(true);
+        }}
+        className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 px-5 py-3 text-sm font-bold text-white shadow-2xl shadow-fuchsia-900/40 transition-transform hover:scale-105 active:scale-95"
+      >
+        <Tag className="h-4 w-4" aria-hidden />
+        Vendre
+      </button>
     </div>
   );
 }
@@ -450,7 +468,7 @@ function InventoryTile({ item, onSell }: { item: InventoryItem; onSell: (id: str
           ×{item.quantity}
         </span>
       )}
-      <span className="mt-0.5 text-[10px] font-semibold text-fuchsia-300/80 opacity-0 transition-opacity group-hover:opacity-100">
+      <span className="mt-0.5 text-[10px] font-semibold text-fuchsia-300/80 transition-opacity">
         Vendre
       </span>
     </button>

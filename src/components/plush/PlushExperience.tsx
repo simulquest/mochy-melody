@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   Dna,
   Store,
+  Tag,
 } from 'lucide-react';
 import { PlushEngine } from '@/lib/plush/plush-engine';
 import { PlushPreset } from '@/lib/plush/plush-shape';
@@ -299,6 +300,19 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
           >
             <Store className="h-4 w-4 text-amber-300" aria-hidden />
             <span className="hidden text-xs font-medium sm:inline">Marché</span>
+          </motion.button>
+
+          {/* Vendre cette peluche — ouvre la modale de vente pré-sélectionnée */}
+          <motion.button
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.12, ease: 'easeOut' }}
+            onClick={() => router.push(`/market?sell=species:${species.id}`)}
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/[0.07] px-4 py-2.5 text-amber-200/90 backdrop-blur-md transition-colors hover:bg-amber-300/[0.15]"
+            aria-label={`Vendre une carte de ${species.name} sur le marché`}
+          >
+            <Tag className="h-4 w-4 text-amber-300" aria-hidden />
+            <span className="text-xs font-semibold">Vendre</span>
           </motion.button>
 
           <motion.div
