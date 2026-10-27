@@ -27,6 +27,11 @@ import {
 export interface EngineCallbacks {
   onHappiness?: (v: number) => void;
   onFirstInteract?: () => void;
+  /**
+   * Barre de bonheur remplie → gerbe de cœurs (caresse aboutie).
+   * C'est le moment où l'interface crédite les MochyHearts.
+   */
+  onLove?: () => void;
 }
 
 const CENTER = new THREE.Vector3(0, 0.12, 0);
@@ -892,6 +897,7 @@ export class PlushEngine {
       this.petAccum = 2.2;
       this.wiggleStart = t;
       this.spawnHearts(4);
+      this.cbs.onLove?.();
     }
   }
 

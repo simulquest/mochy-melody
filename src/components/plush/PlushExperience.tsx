@@ -17,7 +17,18 @@ import { PlushSpecies } from '@/lib/plush/species';
 import { PlushMutation, mutationRarity, rarityColor, rarityName } from '@/lib/plush/mutations';
 import Lootbox from '@/components/plush/Lootbox';
 import CoinBalance from '@/components/plush/CoinBalance';
-import { getEquippedPreset } from '@/lib/plush/lootbox';
+import HeartBalance from '@/components/plush/HeartBalance';
+import { getEquippedPreset, RARITIES, type OwnedPlush } from '@/lib/plush/lootbox';
+import {
+  formatWindow,
+  type PetCharges,
+} from '@/lib/plush/pet';
+import {
+  fetchPetState,
+  remotePetAward,
+  localPetAward,
+  localPetStateFor,
+} from '@/lib/plush/pet-remote';
 
 interface PlushExperienceProps {
   species: PlushSpecies;
@@ -35,6 +46,16 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
   const [equippedLootId, setEquippedLootId] = useState<string | null>(null);
   const [mut, setMut] = useState<PlushMutation | null>(null);
   const [toast, setToast] = useState<{ text: string; color: string } | null>(null);
+  // MochyHearts : solde + caresses restantes pour cette espèce (3 / 3 h).
+  const [pet, setPet] = useState<{ hearts: number; charges: PetCharges } | null>(null);
+  const [petMode, setPetMode] = useState<'server' | 'local' | null>(null);
+  // Rareté de la peluche lootbox équipée (0 = espèce naturelle, Commune).
+  const [lootRarityIdx, setLootRarityIdx] = useState(0);
+  const petBusy = useRef(false);
+  const emptyToastAt = useRef(0);
+  // Callback appelé par le moteur à chaque gerbe de cœurs (barre pleine) :
+  // on lit la dernière version pour éviter de recréer le moteur.
+  const petRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -50,6 +71,9 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
           {
             onHappiness: (v) => setHappiness(v),
             onFirstInteract: () => setShowHint(false),
+            // Barre de bonheur remplie → gerbe de cœurs : on crédite alors
+            // les MochyHearts (voir `awardHearts`).
+            onLove: () => petRef.current(),
           },
           { species },
         );
@@ -65,6 +89,7 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
         // Restaure la peluche lootbox équipée uniquement si elle appartient à
         // cette espèce. Sinon la vue doit montrer la variante sélectionnée.
         const equipped = getEquippedPreset();
+        setLootRarityIdx(equipped?.speciesId === species.id ? equipped.rarityIdx : 0);
         if (equipped && equipped.speciesId === species.id) {
           engine.setPreset(equipped);
           setEquippedLootId(equipped.id);
@@ -106,12 +131,77 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
   const equipLoot = useCallback(
     (preset: PlushPreset, id: string, mutation: PlushMutation | null = null) => {
       setEquippedLootId(id);
+      setLootRarityIdx(Math.max(0, Math.round((preset as Partial<OwnedPlush>).rarityIdx ?? 0)));
       engineRef.current?.setPreset(preset);
       engineRef.current?.setMutations(mutation ?? null);
       setMut(mutation ?? null);
     },
     [],
   );
+
+  // Rareté retenue pour le gain : la plus rare entre la carte équipée et
+  // la mutation affichée (Commune = 1 MochyHeart … Mythique = 5).
+  const mutRarityIdx = mut
+    ? Math.max(0, RARITIES.findIndex((r) => r.id === mutationRarity(mut)))
+    : 0;
+  const rewardRarityIdx = Math.max(lootRarityIdx, mutRarityIdx);
+
+  // ---- MochyHearts : état initial (serveur si connecté, sinon local) ----
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const st = await fetchPetState(species.id);
+        if (cancelled) return;
+        setPet({ hearts: st.hearts, charges: { used: st.used, resetAt: st.resetAt } });
+        setPetMode('server');
+      } catch {
+        if (cancelled) return;
+        const local = localPetStateFor(species.id);
+        setPet({ hearts: local.hearts, charges: { used: local.used, resetAt: local.resetAt } });
+        setPetMode('local');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [species.id]);
+
+  /** Une gerbe de cœurs (barre de bonheur pleine) → gain de MochyHearts. */
+  const awardHearts = useCallback(() => {
+    if (petMode === null || petBusy.current) return;
+    const speciesId = species.id;
+    const rarityIdx = rewardRarityIdx;
+    petBusy.current = true;
+    (async () => {
+      try {
+        const res =
+          petMode === 'server'
+            ? await remotePetAward(speciesId, rarityIdx)
+            : localPetAward(speciesId, rarityIdx);
+        setPet({ hearts: res.hearts, charges: { used: res.used, resetAt: res.resetAt } });
+        if (res.awarded) {
+          fireToast(`+${res.amount} MochyHearts`, '#ff5f9e');
+        } else if (Date.now() - emptyToastAt.current > 15_000) {
+          emptyToastAt.current = Date.now();
+          fireToast(
+            `Plus de caresses — retour dans ${formatWindow(Math.max(0, res.resetAt - Date.now()))}`,
+            '#ff8ab8',
+          );
+        }
+      } catch (err) {
+        // réseau / erreur serveur : aucun crédit, on n'interrompt pas la caresse
+        console.error('Gain de MochyHearts :', err);
+      } finally {
+        petBusy.current = false;
+      }
+    })();
+  }, [petMode, species.id, rewardRarityIdx, fireToast]);
+
+  // Le moteur (créé une fois) appelle toujours la dernière version.
+  useEffect(() => {
+    petRef.current = awardHearts;
+  }, [awardHearts]);
 
   const globalRarity = mut ? mutationRarity(mut) : 'commune';
   const mutated = !!mut;
@@ -177,13 +267,26 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
         </motion.div>
 
         {/* Jauge de bonheur + accès marché */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center justify-end gap-2.5">
           <motion.div
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1, ease: 'easeOut' }}
           >
             <CoinBalance className="backdrop-blur-md" />
+          </motion.div>
+
+          {/* MochyHearts gagnés en caressant (3 caresses / 3 h par mochy) */}
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.15, ease: 'easeOut' }}
+          >
+            <HeartBalance
+              hearts={pet?.hearts ?? null}
+              charges={pet?.charges ?? null}
+              className="backdrop-blur-md"
+            />
           </motion.div>
 
           <motion.button
