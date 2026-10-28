@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mochy Melody — Collectionnez, mutez, enchérissez</title>
+  <meta name="description" content="Mochy Melody : la marketplace cozy de peluches 3D. Ouvrez des lootboxes, collectionnez des peluches uniques aux mutations éblouissantes et vendez-les aux enchères en MochyCoins." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='55' r='42' fill='%23ff7ac2'/%3E%3Ccircle cx='36' cy='50' r='6' fill='%233a2b4a'/%3E%3Ccircle cx='64' cy='50' r='6' fill='%233a2b4a'/%3E%3Cellipse cx='50' cy='72' rx='13' ry='8' fill='%23ffd9ea'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <script>
+  /* Résolution robuste du dossier courant : la page fonctionne identiquement
+     depuis file://, /mochy/, /mochy/index.html ou un sous-dossier de hosting. */
+  (function () {
+    try {
+      var path = location.pathname;
+      var last = path.split("/").pop() || "";
+      var isFile = /\.[a-z0-9]+$/i.test(last);
+      var dir = isFile ? path.slice(0, path.lastIndexOf("/") + 1)
+                       : (path.charAt(path.length - 1) === "/" ? path : path + "/");
+      document.write('<link rel="stylesheet" href="' + dir + 'styles.css" />');
+      document.write('<script src="' + dir + 'plush3d.js" defer><\/script>');
+      document.write('<script src="' + dir + 'plushes.js" defer><\/script>');
+      document.write('<script src="' + dir + 'app.js" defer><\/script>');
+    } catch (e) {
+      document.write('<link rel="stylesheet" href="styles.css" />');
+      document.write('<script src="plush3d.js" defer><\/script>');
+      document.write('<script src="plushes.js" defer><\/script>');
+      document.write('<script src="app.js" defer><\/script>');
+    }
+  })();
+  </script>
+</head>
+<body>
+
+  <!-- Décor de fond -->
+  <div class="bg-decor" aria-hidden="true">
+    <span class="blob blob-1"></span>
+    <span class="blob blob-2"></span>
+    <span class="blob blob-3"></span>
+    <span class="sparkle s1">✦</span>
+    <span class="sparkle s2">✦</span>
+    <span class="sparkle s3">✦</span>
+    <span class="sparkle s4">✧</span>
+    <span class="sparkle s5">✦</span>
+  </div>
+
+  <!-- Navigation -->
+  <header class="nav" id="top">
+    <nav class="nav-inner" aria-label="Navigation principale">
+      <a class="brand" href="#top">
+        <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="50" cy="58" r="40" fill="#ff7ac2"/>
+          <ellipse cx="28" cy="26" rx="12" ry="24" fill="#ff7ac2" transform="rotate(-14 28 26)"/>
+          <ellipse cx="72" cy="26" rx="12" ry="24" fill="#ff7ac2" transform="rotate(14 72 26)"/>
+          <circle cx="37" cy="54" r="6" fill="#3a2b4a"/>
+          <circle cx="63" cy="54" r="6" fill="#3a2b4a"/>
+          <circle cx="39" cy="52" r="2" fill="#fff"/>
+          <circle cx="65" cy="52" r="2" fill="#fff"/>
+          <ellipse cx="50" cy="74" rx="12" ry="7" fill="#ffd9ea"/>
+          <circle cx="24" cy="66" r="6" fill="#ff5f9e" opacity=".45"/>
+          <circle cx="76" cy="66" r="6" fill="#ff5f9e" opacity=".45"/>
+        </svg>
+        <span>Mochy <b>Melody</b></span>
+      </a>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#jeu">Le jeu</a></li>
+        <li><a href="#collection">Collection</a></li>
+        <li><a href="#mutations">Mutations</a></li>
+        <li><a href="#marche">Marché</a></li>
+        <li class="nav-cta-mobile"><a class="btn btn-primary btn-sm" href="https://mochy-melody.vercel.app" target="_blank" rel="noopener">Jouer maintenant</a></li>
+      </ul>
+      <a class="btn btn-primary btn-sm nav-cta" href="https://mochy-melody.vercel.app" target="_blank" rel="noopener">Jouer maintenant</a>
+      <button class="burger" id="burger" aria-label="Ouvrir le menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============ HERO ============ -->
+    <section class="hero" id="accueil">
+      <div class="hero-copy">
+        <p class="hero-badge reveal">✦ La marketplace cozy des peluches 3D</p>
+        <h1 class="reveal">Des peluches <span class="grad-text">magiques</span>, des enchères <span class="grad-text alt">endiablées</span></h1>
+        <p class="hero-sub reveal">
+          Cliquez sur votre lootbox, réveillez des peluches rares nées avec des mutations
+          éblouissantes, puis vendez-les aux enchères dans une économie vivante de
+          <b>MochyCoins</b>. Chaque tirage est unique — chaque peluche a une âme.
+        </p>
+        <div class="hero-actions reveal">
+          <button class="btn btn-primary btn-lg" id="hero-demo-btn">🎁 Essayer la lootbox</button>
+          <a class="btn btn-ghost btn-lg" href="#jeu">Découvrir le jeu</a>
+        </div>
+        <a class="hero-play reveal" href="https://mochy-melody.vercel.app" target="_blank" rel="noopener">
+          Jouer au vrai jeu — 10 MochyCoins offerts <span aria-hidden="true">→</span>
+        </a>
+        <ul class="hero-stats reveal" aria-label="Chiffres du jeu">
+          <li><b data-count="10">0</b><span>espèces</span></li>
+          <li><b data-count="15">0</b><span>mutations</span></li>
+          <li><b data-count="5">0</b><span>raretés</span></li>
+          <li><b data-count="37000" data-suffix="+">0</b><span>combinaisons</span></li>
+        </ul>
+      </div>
+
+      <!-- Démo lootbox interactive -->
+      <div class="hero-demo reveal" id="demo">
+        <div class="lootbox-card" aria-label="Démo de la lootbox">
+          <div class="demo-head">
+            <span class="demo-title">🎁 Démo Lootbox</span>
+            <span class="demo-chests">Coffres : <b id="chests-left">3</b></span>
+          </div>
+
+          <div class="box-stage" id="box-stage">
+            <div class="reveal-plush" id="reveal-plush" aria-hidden="true"></div>
+            <button class="lootbox-btn" id="lootbox-btn" aria-label="Charger la lootbox">
+            <div class="chest-stage" id="chest-stage" role="img" aria-label="Coffre à peluches"></div>
+          </button>
+            <div class="rarity-flash" id="rarity-flash" aria-hidden="true"></div>
+            <div class="burst" id="burst" aria-hidden="true"></div>
+          </div>
+
+          <div class="gauge" role="progressbar" aria-label="Progression de la lootbox" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" id="gauge-track">
+            <div class="gauge-fill" id="gauge-fill"></div>
+            <span class="gauge-label" id="gauge-label">Rareté Commune</span>
+          </div>
+
+          <p class="demo-hint" id="demo-hint">Cliquez sur le coffre pour charger la jauge !</p>
+
+          <div class="demo-result" id="demo-result" hidden>
+            <div class="result-head">
+              <span class="result-rarity" id="result-rarity">Rare</span>
+              <span class="result-dupe" id="result-dupe" hidden>×2 doublon → pile</span>
+            </div>
+            <div class="result-body">
+              <div class="result-plush" id="result-plush" aria-hidden="true"></div>
+              <div class="result-info">
+                <h3 id="result-name">Fraise Tagada</h3>
+                <p id="result-species">Fantôme</p>
+                <ul id="result-mutations"></ul>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="demo-again">Encore une !</button>
+          </div>
+
+          <p class="demo-note">Démo simulée dans le navigateur — dans le jeu, tirage, inventaire et marchés sont <b>100 % serveur-authoritative</b>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MARQUEE ============ -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track" id="marquee-track">
+        <span>Brique Tendresse</span><i>✦</i><span>Brume Douce</span><i>✦</i><span>Fraise Tagada</span><i>✦</i><span>Mûre Sucrée</span><i>✦</i><span>Aurore Boréale</span><i>✦</i><span>Orchidée Néon</span><i>✦</i><span>Or Rose Royal</span><i>✦</i><span>Émeraude Impériale</span><i>✦</i><span>Soleil Couchant</span><i>✦</i><span>Prisme Sacré</span><i>✦</i><span>Galaxie Arc-en-ciel</span><i>✦</i><span>Renard Cannelle</span><i>✦</i><span>Ours Chocolat</span><i>✦</i><span>Grenouille Menthe</span><i>✦</i><span>Licorne Céleste</span><i>✦</i><span>Hibou Galaxie</span><i>✦</i><span>Pingouin Boréal</span><i>✦</i>
+      </div>
+    </div>
+
+    <!-- ============ COMMENT ÇA MARCHE ============ -->
+    <section class="section" id="jeu">
+      <div class="section-head reveal">
+        <p class="kicker">Comment ça marche</p>
+        <h2>Trois temps, une <span class="grad-text">mélodie</span></h2>
+        <p class="section-sub">De la lootbox au marteau d'ivoire, tout tourne autour de vos peluches.</p>
+      </div>
+      <div class="steps">
+        <article class="step-card reveal">
+          <div class="step-num">1</div>
+          <div class="step-icon" aria-hidden="true">🖱️</div>
+          <h3>Cliquez &amp; chargez</h3>
+          <p>Chaque clic remplit la jauge de la lootbox et peut déclencher une <b>montée en rareté</b>. Coffre plein ? Une peluche est révélée et rejoint votre collection. La lootbox se recharge doucement pendant que vous vaquez à vos occupations.</p>
+        </article>
+        <article class="step-card reveal">
+          <div class="step-num">2</div>
+          <div class="step-icon" aria-hidden="true">🧬</div>
+          <h3>Mutez &amp; collectionnez</h3>
+          <p>Chat mochi, dragon, lapin, fantôme, renard, ours, grenouille, licorne, hibou ou pingouin : chaque peluche peut naître avec des <b>yeux précieux</b>, une fourrure galaxie ou l'<b>albinos</b>. Les doublons s'empilent proprement (<b>×N</b>) et les combinaisons de mutations rendent chaque exemplaire unique.</p>
+        </article>
+        <article class="step-card reveal">
+          <div class="step-num">3</div>
+          <div class="step-icon" aria-hidden="true">🔨</div>
+          <h3>Vendez &amp; enchérissez</h3>
+          <p>Mettez vos pépites en vente dès <b>1 MochyCoin</b>, choisissez la durée, et laissez la communauté surenchérir. Les mises sont bloquées en <b>escrow</b> et remboursées automatiquement : zéro triche, zéro commission.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ COLLECTION ============ -->
+    <section class="section section-collection" id="collection">
+      <div class="section-head reveal">
+        <p class="kicker">La collection</p>
+        <h2>Dix espèces, <span class="grad-text">des milliers de visages</span></h2>
+        <p class="section-sub">Une peluche par espèce, chacune avec sa rareté. Selon les yeux, la fourrure et la teinte reçues à la naissance, on compte plus de <b>37&nbsp;000 peluches différentes</b> — en voici une par espèce, et deux variations nées avec des mutations rares.</p>
+      </div>
+
+      <div class="filters reveal" role="group" aria-label="Filtrer par rareté">
+        <button class="chip active" data-filter="all">Toutes</button>
+        <button class="chip" data-filter="0" style="--c:#b8bfcc">Commune</button>
+        <button class="chip" data-filter="1" style="--c:#ff7ac2">Rare</button>
+        <button class="chip" data-filter="2" style="--c:#a06bff">Épique</button>
+        <button class="chip" data-filter="3" style="--c:#ffc14d">Légendaire</button>
+        <button class="chip" data-filter="4" style="--c:#ff5f9e">Mythique</button>
+      </div>
+
+      <div class="cards-grid" id="cards-grid" aria-live="polite"><!-- cartes injectées par JS --></div>
+    </section>
+
+    <!-- ============ MUTATIONS ============ -->
+    <section class="section" id="mutations">
+      <div class="section-head reveal">
+        <p class="kicker">Les mutations</p>
+        <h2>Deux peluches ne sont <span class="grad-text">jamais</span> identiques</h2>
+        <p class="section-sub">Yeux, fourrure, teinte : trois familles de traits hérités à la naissance, plus une surprise — l'hétérochromie.</p>
+      </div>
+
+      <div class="mut-grid">
+        <article class="mut-panel reveal">
+          <div class="mut-head"><span class="mut-icon" aria-hidden="true">👁️</span><h3>Yeux</h3></div>
+          <p class="mut-desc">Des pupilles qui racontent une histoire — certaines scintillent littéralement.</p>
+          <ul class="mut-list" id="mut-eyes"></ul>
+        </article>
+        <article class="mut-panel reveal">
+          <div class="mut-head"><span class="mut-icon" aria-hidden="true">🧶</span><h3>Fourrure</h3></div>
+          <p class="mut-desc">Des pointes dorées aux pelages arc-en-ciel, le pelage fait la légende.</p>
+          <ul class="mut-list" id="mut-fur"></ul>
+        </article>
+        <article class="mut-panel reveal">
+          <div class="mut-head"><span class="mut-icon" aria-hidden="true">🎨</span><h3>Teintes</h3></div>
+          <p class="mut-desc">De rares peluches naissent différentes : neige ou charbon, assumez-les.</p>
+          <ul class="mut-list" id="mut-tints"></ul>
+          <div class="hetero-callout">
+            <b>✨ Hétérochromie — 10 %</b>
+            <span>Une chance sur dix que les deux yeux portent des couleurs différentes. Les connaisseurs s'arrachent ces exemplaires.</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ MARCHÉ ============ -->
+    <section class="section section-market" id="marche">
+      <div class="section-head reveal">
+        <p class="kicker">Le marché</p>
+        <h2>Le marché ne dort <span class="grad-text">jamais</span></h2>
+        <p class="section-sub">Enchères en temps réel, cours des cartes, escrow automatique : bienvenue dans l'économie MochyCoins.</p>
+      </div>
+
+      <div class="market-grid">
+        <!-- Enchère live simulée -->
+        <div class="auction-card reveal" id="auction-card">
+          <div class="auction-head">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span class="auction-live">Enchère en direct</span>
+            <span class="auction-timer" id="auction-timer" aria-label="Temps restant">02:00:00</span>
+          </div>
+          <div class="auction-body">
+            <div class="auction-plush" id="auction-plush" aria-hidden="true"></div>
+            <div class="auction-info">
+              <span class="result-rarity" style="--rc:#ff5f9e">Mythique</span>
+              <h3 id="auction-name">Prisme Sacré</h3>
+              <p class="auction-species">Dragon · fourrure arc-en-ciel · Mythique</p>
+              <div class="auction-price">
+                <span>Prix courant</span>
+                <b><span id="auction-price">12</span> 🪙</b>
+              </div>
+              <button class="btn btn-primary" id="bid-btn">Enchérir <span id="bid-next">13</span> 🪙</button>
+              <p class="auction-escrow">🔒 Vos coins sont bloqués en escrow — remboursés si vous êtes surenchéri.</p>
+            </div>
+          </div>
+          <ul class="bid-history" id="bid-history" aria-label="Historique des enchères">
+            <li><b>MochiKing</b><span>enchérit 12 🪙</span><time>il y a 2 min</time></li>
+            <li><b>NuageDoux</b><span>enchérit 11 🪙</span><time>il y a 5 min</time></li>
+            <li><b>PixelPanda</b><span>enchérit 9 🪙</span><time>il y a 9 min</time></li>
+          </ul>
+        </div>
+
+        <!-- Règles + cours -->
+        <div class="market-side">
+          <article class="rules-card reveal">
+            <h3>Règles de la place</h3>
+            <ul class="rules-list">
+              <li><span class="rule-ico" aria-hidden="true">🪙</span><div><b>Solde de départ : 10 MochyCoins</b><span>offerts à la création du compte.</span></div></li>
+              <li><span class="rule-ico" aria-hidden="true">📈</span><div><b>Surenchère minimale : +1 🪙</b><span>chaque offre doit dépasser le prix courant.</span></div></li>
+              <li><span class="rule-ico" aria-hidden="true">⏳</span><div><b>Durée : à partir d'1 heure</b><span>pas de maximum, pas d'anti-snipe — le dernier mot est un art.</span></div></li>
+              <li><span class="rule-ico" aria-hidden="true">🤝</span><div><b>Escrow automatique</b><span>l'ancien meilleur enchérisseur est remboursé instantanément.</span></div></li>
+              <li><span class="rule-ico" aria-hidden="true">↩️</span><div><b>Annulation libre</b><span>tant qu'aucune enchère n'est reçue.</span></div></li>
+              <li><span class="rule-ico" aria-hidden="true">🎁</span><div><b>0 % de commission</b><span>le vendeur garde la mise, l'acheteur la peluche.</span></div></li>
+            </ul>
+          </article>
+
+          <article class="chart-card reveal">
+            <div class="chart-head">
+              <h3>Cours des cartes</h3>
+              <span class="chart-badge" id="chart-trend">▲ +18 %</span>
+            </div>
+            <canvas id="price-chart" width="520" height="180" aria-label="Graphique du cours de Prisme Sacré" role="img"></canvas>
+            <p class="chart-caption">Dernières ventes de <b>Prisme Sacré</b> — le cours suit la dernière vente, sinon la plus basse enchère active.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CTA FINAL ============ -->
+    <section class="section cta-section" id="jouer">
+      <div class="cta-card reveal">
+        <div class="cta-plushes" id="cta-plushes" aria-hidden="true"></div>
+        <h2>Votre première peluche n'est qu'à quelques clics</h2>
+        <p>Créez votre compte, recevez <b>10 MochyCoins</b> et laissez la lootbox chanter.</p>
+        <a class="btn btn-light btn-lg" href="https://mochy-melody.vercel.app" target="_blank" rel="noopener">Jouer gratuitement →</a>
+        <span class="cta-note">Connexion Simulquest · session sécurisée · zéro installation</span>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <p class="footer-legal">© <span id="footer-year">2026</span> <b>Simulquest</b> — Tous droits réservés</p>
+  </footer>
+
+</body>
+</html>
