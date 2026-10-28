@@ -27,6 +27,7 @@ import {
   fetchPetState,
   remotePetAward,
 } from '@/lib/plush/pet-remote';
+import { ownedStackKey } from '@/lib/plush/lootbox-remote';
 
 interface PlushExperienceProps {
   species: PlushSpecies;
@@ -88,7 +89,7 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
         setLootRarityIdx(equipped?.speciesId === species.id ? equipped.rarityIdx : 0);
         if (equipped && equipped.speciesId === species.id) {
           engine.setPreset(equipped);
-          setEquippedLootId(equipped.id);
+          setEquippedLootId(ownedStackKey(equipped));
           if (equipped.mutation) {
             engine.setMutations(equipped.mutation);
             setMut(equipped.mutation);

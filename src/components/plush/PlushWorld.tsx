@@ -33,12 +33,12 @@ type View = { type: 'collection' } | { type: 'species'; id: string };
 export default function PlushWorld() {
   const router = useRouter();
   const [view, setView] = useState<View>({ type: 'collection' });
-  const [muts, setMuts] = useState<Record<string, PlushMutation> | null>(null);
   const [unlocked, setUnlocked] = useState<string[]>([]);
+  const [ownedCards, setOwnedCards] = useState<OwnedPlush[]>([]);
   const [ownedCardCount, setOwnedCardCount] = useState<number | null>(null);
   const [collectionLoading, setCollectionLoading] = useState(true);
   const [collectionLoadError, setCollectionLoadError] = useState<string | null>(null);
-  const [equippedSpeciesId, setEquippedSpeciesId] = useState<string | null>(null);
+  const [equippedStackId, setEquippedStackId] = useState<string | null>(null);
   const [selectedByShape, setSelectedByShape] = useState<Record<string, string>>({});
   const prevEquippedRef = useRef<string | null>(null);
   const unlockedRef = useRef<string[]>([]);
@@ -64,12 +64,12 @@ export default function PlushWorld() {
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
       const equipped = getEquippedPreset();
-      const equippedId = equipped?.speciesId ?? null;
-      setEquippedSpeciesId(equippedId);
+      const equippedId = equipped ? ownedStackKey(equipped) : null;
+      setEquippedStackId(equippedId);
       // Si une nouvelle variante vient d'être équipée dans une peluche,
       // elle devient la sélection de sa famille dans la collection.
-      if (equippedId && prevEquippedRef.current && equippedId !== prevEquippedRef.current) {
-        const shape = getSpecies(equippedId).shape;
+      if (equipped && equippedId && prevEquippedRef.current && equippedId !== prevEquippedRef.current) {
+        const shape = getSpecies(equipped.speciesId).shape;
         setSelectedByShape((prev) => ({ ...prev, [shape]: equippedId }));
       }
       prevEquippedRef.current = equippedId;
@@ -80,17 +80,11 @@ export default function PlushWorld() {
   const updateOwnedCards = useCallback((remoteOwned: OwnedPlush[]) => {
     setCollectionLoadError(null);
     setCollectionLoading(false);
+    setOwnedCards(remoteOwned);
     setOwnedCardCount(new Set(remoteOwned.map(ownedStackKey)).size);
     const speciesIds = Array.from(new Set(remoteOwned.map((card) => card.speciesId)));
     unlockedRef.current = speciesIds;
     setUnlocked(speciesIds);
-    const mutations: Record<string, PlushMutation> = {};
-    for (const card of remoteOwned) {
-      if (card.mutation && !mutations[card.speciesId]) {
-        mutations[card.speciesId] = card.mutation;
-      }
-    }
-    setMuts(mutations);
   }, []);
 
   const refreshOwnedCardCount = useCallback(async () => {
@@ -116,8 +110,8 @@ export default function PlushWorld() {
   const viewKey =
     view.type === 'species' ? `species-${view.id}` : 'collection';
 
-  const selectVariant = (shape: string, speciesId: string) => {
-    setSelectedByShape((prev) => ({ ...prev, [shape]: speciesId }));
+  const selectVariant = (shape: string, stackId: string) => {
+    setSelectedByShape((prev) => ({ ...prev, [shape]: stackId }));
   };
 
   const openFirstOwnedPlush = useCallback(() => {
@@ -164,10 +158,9 @@ export default function PlushWorld() {
             </div>
           ) : (
             <CollectionView
-              muts={muts}
-              unlocked={unlocked}
+              ownedCards={ownedCards}
               ownedCardCount={ownedCardCount}
-              equippedSpeciesId={equippedSpeciesId}
+              equippedStackId={equippedStackId}
               selectedByShape={selectedByShape}
               onInventoryChanged={updateOwnedCards}
               onSelectVariant={selectVariant}
@@ -213,14 +206,16 @@ function RarityBadge({ mut }: { mut: PlushMutation | undefined | null }) {
 
 function SpeciesPreview({
   sp,
+  preset = sp.preset,
   size = 'lg',
   mutation = null,
 }: {
   sp: PlushSpecies;
+  preset?: PlushSpecies['preset'];
   size?: 'lg' | 'sm';
   mutation?: PlushMutation | null;
 }) {
-  const p = sp.preset;
+  const p = preset;
   const px = size === 'lg' ? 128 : 84;
   return (
     <div
@@ -288,49 +283,45 @@ function SpeciesView({
 // ---------------------------------------------------------------------------
 
 function CollectionView({
-  muts,
-  unlocked,
+  ownedCards,
   ownedCardCount,
-  equippedSpeciesId,
+  equippedStackId,
   selectedByShape,
   onInventoryChanged,
   onSelectVariant,
   onOpen,
 }: {
-  muts: Record<string, PlushMutation> | null;
-  unlocked: string[];
+  ownedCards: OwnedPlush[];
   ownedCardCount: number | null;
-  equippedSpeciesId: string | null;
+  equippedStackId: string | null;
   selectedByShape: Record<string, string>;
   onInventoryChanged: (owned: OwnedPlush[]) => void;
-  onSelectVariant: (shape: string, speciesId: string) => void;
+  onSelectVariant: (shape: string, stackId: string) => void;
   onOpen: (id: string) => void;
 }) {
   const [expandedShape, setExpandedShape] = useState<string | null>(null);
-  const collection = SPECIES.filter((sp) => isUnlocked(sp.id, unlocked));
   const totalCards =
     new Set(PLUSH_POOL.flat().map((card) => card.id)).size *
     MUTATION_VARIANT_COUNT;
-  // Une carte par famille de forme 3D (Ours, Renard…). La carte affiche la
-  // variante sélectionnée et un clic déplie les variantes possédées.
   const families = useMemo(() => {
-    const byShape = new Map<string, PlushSpecies[]>();
-    for (const sp of collection) {
-      const variants = byShape.get(sp.shape) ?? [];
-      variants.push(sp);
-      byShape.set(sp.shape, variants);
+    const byShape = new Map<string, OwnedPlush[]>();
+    for (const card of ownedCards) {
+      const shape = getSpecies(card.speciesId).shape;
+      const variants = byShape.get(shape) ?? [];
+      variants.push(card);
+      byShape.set(shape, variants);
     }
     return Array.from(byShape.entries()).map(([shape, variants]) => {
       const ordered = [...variants].sort(
-        (a, b) => unlocked.indexOf(b.id) - unlocked.indexOf(a.id),
+        (a, b) => b.wonAt - a.wonAt,
       );
       const selected =
-        ordered.find((sp) => sp.id === selectedByShape[shape]) ??
-        ordered.find((sp) => sp.id === equippedSpeciesId) ??
+        ordered.find((card) => ownedStackKey(card) === selectedByShape[shape]) ??
+        ordered.find((card) => ownedStackKey(card) === equippedStackId) ??
         ordered[0];
       return { shape, label: getShapeLabel(shape), variants: ordered, selected };
     });
-  }, [collection, unlocked, equippedSpeciesId, selectedByShape]);
+  }, [ownedCards, equippedStackId, selectedByShape]);
 
   return (
     <div className="h-full overflow-y-auto overscroll-contain bg-[#070609]">
@@ -381,28 +372,29 @@ function CollectionView({
                 embedded
               />
             </section>
-          ) : families.map(({ shape, label, variants, selected }) => {
+          ) : families.map(({ shape, label, variants, selected }, index) => {
             const expanded = expandedShape === shape;
             const canExpand = variants.length > 1;
-            const m = muts?.[selected.id];
-            const hasMut = m && !isDefaultMutation(m);
+            const selectedSpecies = getSpecies(selected.speciesId);
+            const selectedKey = ownedStackKey(selected);
+            const m = selected.mutation ?? null;
             return (
               <div
                 key={shape}
-                data-tutorial={shape === collection[0]?.shape ? 'collection' : undefined}
+                data-tutorial={index === 0 ? 'collection' : undefined}
                 className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.05]"
               >
                 <div className="relative flex items-center gap-3 p-4 sm:gap-4">
                   <button
                     onClick={() => {
                       if (canExpand) setExpandedShape(expanded ? null : shape);
-                      else onOpen(selected.id);
+                      else onOpen(selected.speciesId);
                     }}
                     aria-expanded={canExpand ? expanded : undefined}
                     aria-label={canExpand ? `${expanded ? 'Masquer' : 'Voir'} les variantes ${label}` : `Ouvrir ${selected.name}`}
                     className="flex min-w-0 flex-1 items-center gap-4 text-left transition-colors sm:gap-5"
                   >
-                    <SpeciesPreview sp={selected} size="sm" mutation={muts?.[selected.id] ?? null} />
+                    <SpeciesPreview sp={selectedSpecies} preset={selected} size="sm" mutation={m} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-base font-bold text-white">{label}</span>
@@ -414,14 +406,14 @@ function CollectionView({
                     </div>
                   </button>
                   <Link
-                    href={`/market?sell=species:${selected.id}`}
+                    href={`/market?sell=species:${selected.speciesId}`}
                     aria-label={`Vendre ${selected.name} sur le marché`}
                     className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white/70 transition-colors hover:border-amber-300/40 hover:bg-amber-300/10 hover:text-white"
                   >
                     Vendre
                   </Link>
                   <button
-                    onClick={() => onOpen(selected.id)}
+                    onClick={() => onOpen(selected.speciesId)}
                     aria-label={`Entrer dans l'univers de ${selected.name}`}
                     className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-fuchsia-200/90 transition-colors hover:border-fuchsia-400/40 hover:bg-fuchsia-400/10 hover:text-white"
                   >
@@ -461,28 +453,30 @@ function CollectionView({
                       className="overflow-hidden border-t border-white/10"
                     >
                       <div className="flex flex-col gap-2 p-3">
-                        {variants.map((sp) => {
-                          const vm = muts?.[sp.id];
+                        {variants.map((card) => {
+                          const sp = getSpecies(card.speciesId);
+                          const vm = card.mutation ?? null;
                           const vHasMut = vm && !isDefaultMutation(vm);
-                          const isSelected = sp.id === selected.id;
+                          const key = ownedStackKey(card);
+                          const isSelected = key === selectedKey;
                           return (
                             <button
-                              key={sp.id}
+                              key={key}
                               onClick={() => {
-                                onSelectVariant(shape, sp.id);
+                                onSelectVariant(shape, key);
                                 setExpandedShape(null);
                               }}
-                              aria-label={`Sélectionner ${sp.name}`}
+                              aria-label={`Sélectionner ${card.name}${vm ? `, yeux ${vm.eye.label}` : ''}`}
                               className={`flex items-center gap-3 rounded-2xl border p-2.5 text-left transition-colors ${
                                 isSelected
                                   ? 'border-fuchsia-400/30 bg-fuchsia-400/[0.06]'
                                   : 'border-transparent hover:border-white/10 hover:bg-white/[0.04]'
                               }`}
                             >
-                              <SpeciesPreview sp={sp} size="sm" mutation={vm ?? null} />
+                              <SpeciesPreview sp={sp} preset={card} size="sm" mutation={vm} />
                               <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-sm font-semibold text-white">{sp.name}</span>
+                                  <span className="text-sm font-semibold text-white">{card.name}</span>
                                   <RarityBadge mut={vm} />
                                 </div>
                                 {vHasMut ? (
@@ -493,7 +487,12 @@ function CollectionView({
                                   </p>
                                 ) : (
                                   <p className="mt-1 text-[11px] italic leading-relaxed text-white/30">
-                                    Jamais mutée — allez la rencontrer et tentez votre chance.
+                                    Variante de base
+                                  </p>
+                                )}
+                                {(card.quantity ?? 1) > 1 && (
+                                  <p className="mt-1 text-[10px] font-semibold text-white/45">
+                                    ×{card.quantity} exemplaires
                                   </p>
                                 )}
                               </div>
