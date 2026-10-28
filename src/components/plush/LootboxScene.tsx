@@ -683,7 +683,7 @@ export default function LootboxScene({
                   🎁
                 </span>
                 {chestsAvailable}/{MAX_CHESTS}
-                {refillActive && ` · +1 dans ${formatCooldown(remaining)}`}
+                {refillActive && ` · ${formatCooldown(remaining)}`}
               </span>
             </div>
           )}

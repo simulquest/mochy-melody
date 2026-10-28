@@ -19,6 +19,7 @@ import SellDialog from '@/components/market/SellDialog';
 import BidDialog from '@/components/market/BidDialog';
 import CardPriceChart from '@/components/market/CardPriceChart';
 import GameTutorial from '@/components/plush/GameTutorial';
+import LoadingScreen from '@/components/LoadingScreen';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import { getSpecies, SPECIES } from '@/lib/plush/species';
 import { RARITIES } from '@/lib/plush/lootbox';
@@ -118,11 +119,7 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
   );
 
   if (loading || !me) {
-    return (
-      <main className="flex min-h-[100dvh] w-full items-center justify-center bg-[#070609]">
-        <Loader2 className="h-6 w-6 animate-spin text-fuchsia-300" aria-hidden />
-      </main>
-    );
+    return <LoadingScreen />;
   }
 
   return (

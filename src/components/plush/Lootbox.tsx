@@ -531,12 +531,7 @@ export default function Lootbox({
                 <span>
                   {locked
                     ? `Prochain coffre dans ${formatCooldown(remaining)}`
-                    : `Ouvrir un coffre${refillActive ? ` · +1 dans ${formatCooldown(remaining)}` : ''}`}
-                </span>
-              )}
-              {!embedded && refillActive && (
-                <span className="text-[10px] font-semibold text-amber-200/80">
-                  +1 dans {formatCooldown(remaining)}
+                    : 'Ouvrir un coffre'}
                 </span>
               )}
               {mythic && !locked && (
