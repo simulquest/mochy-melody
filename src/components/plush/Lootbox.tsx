@@ -538,10 +538,9 @@ export default function Lootbox({
       )}
 
       {/* ---------- Scène 3D : la véritable lootbox ---------- */}
-      <AnimatePresence>
-        {sceneOpen && persist && (
-          typeof document !== 'undefined'
-            ? createPortal(<LootboxScene
+      {sceneOpen && persist && typeof document !== 'undefined' &&
+        createPortal(
+          <LootboxScene
             rarityIdx={sceneBox.rarityIdx}
             progress={sceneBox.progress}
             phase={scenePhase}
@@ -553,10 +552,9 @@ export default function Lootbox({
             onClick={handleBoxClick}
             onOpenComplete={handleOpenComplete}
             onClose={closeScene}
-          />, document.body)
-            : null
+          />,
+          document.body,
         )}
-      </AnimatePresence>
 
       {/* ---------- Toast : rareté augmentée ---------- */}
       <AnimatePresence>
