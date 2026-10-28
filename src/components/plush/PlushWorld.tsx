@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronDown, Store } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ShoppingBag, Store } from 'lucide-react';
 import PlushExperience from '@/components/plush/PlushExperience';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import CoinBalance from '@/components/plush/CoinBalance';
 import MochyWallet from '@/components/plush/MochyWallet';
 import GameTutorial from '@/components/plush/GameTutorial';
+import LoadingScreen from '@/components/LoadingScreen';
 import Lootbox from '@/components/plush/Lootbox';
 import { SPECIES, PlushSpecies, getSpecies, getShapeLabel } from '@/lib/plush/species';
 import {
@@ -35,6 +36,8 @@ export default function PlushWorld() {
   const [muts, setMuts] = useState<Record<string, PlushMutation> | null>(null);
   const [unlocked, setUnlocked] = useState<string[]>([]);
   const [ownedCardCount, setOwnedCardCount] = useState<number | null>(null);
+  const [collectionLoading, setCollectionLoading] = useState(true);
+  const [collectionLoadError, setCollectionLoadError] = useState<string | null>(null);
   const [equippedSpeciesId, setEquippedSpeciesId] = useState<string | null>(null);
   const [selectedByShape, setSelectedByShape] = useState<Record<string, string>>({});
   const prevEquippedRef = useRef<string | null>(null);
@@ -75,6 +78,8 @@ export default function PlushWorld() {
   }, [view]);
 
   const updateOwnedCards = useCallback((remoteOwned: OwnedPlush[]) => {
+    setCollectionLoadError(null);
+    setCollectionLoading(false);
     setOwnedCardCount(new Set(remoteOwned.map(ownedStackKey)).size);
     const speciesIds = Array.from(new Set(remoteOwned.map((card) => card.speciesId)));
     unlockedRef.current = speciesIds;
@@ -93,6 +98,11 @@ export default function PlushWorld() {
       updateOwnedCards(await fetchRemoteOwned());
     } catch (error) {
       console.error('Chargement de la collection :', error);
+      setCollectionLoadError(
+        error instanceof Error ? error.message : 'Chargement de la collection impossible',
+      );
+    } finally {
+      setCollectionLoading(false);
     }
   }, [updateOwnedCards]);
 
@@ -119,6 +129,12 @@ export default function PlushWorld() {
     router.push('/market?tutorial=market');
   }, [router]);
 
+  const retryCollectionLoad = useCallback(() => {
+    setCollectionLoading(true);
+    setCollectionLoadError(null);
+    void refreshOwnedCardCount();
+  }, [refreshOwnedCardCount]);
+
   return (
     <>
       <AnimatePresence mode="wait">
@@ -131,16 +147,33 @@ export default function PlushWorld() {
         className="h-[100dvh] w-full"
       >
         {view.type === 'collection' && (
-          <CollectionView
-            muts={muts}
-            unlocked={unlocked}
-            ownedCardCount={ownedCardCount}
-            equippedSpeciesId={equippedSpeciesId}
-            selectedByShape={selectedByShape}
-            onInventoryChanged={updateOwnedCards}
-            onSelectVariant={selectVariant}
-            onOpen={(id) => setView({ type: 'species', id })}
-          />
+          collectionLoading ? (
+            <LoadingScreen />
+          ) : collectionLoadError ? (
+            <div className="flex h-full flex-col items-center justify-center gap-4 bg-[#070609] px-6 text-center">
+              <p role="alert" className="max-w-md text-sm text-rose-200/90">
+                Impossible de charger votre collection : {collectionLoadError}
+              </p>
+              <button
+                type="button"
+                onClick={retryCollectionLoad}
+                className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:bg-white/10"
+              >
+                Réessayer
+              </button>
+            </div>
+          ) : (
+            <CollectionView
+              muts={muts}
+              unlocked={unlocked}
+              ownedCardCount={ownedCardCount}
+              equippedSpeciesId={equippedSpeciesId}
+              selectedByShape={selectedByShape}
+              onInventoryChanged={updateOwnedCards}
+              onSelectVariant={selectVariant}
+              onOpen={(id) => setView({ type: 'species', id })}
+            />
+          )
         )}
         {view.type === 'species' && (
           <SpeciesView
@@ -312,6 +345,14 @@ function CollectionView({
                 <CoinBalance />
                 <MochyWallet />
               </span>
+              <Link
+                href="/shop"
+                aria-label="Boutique de coffres"
+                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-300/[0.07] px-4 py-2 text-xs font-semibold text-fuchsia-100/90 transition-all hover:bg-fuchsia-300/[0.14] hover:text-white active:scale-95"
+              >
+                <ShoppingBag className="h-3.5 w-3.5" aria-hidden />
+                Boutique
+              </Link>
               <Link
                 href="/market"
                 data-tutorial="market"

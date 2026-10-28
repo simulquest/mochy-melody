@@ -17,6 +17,8 @@
 --   durée d'enchère minimum  = 1 h   (max 30 j, anti-abus)
 --   incrément d'enchère min  = +1    (prix courant + 1)
 --   coffres max              = 5, recharge 4 min 30
+--   boutique coffre          = 10/20/40/80/160 MochyCoins par rareté,
+--                               pack de 5 avec 5 % de réduction
 --   caresses MochyHearts     = 3 par espèce toutes les 3 h, gain 1..5
 -- =====================================================================
 
@@ -389,6 +391,104 @@ begin
         updated_at = now();
 end;
 $$;
+
+-- Achat atomique d'un coffre de boutique : débite les coins et crédite toutes
+-- les cartes obtenues dans une seule transaction. Les tirages sont fournis par
+-- l'API serveur après validation de la rareté et de la quantité.
+create or replace function public.lootbox_shop_purchase(
+  p_user_id text,
+  p_rarity_idx int,
+  p_quantity int,
+  p_total_cost bigint,
+  p_cards jsonb
+)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_profile public.profiles;
+  v_card jsonb;
+  v_unit_price bigint;
+  v_expected_cost bigint;
+begin
+  if p_user_id is null or length(trim(p_user_id)) = 0 then
+    raise exception 'user_id manquant';
+  end if;
+  if p_rarity_idx not between 0 and 4 then
+    raise exception 'rareté de coffre invalide';
+  end if;
+  if p_quantity not in (1, 5) then
+    raise exception 'quantité invalide';
+  end if;
+  if p_cards is null
+     or jsonb_typeof(p_cards) <> 'array'
+     or jsonb_array_length(p_cards) <> p_quantity then
+    raise exception 'récompenses de coffre invalides';
+  end if;
+
+  v_unit_price := case p_rarity_idx
+    when 0 then 10
+    when 1 then 20
+    when 2 then 40
+    when 3 then 80
+    else 160
+  end;
+  v_expected_cost := v_unit_price * p_quantity;
+  if p_quantity = 5 then
+    v_expected_cost := round(v_expected_cost * 0.95);
+  end if;
+  if p_total_cost <> v_expected_cost then
+    raise exception 'prix de coffre invalide';
+  end if;
+
+  perform public.market_ensure_profile(p_user_id);
+  select * into v_profile
+    from public.profiles
+   where user_id = p_user_id
+   for update;
+  if v_profile.coins < v_expected_cost then
+    raise exception 'Solde insuffisant : cet achat coûte % MochyCoins.', v_expected_cost;
+  end if;
+
+  update public.profiles
+     set coins = coins - v_expected_cost,
+         updated_at = now()
+   where user_id = p_user_id
+   returning * into v_profile;
+
+  for v_card in select value from jsonb_array_elements(p_cards) loop
+    if coalesce((v_card->>'rarityIdx')::int, -1) <> p_rarity_idx
+       or nullif(v_card->>'id', '') is null
+       or nullif(v_card->>'speciesId', '') is null
+       or v_card->'preset' is null then
+      raise exception 'récompense de coffre invalide';
+    end if;
+
+    perform public.market_grant_card(jsonb_build_object(
+      'user_id',      p_user_id,
+      'card_id',      v_card->>'id',
+      'card_name',    v_card->>'name',
+      'species_id',   v_card->>'speciesId',
+      'rarity_idx',   p_rarity_idx,
+      'preset',       v_card->'preset',
+      'mutation',     nullif(v_card->'mutation', 'null'::jsonb),
+      'mutation_key', coalesce(v_card->>'mutationKey', 'none'),
+      'quantity',     1
+    ));
+  end loop;
+
+  return jsonb_build_object(
+    'coins', v_profile.coins,
+    'quantity', p_quantity,
+    'total_cost', v_expected_cost
+  );
+end;
+$$;
+
+revoke all on function public.lootbox_shop_purchase(text, int, int, bigint, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.lootbox_shop_purchase(text, int, int, bigint, jsonb)
+  to service_role;
 
 -- Import initial idempotent (par hash) depuis localStorage.
 create or replace function public.market_import_inventory(

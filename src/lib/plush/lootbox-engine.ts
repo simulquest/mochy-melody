@@ -78,7 +78,7 @@ export function clickBoxServer(prev: LootboxServerState): ServerClickEvent {
 }
 
 /** Tire une carte du pool + une mutation (tirage serveur). */
-function pickWonServer(rarityIdx: number): ServerWonCard {
+export function pickWonServer(rarityIdx: number): ServerWonCard {
   const pool = PLUSH_POOL[rarityIdx];
   const base = pool[Math.floor(Math.random() * pool.length)];
   const mutation = rollMutation();

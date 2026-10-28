@@ -1,6 +1,6 @@
 import { PlushPreset } from './plush-shape';
 import { type PlushMutation } from './mutations';
-import { EXTRA_MODEL_CONFIGS } from './config';
+import { EXTRA_MODEL_CONFIGS } from './config/roster';
 
 /**
  * Lootbox — logique de rareté, de clics et de collection.
@@ -33,6 +33,17 @@ export const RARITIES: Rarity[] = [
 export const MAX_CHESTS = 5;
 /** Intervalle de recharge d'un coffre : 4 min 30. */
 export const CHEST_REFILL_MS = 4 * 60_000 + 30_000;
+/** Prix unitaire d'un coffre acheté en MochyCoins, par rareté. */
+export const CHEST_SHOP_UNIT_PRICES = [10, 20, 40, 80, 160] as const;
+/** Réduction appliquée au pack de cinq coffres. */
+export const CHEST_SHOP_PACK_DISCOUNT = 0.05;
+
+export function chestShopPrice(rarityIdx: number, quantity: 1 | 5): number {
+  const unitPrice = CHEST_SHOP_UNIT_PRICES[rarityIdx];
+  if (unitPrice === undefined) throw new Error(`Rareté de coffre invalide : ${rarityIdx}`);
+  const subtotal = unitPrice * quantity;
+  return quantity === 5 ? Math.round(subtotal * (1 - CHEST_SHOP_PACK_DISCOUNT)) : subtotal;
+}
 
 /** Entrée du pool de butin : une peluche gagnable avec son vrai modèle 3D. */
 export interface PlushLootEntry {

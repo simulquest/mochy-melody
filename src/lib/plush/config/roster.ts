@@ -61,7 +61,9 @@ interface ExtraSeed {
   emoji: string;
   tagline: string;
   shape: ExtraShape;
-  rarity: ModelRarity;
+  rarity?: ModelRarity;
+  presetId?: string;
+  presetName?: string;
   colors: {
     root: string;
     tip: string;
@@ -82,8 +84,8 @@ function makeExtra(s: ExtraSeed): PlushModelConfig {
     shape: s.shape,
     rarity: s.rarity,
     preset: {
-      id: s.id,
-      name: s.name,
+      id: s.presetId ?? s.id,
+      name: s.presetName ?? s.name,
       root: s.colors.root,
       tip: s.colors.tip,
       body: s.colors.body,
@@ -95,7 +97,56 @@ function makeExtra(s: ExtraSeed): PlushModelConfig {
   };
 }
 
-export const EXTRA_MODEL_CONFIGS: PlushModelConfig[] = [
+/**
+ * Catalogue de toutes les peluches.
+ *
+ * Pour ajouter une variante, ajoute une entrée avec un `shape` existant et
+ * une `rarity`. Pour une nouvelle silhouette, ajoute aussi son code de forme
+ * dans `species.ts`, puis ajoute ici ses peluches.
+ */
+export const MODEL_CONFIGS: PlushModelConfig[] = [
+  // Espèces historiques
+  makeExtra({
+    id: 'mochi',
+    name: 'Mochi Chat',
+    emoji: '🐱',
+    tagline: 'Le classique tout rond, doux comme un mochi frais.',
+    shape: 'mochi',
+    presetId: 'sakura',
+    presetName: 'Sakura Mochi',
+    colors: { root: '#6d0e63', tip: '#ff8fe4', body: '#d02bbd', glow: '#ff3fd8' },
+  }),
+  makeExtra({
+    id: 'dragon',
+    name: 'Dragonnet',
+    emoji: '🐉',
+    tagline: 'Rondouillard cracheur de braises, cornes fières et museau arrondi.',
+    shape: 'dragon',
+    presetId: 'dragonnet',
+    presetName: 'Dragonnet',
+    colors: { root: '#7c2413', tip: '#ffa94d', body: '#c4472e', glow: '#ff8a5c' },
+  }),
+  makeExtra({
+    id: 'lapin',
+    name: 'Pompon Lapin',
+    emoji: '🐰',
+    tagline: 'Tout en hauteur avec de grandes oreilles et un cœur tout doux.',
+    shape: 'lapin',
+    presetId: 'pompon',
+    presetName: 'Pompon Lapin',
+    colors: { root: '#b59ada', tip: '#ffe9f4', body: '#e9def4', glow: '#d9b3ff' },
+  }),
+  makeExtra({
+    id: 'fantome',
+    name: 'Piou Fantôme',
+    emoji: '👻',
+    tagline: 'Il flotte, il brille, et sa jupe ondule toute seule la nuit.',
+    shape: 'fantome',
+    presetId: 'piou',
+    presetName: 'Piou Fantôme',
+    colors: { root: '#6f93c8', tip: '#e6f4ff', body: '#aecdf2', glow: '#9cc2ff' },
+  }),
+
   // -------------------------------------------------------------------------
   // Chat (4) — variantes gagnables, chacune avec sa propre identité
   // -------------------------------------------------------------------------
@@ -430,3 +481,13 @@ export const EXTRA_MODEL_CONFIGS: PlushModelConfig[] = [
     colors: { root: '#1a1a2a', tip: '#ffffff', body: '#5a5a8a', glow: '#b26bff', hueShift: 1 },
   }),
 ];
+
+/** Peluches obtenues dans les coffres (toutes les configs avec une rareté). */
+export const EXTRA_MODEL_CONFIGS = MODEL_CONFIGS.filter((cfg) => cfg.rarity !== undefined);
+
+/** Configuration par identifiant, partagée par le rendu et le pool de butin. */
+export function getModelConfig(id: string): PlushModelConfig {
+  const config = MODEL_CONFIGS.find((item) => item.id === id);
+  if (!config) throw new Error(`Configuration de peluche inconnue : ${id}`);
+  return config;
+}

@@ -8,8 +8,8 @@ import {
 import {
   getModelConfig,
   EXTRA_MODEL_CONFIGS,
-  type PlushModelConfig,
-} from './config';
+} from './config/roster';
+import type { PlushModelConfig } from './config/types';
 
 /**
  * Espèces de peluches — chacune possède sa propre forme paramétrique,
@@ -17,8 +17,7 @@ import {
  *
  * Les couleurs (preset) et les paramètres de fourrure figés (longueur,
  * densité, vent) proviennent des fichiers de configuration JSON
- * (`src/lib/plush/config/*.json`) pour les quatre formes historiques, et de
- * `config/roster.ts` pour le roster étendu. Le code de forme (surface,
+ * `config/roster.ts`. Le code de forme (surface,
  * oreilles, visage, fourrure boostée) reste ici, lié à chaque espèce par
  * son id.
  *
@@ -153,7 +152,7 @@ function makeNormal(
 const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).normalize();
 
 // ---------------------------------------------------------------------------
-// Construction d'une espèce à partir de sa config JSON + ses formes TS
+// Construction d'une espèce à partir du catalogue + ses formes 3D
 // ---------------------------------------------------------------------------
 
 function buildSpecies(cfg: PlushModelConfig, overrides: Partial<PlushSpecies>): PlushSpecies {
@@ -315,8 +314,7 @@ const fantome: PlushSpecies = buildSpecies(getModelConfig('fantome'), {
 // visage, ses oreilles/museau et ses zones de fourrure boostée.
 // ---------------------------------------------------------------------------
 
-/** Construit une forme de base sans passer par un fichier de config JSON :
- * ses couleurs/fourrure sont remplacées par `makeVariant`. */
+/** Construit une forme de base neutre ; ses variantes apportent couleurs et fourrure. */
 function makeShapeBase(
   id: string,
   camDistMul: number,
