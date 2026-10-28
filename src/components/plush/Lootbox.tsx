@@ -540,7 +540,7 @@ export default function Lootbox({
       {/* ---------- Scène 3D : la véritable lootbox ---------- */}
       <AnimatePresence>
         {sceneOpen && persist && (
-          embedded && typeof document !== 'undefined'
+          typeof document !== 'undefined'
             ? createPortal(<LootboxScene
             rarityIdx={sceneBox.rarityIdx}
             progress={sceneBox.progress}
@@ -554,19 +554,7 @@ export default function Lootbox({
             onOpenComplete={handleOpenComplete}
             onClose={closeScene}
           />, document.body)
-            : <LootboxScene
-                rarityIdx={sceneBox.rarityIdx}
-                progress={sceneBox.progress}
-                phase={scenePhase}
-                won={wonPlush}
-                flash={flash}
-                chestsAvailable={chestsAvailable}
-                nextRefillAt={nextRefillAt}
-                onFlashDone={() => setFlash(null)}
-                onClick={handleBoxClick}
-                onOpenComplete={handleOpenComplete}
-                onClose={closeScene}
-              />
+            : null
         )}
       </AnimatePresence>
 

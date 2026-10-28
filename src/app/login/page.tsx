@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import LoginWithSimulquest from '@/components/market/LoginWithSimulquest';
+import LoginPlush from '@/components/market/LoginPlush';
 import { getSession } from '@/lib/auth/session';
 import { safeInternalPath } from '@/lib/auth/redirect';
 
@@ -46,9 +47,7 @@ export default async function LoginPage({
     <main className="flex min-h-[100dvh] w-full items-center justify-center bg-[#070609] px-5">
       <div className="w-full max-w-sm">
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center shadow-2xl backdrop-blur-xl">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500/30 to-pink-500/20 text-4xl">
-            🧸
-          </div>
+          <LoginPlush />
 
           <h1 className="text-2xl font-black tracking-tight text-white">
             Mochy Melody
