@@ -5,16 +5,16 @@ import type {
 } from './types';
 
 /**
- * Roster étendu — 30 créatures supplémentaires réparties sur 6 nouvelles
- * formes 3D (`renard`, `ours`, `grenouille`, `licorne`, `hibou`, `pingouin`).
+ * Roster étendu — créatures supplémentaires et variantes chat, réparties sur
+ * les formes 3D historiques et les nouvelles formes.
  *
  * Chaque forme possède sa propre silhouette, ses oreilles/museau et son
  * visage (voir `species.ts`). Les couleurs et la fourrure sont propres à
  * chaque créature. Une entrée de lootbox est générée pour chacune (voir
  * `lootbox.ts`), ce qui permet de les débloquer et de les collectionner.
  *
- * Répartition : 10 communes, 8 rares, 6 épiques, 4 légendaires, 2 mythiques.
- * Soit 5 créatures par nouvelle forme.
+ * Les variantes du chat ont une identité propre, comme les autres créatures,
+ * tout en réutilisant sa silhouette 3D.
  */
 
 const FUR_BY_SHAPE: Record<string, PlushFurConfig> = {
@@ -96,6 +96,46 @@ function makeExtra(s: ExtraSeed): PlushModelConfig {
 }
 
 export const EXTRA_MODEL_CONFIGS: PlushModelConfig[] = [
+  // -------------------------------------------------------------------------
+  // Chat (4) — variantes gagnables, chacune avec sa propre identité
+  // -------------------------------------------------------------------------
+  makeExtra({
+    id: 'cafe-creme',
+    name: 'Café Crème',
+    emoji: '🐱',
+    tagline: 'Un chat tout doux aux couleurs du café et de la crème.',
+    shape: 'mochi',
+    rarity: 'commune',
+    colors: { root: '#4a3520', tip: '#e8cfa8', body: '#9c7a4e', glow: '#d9b06c' },
+  }),
+  makeExtra({
+    id: 'pistache-reveil',
+    name: 'Pistache Réveil',
+    emoji: '🐱',
+    tagline: 'Un chat vert tendre, frais comme un matin de printemps.',
+    shape: 'mochi',
+    rarity: 'rare',
+    colors: { root: '#2a5c30', tip: '#b8f0a8', body: '#5fae5a', glow: '#8fe07a' },
+  }),
+  makeExtra({
+    id: 'sorbet-mangue',
+    name: 'Sorbet Mangue',
+    emoji: '🐱',
+    tagline: 'Un chat aux couleurs lumineuses d’un sorbet à la mangue.',
+    shape: 'mochi',
+    rarity: 'epique',
+    colors: { root: '#7a3a0d', tip: '#ffe08f', body: '#f0a83a', glow: '#ffc94d' },
+  }),
+  makeExtra({
+    id: 'galaxie-arc-en-ciel',
+    name: 'Galaxie Arc-en-ciel',
+    emoji: '🐱',
+    tagline: 'Un chat mythique dont la fourrure révèle toutes les couleurs.',
+    shape: 'mochi',
+    rarity: 'mythique',
+    colors: { root: '#1a0d33', tip: '#ffffff', body: '#4d2a8f', glow: '#b26bff', hueShift: 1 },
+  }),
+
   // -------------------------------------------------------------------------
   // Renard (5) — 2 communes, 1 rare, 1 épique, 1 légendaire
   // -------------------------------------------------------------------------

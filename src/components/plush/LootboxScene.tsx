@@ -578,7 +578,8 @@ export default function LootboxScene({
   const rar = RARITIES[rarityIdx];
   const locked = chestsAvailable === 0;
   const now = Date.now();
-  const remaining = (chestsAvailable < MAX_CHESTS && nextRefillAt > 0)
+  const refillActive = chestsAvailable < MAX_CHESTS && nextRefillAt > 0;
+  const remaining = refillActive
     ? Math.max(0, nextRefillAt - now)
     : 0;
   const cooldownPct = locked
@@ -654,7 +655,7 @@ export default function LootboxScene({
             </span>
           </div>
           {!locked && (
-            <div className="mt-2 flex items-center gap-1.5" aria-hidden>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-hidden>
               {RARITIES.map((r, i) => (
                 <span
                   key={r.id}
@@ -666,9 +667,23 @@ export default function LootboxScene({
                   }}
                 />
               ))}
-              <span className="ml-2 flex items-center gap-1 text-[10px] font-bold text-amber-300/90">
-                <span className="h-3 w-3" aria-hidden>🎁</span>
+              <span className="ml-2 inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-300/90">
+                <span className="relative inline-flex h-4 w-4 items-center justify-center" aria-hidden>
+                  {refillActive && (
+                    <svg className="absolute inset-0 h-4 w-4 -rotate-90" viewBox="0 0 16 16">
+                      <circle cx="8" cy="8" r="6.5" fill="none" stroke="rgba(251,191,36,0.25)" strokeWidth="2" />
+                      <circle
+                        cx="8" cy="8" r="6.5" fill="none" stroke="#fbbf24" strokeWidth="2"
+                        strokeDasharray={2 * Math.PI * 6.5}
+                        strokeDashoffset={2 * Math.PI * 6.5 * (1 - Math.min(1, Math.max(0, 1 - remaining / CHEST_REFILL_MS)))}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )}
+                  🎁
+                </span>
                 {chestsAvailable}/{MAX_CHESTS}
+                {refillActive && ` · +1 dans ${formatCooldown(remaining)}`}
               </span>
             </div>
           )}

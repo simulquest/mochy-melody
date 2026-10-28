@@ -48,21 +48,18 @@ export interface PlushLootEntry {
 const BASE_PLUSH_POOL: PlushLootEntry[][] = [
   // Commune
   [
-    { id: 'cafe-creme',     name: 'Café Crème',      speciesId: 'mochi',      preset: { id: 'cafe-creme',     name: 'Café Crème',      root: '#4a3520', tip: '#e8cfa8', body: '#9c7a4e', glow: '#d9b06c' } },
     { id: 'brique-tendresse', name: 'Brique Tendresse', speciesId: 'dragon', preset: { id: 'brique-tendresse', name: 'Brique Tendresse', root: '#5c2418', tip: '#ffab8f', body: '#c46445', glow: '#ff8a5c' } },
-    { id: 'brume-douce',    name: 'Brume Douce',     speciesId: 'lapin',      preset: { id: 'brume-douce',    name: 'Brume Douce',     root: '#4a4552', tip: '#d9d4e0', body: '#8f8899', glow: '#c9c2d4' } },
+    { id: 'brume-douce',    name: 'Brume Douce',     speciesId: 'lapin',      preset: { id: 'brume-douce',    name: 'Brume Douce',    root: '#4a4552', tip: '#d9d4e0', body: '#8f8899', glow: '#c9c2d4' } },
   ],
   // Rare
   [
     { id: 'fraise-tagada',  name: 'Fraise Tagada',   speciesId: 'fantome', preset: { id: 'fraise-tagada',  name: 'Fraise Tagada',   root: '#8f1039', tip: '#ffa8c9', body: '#e83a70', glow: '#ff4f8f' } },
-    { id: 'pistache-reveil', name: 'Pistache Réveil', speciesId: 'mochi',     preset: { id: 'pistache-reveil', name: 'Pistache Réveil', root: '#2a5c30', tip: '#b8f0a8', body: '#5fae5a', glow: '#8fe07a' } },
-    { id: 'mure-sucree',    name: 'Mûre Sucrée',     speciesId: 'dragon', preset: { id: 'mure-sucree',    name: 'Mûre Sucrée',     root: '#3a1050', tip: '#cf9fff', body: '#7d3ab8', glow: '#a86bff' } },
+    { id: 'mure-sucree',    name: 'Mûre Sucrée',     speciesId: 'dragon', preset: { id: 'mure-sucree',    name: 'Mûre Sucrée',    root: '#3a1050', tip: '#cf9fff', body: '#7d3ab8', glow: '#a86bff' } },
   ],
   // Épique
   [
     { id: 'aurore-boreale', name: 'Aurore Boréale',  speciesId: 'lapin',      preset: { id: 'aurore-boreale', name: 'Aurore Boréale',  root: '#0d3a33', tip: '#7affe0', body: '#17a08a', glow: '#3dffc4' } },
-    { id: 'orchidee-neon',  name: 'Orchidée Néon',   speciesId: 'fantome', preset: { id: 'orchidee-neon',  name: 'Orchidée Néon',   root: '#4a0d4a', tip: '#ff9ff3', body: '#c93ac9', glow: '#ff5ce1' } },
-    { id: 'sorbet-mangue',  name: 'Sorbet Mangue',   speciesId: 'mochi',      preset: { id: 'sorbet-mangue',  name: 'Sorbet Mangue',   root: '#7a3a0d', tip: '#ffe08f', body: '#f0a83a', glow: '#ffc94d' } },
+    { id: 'orchidee-neon',  name: 'Orchidée Néon',  speciesId: 'fantome', preset: { id: 'orchidee-neon',  name: 'Orchidée Néon',  root: '#4a0d4a', tip: '#ff9ff3', body: '#c93ac9', glow: '#ff5ce1' } },
   ],
   // Légendaire
   [
@@ -72,7 +69,6 @@ const BASE_PLUSH_POOL: PlushLootEntry[][] = [
   ],
   // Mythique (fourrure arc-en-ciel)
   [
-    { id: 'galaxie-arc-en-ciel', name: 'Galaxie Arc-en-ciel', speciesId: 'mochi', preset: { id: 'galaxie-arc-en-ciel', name: 'Galaxie Arc-en-ciel', root: '#1a0d33', tip: '#ffffff', body: '#4d2a8f', glow: '#b26bff', hueShift: 1 } },
     { id: 'prisme-sacre',   name: 'Prisme Sacré',    speciesId: 'dragon', preset: { id: 'prisme-sacre',   name: 'Prisme Sacré',    root: '#33201a', tip: '#fff4e0', body: '#a85c2a', glow: '#ffb84d', hueShift: 1 } },
   ],
 ];

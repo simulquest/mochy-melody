@@ -7,6 +7,7 @@
 
 import { type LootboxPersist, type OwnedPlush } from './lootbox';
 import { mutationKey } from './mutations';
+import { SPECIES } from './species';
 
 /** État de la caisse renvoyé par le serveur. */
 export interface ServerLootboxState {
@@ -79,16 +80,26 @@ export async function fetchRemoteOwned(): Promise<OwnedPlush[]> {
     updated_at: string;
   }> }>('/api/inventory');
 
-  return res.items.map((it) => ({
-    ...it.preset,
-    id: it.card_id,
-    name: it.card_name,
-    speciesId: it.species_id,
-    rarityIdx: it.rarity_idx,
-    mutation: it.mutation ?? null,
-    quantity: it.quantity,
-    wonAt: new Date(it.updated_at).getTime(),
-  }));
+  return res.items.map((it) => {
+    // Avant que les variantes chat aient leur propre identité, elles étaient
+    // enregistrées avec species_id="mochi". Leur card_id permet de retrouver
+    // leur véritable modèle/preset sans migrer les données du joueur.
+    const speciesId =
+      it.species_id === 'mochi' && SPECIES.some((species) => species.id === it.card_id)
+        ? it.card_id
+        : it.species_id;
+
+    return {
+      ...it.preset,
+      id: it.card_id,
+      name: it.card_name,
+      speciesId,
+      rarityIdx: it.rarity_idx,
+      mutation: it.mutation ?? null,
+      quantity: it.quantity,
+      wonAt: new Date(it.updated_at).getTime(),
+    };
+  });
 }
 
 /** Calcule la signature de pile d'une peluche (pour référence). */

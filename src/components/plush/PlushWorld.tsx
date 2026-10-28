@@ -20,7 +20,7 @@ import {
   isDefaultMutation,
   MUTATION_VARIANT_COUNT,
 } from '@/lib/plush/mutations';
-import { isUnlocked, STARTER_SPECIES } from '@/lib/plush/unlock';
+import { isUnlocked } from '@/lib/plush/unlock';
 import { getEquippedPreset, PLUSH_POOL, type OwnedPlush } from '@/lib/plush/lootbox';
 import {
   fetchRemoteOwned,
@@ -340,7 +340,7 @@ function CollectionView({
                 Ouvrez un coffre de bienvenue pour découvrir votre premier mochy et commencer votre collection.
               </p>
               <Lootbox
-                speciesId={STARTER_SPECIES}
+                speciesId="mochi"
                 equippedId={null}
                 onEquip={() => {}}
                 onCelebrate={() => {}}
@@ -375,15 +375,8 @@ function CollectionView({
                         <span className="text-base font-bold text-white">{label}</span>
                         <RarityBadge mut={m} />
                       </div>
-                      <p className="mt-1.5 text-xs leading-relaxed text-white/55">
-                        Sélection : <span className="font-semibold text-white/80">{selected.name}</span>
-                        {hasMut && (
-                          <>
-                            {' · '}Yeux {m!.eye.label.toLowerCase()} · pelage {m!.fur.label.toLowerCase()}
-                            {m!.tint.kind !== 'nature' && ` · teinte ${m!.tint.label.toLowerCase()}`}
-                            {m!.hetero && ' · hétérochromie'}
-                          </>
-                        )}
+                      <p className="mt-1.5 text-xs font-semibold text-white/65">
+                        {selected.name}
                       </p>
                     </div>
                   </button>

@@ -236,9 +236,11 @@ export default function Lootbox({
     ? Math.max(0, nextRefillAt - now)
     : 0;
   const locked = chestsAvailable === 0;
-  const ringRatio = locked
+  const refillActive = chestsAvailable < MAX_CHESTS && nextRefillAt > 0;
+  const refillRatio = refillActive
     ? Math.min(1, Math.max(0, 1 - remaining / CHEST_REFILL_MS))
-    : progress / rarity.clicks;
+    : 0;
+  const ringRatio = refillActive ? refillRatio : progress / rarity.clicks;
 
   // Gèle le rendu de la peluche principale quand la scène 3D de la lootbox est ouverte
   useEffect(() => {
@@ -503,7 +505,7 @@ export default function Lootbox({
                   <circle cx="35" cy="35" r="26" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
                   <circle
                     cx="35" cy="35" r="26" fill="none"
-                    stroke={locked ? '#fbbf24' : rarity.color}
+                    stroke={refillActive ? '#fbbf24' : rarity.color}
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeDasharray={C}
@@ -517,7 +519,7 @@ export default function Lootbox({
                 ) : (
                   <>
                     <Gift className={embedded ? 'h-5 w-5' : 'h-7 w-7'} style={{ color: rarity.color }} aria-hidden />
-                    {chestsAvailable > 1 && (
+                    {chestsAvailable > 0 && (
                       <span className="absolute -right-2 -top-1 flex h-5 min-w-[16px] items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-bold text-black">
                         {chestsAvailable}
                       </span>
@@ -525,7 +527,18 @@ export default function Lootbox({
                   </>
                 )}
               </span>
-              {embedded && <span>{locked ? `Prochain coffre dans ${formatCooldown(remaining)}` : 'Ouvrir un coffre'}</span>}
+              {embedded && (
+                <span>
+                  {locked
+                    ? `Prochain coffre dans ${formatCooldown(remaining)}`
+                    : `Ouvrir un coffre${refillActive ? ` · +1 dans ${formatCooldown(remaining)}` : ''}`}
+                </span>
+              )}
+              {!embedded && refillActive && (
+                <span className="text-[10px] font-semibold text-amber-200/80">
+                  +1 dans {formatCooldown(remaining)}
+                </span>
+              )}
               {mythic && !locked && (
                 <span
                   className="pointer-events-none absolute inset-0 rounded-2xl animate-pulse"
@@ -538,7 +551,7 @@ export default function Lootbox({
       )}
 
       {/* ---------- Scène 3D : la véritable lootbox ---------- */}
-      {sceneOpen && persist && typeof document !== 'undefined' &&
+      {sceneOpen && scenePhase !== 'done' && persist && typeof document !== 'undefined' &&
         createPortal(
           <LootboxScene
             rarityIdx={sceneBox.rarityIdx}

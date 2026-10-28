@@ -592,7 +592,9 @@ export const SPECIES: PlushSpecies[] = [
 ];
 
 export function getSpecies(id: string): PlushSpecies {
-  return SPECIES.find((s) => s.id === id) ?? mochi;
+  const species = SPECIES.find((s) => s.id === id);
+  if (!species) throw new Error(`Espèce de peluche inconnue : ${id}`);
+  return species;
 }
 
 /** Libellé lisible d'une famille de peluches (forme 3D partagée). */
