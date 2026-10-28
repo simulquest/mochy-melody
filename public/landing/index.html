@@ -9,28 +9,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-  <script>
-  /* Résolution robuste du dossier courant : la page fonctionne identiquement
-     depuis file://, /mochy/, /mochy/index.html ou un sous-dossier de hosting. */
-  (function () {
-    try {
-      var path = location.pathname;
-      var last = path.split("/").pop() || "";
-      var isFile = /\.[a-z0-9]+$/i.test(last);
-      var dir = isFile ? path.slice(0, path.lastIndexOf("/") + 1)
-                       : (path.charAt(path.length - 1) === "/" ? path : path + "/");
-      document.write('<link rel="stylesheet" href="' + dir + 'styles.css" />');
-      document.write('<script src="' + dir + 'plush3d.js" defer><\/script>');
-      document.write('<script src="' + dir + 'plushes.js" defer><\/script>');
-      document.write('<script src="' + dir + 'app.js" defer><\/script>');
-    } catch (e) {
-      document.write('<link rel="stylesheet" href="styles.css" />');
-      document.write('<script src="plush3d.js" defer><\/script>');
-      document.write('<script src="plushes.js" defer><\/script>');
-      document.write('<script src="app.js" defer><\/script>');
-    }
-  })();
-  </script>
+  <link rel="stylesheet" href="/landing/styles.css" />
+  <script src="/landing/plush3d.js" defer></script>
+  <script src="/landing/plushes.js" defer></script>
+  <script src="/landing/app.js" defer></script>
 </head>
 <body>
 
@@ -69,9 +51,9 @@
         <li><a href="#collection">Collection</a></li>
         <li><a href="#mutations">Mutations</a></li>
         <li><a href="#marche">Marché</a></li>
-        <li class="nav-cta-mobile"><a class="btn btn-primary btn-sm" href="https://mochy-melody.vercel.app" target="_blank" rel="noopener">Jouer maintenant</a></li>
+        <li class="nav-cta-mobile"><a class="btn btn-primary btn-sm" href="/play">Jouer maintenant</a></li>
       </ul>
-      <a class="btn btn-primary btn-sm nav-cta" href="https://mochy-melody.vercel.app" target="_blank" rel="noopener">Jouer maintenant</a>
+      <a class="btn btn-primary btn-sm nav-cta" href="/play">Jouer maintenant</a>
       <button class="burger" id="burger" aria-label="Ouvrir le menu" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
@@ -93,7 +75,7 @@
           <button class="btn btn-primary btn-lg" id="hero-demo-btn">🎁 Essayer la lootbox</button>
           <a class="btn btn-ghost btn-lg" href="#jeu">Découvrir le jeu</a>
         </div>
-        <a class="hero-play reveal" href="https://mochy-melody.vercel.app" target="_blank" rel="noopener">
+        <a class="hero-play reveal" href="/play">
           Jouer au vrai jeu — 10 MochyCoins offerts <span aria-hidden="true">→</span>
         </a>
         <ul class="hero-stats reveal" aria-label="Chiffres du jeu">
@@ -305,7 +287,7 @@
         <div class="cta-plushes" id="cta-plushes" aria-hidden="true"></div>
         <h2>Votre première peluche n'est qu'à quelques clics</h2>
         <p>Créez votre compte, recevez <b>10 MochyCoins</b> et laissez la lootbox chanter.</p>
-        <a class="btn btn-light btn-lg" href="https://mochy-melody.vercel.app" target="_blank" rel="noopener">Jouer gratuitement →</a>
+        <a class="btn btn-light btn-lg" href="/play">Jouer gratuitement →</a>
         <span class="cta-note">Connexion Simulquest · session sécurisée · zéro installation</span>
       </div>
     </section>

@@ -128,7 +128,7 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#070609]/85 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-4xl items-center gap-3 px-5 py-3">
           <Link
-            href="/"
+            href="/play"
             aria-label="Retour au jeu"
             className="shrink-0 rounded-full border border-white/10 bg-white/5 p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
           >
