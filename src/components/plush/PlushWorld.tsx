@@ -22,7 +22,12 @@ import {
   MUTATION_VARIANT_COUNT,
 } from '@/lib/plush/mutations';
 import { isUnlocked } from '@/lib/plush/unlock';
-import { getEquippedPreset, PLUSH_POOL, type OwnedPlush } from '@/lib/plush/lootbox';
+import {
+  getEquippedPreset,
+  PLUSH_POOL,
+  setEquippedPreset,
+  type OwnedPlush,
+} from '@/lib/plush/lootbox';
 import {
   fetchRemoteOwned,
   ownedStackKey,
@@ -114,6 +119,14 @@ export default function PlushWorld() {
     setSelectedByShape((prev) => ({ ...prev, [shape]: stackId }));
   };
 
+  const openOwnedPlush = useCallback((card: OwnedPlush) => {
+    const shape = getSpecies(card.speciesId).shape;
+    const stackId = ownedStackKey(card);
+    setEquippedPreset(card);
+    setSelectedByShape((prev) => ({ ...prev, [shape]: stackId }));
+    setView({ type: 'species', id: card.speciesId });
+  }, []);
+
   const openFirstOwnedPlush = useCallback(() => {
     const firstUnlocked = SPECIES.find((sp) => isUnlocked(sp.id, unlockedRef.current));
     if (firstUnlocked) setView({ type: 'species', id: firstUnlocked.id });
@@ -164,7 +177,7 @@ export default function PlushWorld() {
               selectedByShape={selectedByShape}
               onInventoryChanged={updateOwnedCards}
               onSelectVariant={selectVariant}
-              onOpen={(id) => setView({ type: 'species', id })}
+              onOpen={openOwnedPlush}
             />
           )
         )}
@@ -297,7 +310,7 @@ function CollectionView({
   selectedByShape: Record<string, string>;
   onInventoryChanged: (owned: OwnedPlush[]) => void;
   onSelectVariant: (shape: string, stackId: string) => void;
-  onOpen: (id: string) => void;
+  onOpen: (card: OwnedPlush) => void;
 }) {
   const [expandedShape, setExpandedShape] = useState<string | null>(null);
   const totalCards =
@@ -388,7 +401,7 @@ function CollectionView({
                   <button
                     onClick={() => {
                       if (canExpand) setExpandedShape(expanded ? null : shape);
-                      else onOpen(selected.speciesId);
+                      else onOpen(selected);
                     }}
                     aria-expanded={canExpand ? expanded : undefined}
                     aria-label={canExpand ? `${expanded ? 'Masquer' : 'Voir'} les variantes ${label}` : `Ouvrir ${selected.name}`}
@@ -413,7 +426,7 @@ function CollectionView({
                     Vendre
                   </Link>
                   <button
-                    onClick={() => onOpen(selected.speciesId)}
+                    onClick={() => onOpen(selected)}
                     aria-label={`Entrer dans l'univers de ${selected.name}`}
                     className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-fuchsia-200/90 transition-colors hover:border-fuchsia-400/40 hover:bg-fuchsia-400/10 hover:text-white"
                   >
