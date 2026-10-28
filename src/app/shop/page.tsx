@@ -1,15 +1,10 @@
-import { redirect } from 'next/navigation';
-import ChestShop from '@/components/plush/ChestShop';
-import { getSession } from '@/lib/auth/session';
+import ShopComingSoon from '@/components/plush/ShopComingSoon';
 
 export const metadata = {
-  title: 'Boutique — Mochy Melody',
-  description: 'Achetez des coffres et découvrez immédiatement de nouvelles peluches.',
+  title: 'Boutique bientôt disponible — Mochy Melody',
+  description: 'La boutique de coffres arrive bientôt.',
 };
 
-export default async function ShopPage() {
-  const session = await getSession();
-  if (!session) redirect('/login?redirect=%2Fshop');
-
-  return <ChestShop />;
+export default function ShopPage() {
+  return <ShopComingSoon />;
 }

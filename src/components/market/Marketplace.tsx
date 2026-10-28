@@ -13,7 +13,6 @@ import {
   Tag,
   LogOut,
   Loader2,
-  ShoppingBag,
 } from 'lucide-react';
 import ListingCard from '@/components/market/ListingCard';
 import SellDialog from '@/components/market/SellDialog';
@@ -149,13 +148,6 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
               <Coins className="h-4 w-4" aria-hidden />
               {formatCoins(me.profile.coins)}
             </span>
-            <Link
-              href="/shop"
-              aria-label="Boutique de coffres"
-              className="rounded-full border border-fuchsia-300/20 bg-fuchsia-300/[0.07] p-2 text-fuchsia-100/90 transition-colors hover:bg-fuchsia-300/[0.14] hover:text-white"
-            >
-              <ShoppingBag className="h-4 w-4" aria-hidden />
-            </Link>
             <a
               href="/api/auth/logout?redirect=/market"
               aria-label="Se déconnecter"

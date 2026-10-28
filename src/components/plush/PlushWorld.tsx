@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronDown, ShoppingBag, Store } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Store } from 'lucide-react';
 import PlushExperience from '@/components/plush/PlushExperience';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import CoinBalance from '@/components/plush/CoinBalance';
@@ -345,14 +345,6 @@ function CollectionView({
                 <CoinBalance />
                 <MochyWallet />
               </span>
-              <Link
-                href="/shop"
-                aria-label="Boutique de coffres"
-                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-300/[0.07] px-4 py-2 text-xs font-semibold text-fuchsia-100/90 transition-all hover:bg-fuchsia-300/[0.14] hover:text-white active:scale-95"
-              >
-                <ShoppingBag className="h-3.5 w-3.5" aria-hidden />
-                Boutique
-              </Link>
               <Link
                 href="/market"
                 data-tutorial="market"
