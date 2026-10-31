@@ -31,11 +31,11 @@ export default async function MarketPage({
             des peluches.
           </p>
           <div className="mt-7">
-            <LoginWithSimulquest redirect="/" />
+            <LoginWithSimulquest redirect="/market" />
           </div>
           <div className="mt-6">
             <Link
-              href="/login?redirect=%2F"
+              href="/login?redirect=%2Fmarket"
               className="text-xs text-white/40 transition-colors hover:text-white/70"
             >
               Plus d&apos;options de connexion

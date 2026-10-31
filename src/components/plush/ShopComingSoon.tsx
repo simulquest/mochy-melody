@@ -46,7 +46,7 @@ export default function ShopComingSoon() {
           Préparez vos MochyCoins : les coffres seront bientôt disponibles ici.
         </p>
         <Link
-          href="/"
+          href="/play"
           className="mt-8 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
         >
           Retour à l’accueil

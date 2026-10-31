@@ -26,6 +26,7 @@ import {
   remoteClick,
   serverStateToPersist,
   type RemoteClickEvent,
+  ownedStackKey,
 } from '@/lib/plush/lootbox-remote';
 
 /** Coups mémorisés pendant une requête en vol (rejoués ensuite, bornés). */
@@ -145,7 +146,7 @@ export default function Lootbox({
       )
     : [];
   const selectedOwned =
-    ownedForShape.find((p) => p.id === equippedId) ??
+    ownedForShape.find((p) => ownedStackKey(p) === equippedId) ??
     ownedForShape.find((p) => p.speciesId === speciesId) ??
     ownedForShape.slice().sort((a, b) => b.wonAt - a.wonAt)[0] ??
     null;
@@ -156,7 +157,8 @@ export default function Lootbox({
       try {
         const [st, owned] = await Promise.all([fetchRemoteState(), fetchRemoteOwned()]);
         if (cancelled) return;
-        equippedKeyRef.current = getEquippedPreset()?.id ?? null;
+        const equipped = getEquippedPreset();
+        equippedKeyRef.current = equipped ? ownedStackKey(equipped) : null;
         setPersist(serverStateToPersist(st, owned, equippedKeyRef.current));
         setLoadError(null);
       } catch (error) {
@@ -386,10 +388,11 @@ export default function Lootbox({
   const equip = useCallback(
     (p: OwnedPlush) => {
       if (!persist) return;
-      onEquip(p, p.id, p.mutation ?? null);
-      equippedKeyRef.current = p.id;
+      const key = ownedStackKey(p);
+      onEquip(p, key, p.mutation ?? null);
+      equippedKeyRef.current = key;
       setEquippedPreset(p);
-      const next: LootboxPersist = { ...persist, equippedId: p.id };
+      const next: LootboxPersist = { ...persist, equippedId: key };
       setPersist(next);
       setReveal(null);
       setCollectionOpen(false);
@@ -742,7 +745,7 @@ export default function Lootbox({
                             </span>
                           </div>
                           <p className="mt-1 text-[11px] text-white/45">
-                            {equippedId === selectedOwned.id ? 'Actuellement équipée' : 'Variante sélectionnée'}
+                            {equippedId === ownedStackKey(selectedOwned) ? 'Actuellement équipée' : 'Variante sélectionnée'}
                           </p>
                           {ownedForShape.length > 1 && (
                             <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-pink-300/80">
@@ -754,7 +757,7 @@ export default function Lootbox({
                             </p>
                           )}
                         </div>
-                        {equippedId === selectedOwned.id && (
+                        {equippedId === ownedStackKey(selectedOwned) && (
                           <span
                             className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
                             style={{ background: RARITIES[selectedOwned.rarityIdx].color }}
@@ -778,10 +781,11 @@ export default function Lootbox({
                                 .slice()
                                 .sort((a, b) => b.wonAt - a.wonAt)
                                 .map((p) => {
-                                  const eq = equippedId === p.id;
+                                  const key = ownedStackKey(p);
+                                  const eq = equippedId === key;
                                   return (
                                     <button
-                                      key={p.id}
+                                      key={key}
                                       onClick={() => {
                                         equip(p);
                                         setShowVariants(false);
