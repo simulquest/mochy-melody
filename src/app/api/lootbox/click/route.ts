@@ -55,16 +55,17 @@ export async function POST(_req: NextRequest) {
     const res = result as {
       type: string;
       new_rarity_idx: number | null;
-      won: unknown;
+      won: ServerWonCard | null;
       persist: LootboxState;
     };
 
     return Response.json({
       type: res.type,
       newRarityIdx: res.new_rarity_idx,
-      // Seule la transition réellement appliquée par SQL crédite une carte
-      // (un événement « open » périmé est rétrogradé côté serveur).
-      won: res.type === 'open' && event.type === 'open' ? event.won : undefined,
+      // On renvoie la carte réellement créditée par SQL (lootbox_click /
+      // market_grant_card), et non le tirage TS, afin que la révélation
+      // affiche exactement ce qui se retrouve dans l'inventaire.
+      won: res.type === 'open' ? res.won : undefined,
       persist: res.persist,
     });
   } catch (err) {

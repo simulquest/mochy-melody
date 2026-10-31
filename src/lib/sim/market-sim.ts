@@ -52,10 +52,10 @@ const DEFAULT_BACKFILL_DAYS = 10;
 /** Un nouveau lot d'activité au plus toutes les 8 minutes (rattrapage). */
 const TICK_MIN_GAP_MS = 8 * 60 * 1000;
 /** Plafond de ventes générées en un seul tick (anti-spike). */
-const MAX_SALES_PER_TICK = 25;
+const MAX_SALES_PER_TICK = 50;
 /** Enchères actives simulées visées (la « vitrine » du marché). */
-const TARGET_ACTIVE_LISTINGS = 12;
-const MAX_VITRINE_PER_TICK = 6;
+const TARGET_ACTIVE_LISTINGS = 150;
+const MAX_VITRINE_PER_TICK = 30;
 /** Ventes par jour et par carte, selon la rareté. */
 const DAILY_ACTIVITY = [3.5, 1.9, 0.9, 0.3, 0.08];
 /** Ancre de cours par rareté — cohérente avec les coffres boutique (10/20/40/80/160). */
@@ -84,6 +84,14 @@ export const SIM_BOTS: Array<{ id: string; name: string }> = [
   { id: 'bot_pompona', name: 'Pompona' },
   { id: 'bot_babilou', name: 'Babilou' },
   { id: 'bot_ninive', name: 'Ninive' },
+  { id: 'bot_loulou', name: 'Loulou' },
+  { id: 'bot_mini', name: 'Mini' },
+  { id: 'bot_pilou', name: 'Pilou' },
+  { id: 'bot_tosca', name: 'Tosca' },
+  { id: 'bot_yuki', name: 'Yuki' },
+  { id: 'bot_zozo', name: 'Zozo' },
+  { id: 'bot_misu', name: 'Misu' },
+  { id: 'bot_keko', name: 'Keko' },
 ];
 
 /** Filtre SQL LIKE pour tout ce qui appartient aux bots (validateurs/non-mutables). */
@@ -576,7 +584,7 @@ async function updateConfig(patch: Partial<SimConfig>): Promise<void> {
 async function upsertBots(): Promise<void> {
   await upsertChunked(
     'profiles',
-    SIM_BOTS.map((b) => ({ user_id: b.id, display_name: b.name, coins: 500 })),
+    SIM_BOTS.map((b) => ({ user_id: b.id, display_name: b.name, coins: 2000 })),
     'user_id',
   );
 }
