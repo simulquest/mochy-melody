@@ -9,6 +9,7 @@ import {
   type Listing,
   type ListingView,
 } from '@/lib/market';
+import { simTickThrottled } from '@/lib/sim/market-sim';
 
 /**
  * GET /api/market/listings — toutes les ventes (active / sold / cancelled /
@@ -21,6 +22,7 @@ export async function GET(req: NextRequest) {
   try {
     const { user } = await requireUser();
     await settleExpiredThrottled();
+    await simTickThrottled();
 
     const supabase = getSupabaseAdmin();
     const sp = req.nextUrl.searchParams;

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { requireUser, handleApiError, apiError, type Sale, type Listing } from '@/lib/market';
+import { simTickThrottled } from '@/lib/sim/market-sim';
 
 export interface CardHistory {
   card_id: string;
@@ -27,6 +28,7 @@ export async function GET(
 ) {
   try {
     await requireUser();
+    await simTickThrottled();
     const { cardId } = await params;
     if (!cardId) return apiError('carte manquante', 400);
 

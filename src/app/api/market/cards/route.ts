@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { requireUser, handleApiError, type Sale, type Listing } from '@/lib/market';
+import { simTickThrottled } from '@/lib/sim/market-sim';
 
 /** Statistiques de cours d'une carte. */
 export interface CardStats {
@@ -24,6 +25,7 @@ export interface CardStats {
 export async function GET(_req: NextRequest) {
   try {
     await requireUser();
+    await simTickThrottled();
     const supabase = getSupabaseAdmin();
 
     const [salesRes, listingsRes] = await Promise.all([

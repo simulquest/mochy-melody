@@ -11,6 +11,7 @@ import {
   type Bid,
   type Sale,
 } from '@/lib/market';
+import { simTickThrottled } from '@/lib/sim/market-sim';
 
 /**
  * GET /api/market/me — solde, inventaire, mes ventes, mes enchères et gains.
@@ -20,6 +21,7 @@ export async function GET() {
   try {
     const { user, profile } = await requireUser();
     await settleExpiredThrottled();
+    await simTickThrottled();
     const supabase = getSupabaseAdmin();
 
     const [inv, mine, myBids, won] = await Promise.all([

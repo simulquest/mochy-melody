@@ -12,6 +12,7 @@ import {
   type Bid,
   type PublicProfile,
 } from '@/lib/market';
+import { simTickThrottled } from '@/lib/sim/market-sim';
 
 export interface ListingDetail extends ListingView {
   bids: Array<Bid & { bidder: PublicProfile | null }>;
@@ -28,6 +29,7 @@ export async function GET(
   try {
     const { user } = await requireUser();
     await settleExpiredThrottled();
+    await simTickThrottled();
     const { id } = await params;
 
     const supabase = getSupabaseAdmin();

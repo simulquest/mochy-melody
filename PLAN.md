@@ -205,3 +205,35 @@ Données de test nettoyées (compte de test supprimé, vente supprimée, carte r
 
 ### Note sur le nom
 Nom **`mochy-melody`** validé par toi → alias `https://mochy-melody.vercel.app`.
+
+---
+
+## 9. Marché simulé (session du 31/10) — en attente d'activation
+
+En attendant les joueurs : des **traders simulés** (profils `bot_*`) échangent les cartes via le VRAI
+cycle `listings` → `bids` → clôture → `sales`. Les graphiques, cours et stats existants
+(`CardPriceChart`, « Cours des cartes ») s'alimentent sans modifier l'UI. Aucune donnée de vrais
+joueurs n'est touchée. Les bots **ne** surenchérissent **pas** sur les ventes des vrais joueurs (phase 2).
+
+- [x] `supabase/market_sim.sql` — tables `market_sim_config` (fenêtre 15 j) + `market_sim_prices`
+      (marche des prix par carte) · RLS, service_role uniquement. **À coller dans le SQL Editor.**
+- [x] `src/lib/sim/market-sim.ts` — moteur : 12 bots, 44 cartes, prix de base par rareté
+      (≈ 8/18/38/80/180 🪙, cohérent avec les coffres boutique), marche ±7.5 % par vente
+      (+ réversion vs ancre + 5 % de pics, mutations premium ×1.4–2.6), ~75 ventes/jour,
+      vitrine de ~12 enchères actives, auto-stop à la fin des 15 j, purge inventaire bots.
+- [x] Backfill rétroactif de ~10 jours au `start` → graphiques fournis dès le premier jour.
+- [x] `GET/POST /api/market/sim` (secret header `x-sim-secret`, env `MARKET_SIM_SECRET`) :
+      `status` / `start` / `stop` / `extend` / `wipe` / `tick`.
+- [x] Déclencheur du rattrapage : `simTickThrottled()` branché sur les routes marché
+      (listings, listings/[id], me, cards, cards history) — comme `settleExpiredThrottled`.
+- [x] Validation : `eslint` fichiers sim 0 erreur · `next build` TS 0 erreur · tests curl
+      (401 sans secret / 400 table manquante / routes marché inchangées 200).
+
+### Activation (restant)
+1. Coller `supabase/market_sim.sql` dans le SQL Editor Supabase.
+2. Local : `MARKET_SIM_SECRET` déjà dans `.env.local`. Prod : **ajouter `MARKET_SIM_SECRET` sur Vercel**.
+3. Lancer : `POST /api/market/sim {"action":"start"}` avec header `x-sim-secret` (~600 ventes backfillées).
+4. Vérifier : onglet marché vivant, « Cours des cartes » rempli, graphiques avec historique.
+   `{"action":"wipe"}` possible à tout moment ; `{"action":"extend"}` à la fin des 15 jours.
+
+### Bloqué / en attente de vous
