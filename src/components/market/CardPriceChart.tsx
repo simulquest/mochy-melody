@@ -48,14 +48,14 @@ export default function CardPriceChart({ cardId, onClose }: CardPriceChartProps)
   const stats = history?.stats;
 
   return (
-    <div className="w-full max-w-lg">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-lg font-bold text-white">
+    <div className="w-full max-w-lg px-2 sm:px-0">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="min-w-0 flex-1 text-base font-bold text-white truncate sm:text-lg">
           Cours · {history?.card_name ?? cardId}
         </h3>
         <button
           onClick={onClose}
-          className="rounded-full bg-white/5 px-3 py-1 text-xs text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          className="shrink-0 rounded-full bg-white/5 px-3 py-1 text-xs text-white/60 transition-colors hover:bg-white/10 hover:text-white"
         >
           Fermer
         </button>
@@ -71,25 +71,25 @@ export default function CardPriceChart({ cardId, onClose }: CardPriceChartProps)
         </div>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2 sm:p-3">
         {loading ? (
-          <div className="flex h-56 items-center justify-center text-sm text-white/40">
+          <div className="flex h-48 sm:h-56 items-center justify-center text-sm text-white/40">
             Chargement…
           </div>
         ) : error ? (
-          <div className="flex h-56 items-center justify-center px-4 text-center text-sm text-rose-300">
+          <div className="flex h-48 sm:h-56 items-center justify-center px-4 text-center text-sm text-rose-300">
             {error}
           </div>
         ) : points.length === 0 ? (
-          <div className="flex h-56 flex-col items-center justify-center gap-1 text-center">
+          <div className="flex h-48 sm:h-56 flex-col items-center justify-center gap-1 text-center">
             <p className="text-sm font-medium text-white/55">Aucune vente enregistrée</p>
             <p className="text-xs text-white/35">
               Le graphique s&apos;affichera dès la première vente conclue.
             </p>
           </div>
         ) : (
-          <ChartContainer config={chartConfig} className="h-56 w-full">
-            <AreaChart data={points} margin={{ left: -12, right: 8, top: 6 }}>
+          <ChartContainer config={chartConfig} className="h-48 sm:h-56 w-full">
+            <AreaChart data={points} margin={{ left: 6, right: 6, top: 4 }}>
               <defs>
                 <linearGradient id="fillPrice" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#f0abfc" stopOpacity={0.5} />
@@ -101,8 +101,8 @@ export default function CardPriceChart({ cardId, onClose }: CardPriceChartProps)
                 dataKey="sold_at"
                 tickLine={false}
                 axisLine={false}
-                tickMargin={8}
-                minTickGap={32}
+                tickMargin={6}
+                minTickGap={20}
                 tickFormatter={(v: string) =>
                   new Date(v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
                 }
