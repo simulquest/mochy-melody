@@ -14,6 +14,8 @@ import {
   rarityAtLeast,
   rarityColor,
 } from './mutations';
+import { buildThemeAccessories, type GarlandBulb } from './plush-accessories';
+import type { ThemeId } from '@/lib/theme';
 
 /**
  * PlushEngine — peluche 3D interactive avec simulation de fourrure.
@@ -26,6 +28,7 @@ import {
 
 export interface EngineCallbacks {
   onFirstInteract?: () => void;
+  onPet?: () => void;
   /**
    * Accumulation de caresses complète → gerbe de cœurs.
    * C'est le moment où l'interface crédite les MochyHearts.
@@ -55,6 +58,11 @@ export class PlushEngine {
   private glowSprite!: THREE.Sprite;
   private shadowMesh!: THREE.Mesh;
   private heartPool: HeartParticle[] = [];
+  private siteTheme: ThemeId = 'default';
+  /** Ampoules (guirlande) + étoiles du décor qui scintillent avec le temps. */
+  private twinkles: GarlandBulb[] = [];
+  /** Champ d'étoiles du décor noel : tourne doucement sur lui-même. */
+  private sceneryStarGroup: THREE.Group | null = null;
 
   // --- Données de fourrure (typed arrays, zéro allocation dans la boucle) ---
   private strandCount = 0;
@@ -123,11 +131,17 @@ export class PlushEngine {
   constructor(
     canvas: HTMLCanvasElement,
     cbs: EngineCallbacks = {},
-    options: { species?: PlushSpecies } = {},
+    options: {
+      species?: PlushSpecies;
+      palette?: { bg?: string };
+      /** Thème du site (config.json) : accessoires portés par la peluche. */
+      theme?: ThemeId;
+    } = {},
   ) {
     this.canvas = canvas;
     this.cbs = cbs;
     this.species = options.species;
+    this.siteTheme = options.theme ?? 'default';
     if (options.species) {
       this.preset = options.species.preset;
       this.face = options.species.face;
@@ -139,11 +153,14 @@ export class PlushEngine {
       antialias: true,
       powerPreference: 'high-performance',
     });
-    this.renderer.setClearColor(0x070609, 1);
+    // Couleur de fond du monde (thème du site, config.json) ; utilisée pour
+    // le clearColor ET le brouillard pour rester cohérent.
+    const worldBg = new THREE.Color(options.palette?.bg ?? '#070609');
+    this.renderer.setClearColor(worldBg, 1);
     this.renderer.toneMapping = THREE.NoToneMapping;
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x070609, 9, 16);
+    this.scene.fog = new THREE.Fog(worldBg, 9, 16);
 
     const isMobile = Math.min(window.innerWidth, window.innerHeight) < 620 || 'ontouchstart' in window;
     const aspect = window.innerWidth / Math.max(1, window.innerHeight);
@@ -156,6 +173,8 @@ export class PlushEngine {
     this.buildBody();
     this.buildFace();
     this.buildSpeciesParts();
+    this.buildAccessories();
+    this.buildWinterScenery();
     this.buildFur(isMobile);
     this.buildAmbience();
     this.buildHearts();
@@ -330,6 +349,161 @@ export class PlushEngine {
       m.emissive = new THREE.Color(sp.ghost.emissive);
       m.emissiveIntensity = 0.1;
     }
+  }
+
+  /** Accessoires de thème (bonnet de Noël…) portés par la peluche. */
+  private buildAccessories() {
+    const group = buildThemeAccessories(this.species ?? null, this.siteTheme);
+    if (!group) return;
+    this.rootGroup.add(group);
+    const bulbs = group.userData.garlandBulbs as GarlandBulb[] | undefined;
+    if (bulbs) this.twinkles = bulbs;
+  }
+
+  /** Pulse guirlande + étoiles du décor (thème noel), sinon ne rien faire. */
+  private updateTwinkle(t: number) {
+    for (const bulb of this.twinkles) {
+      const factor = 0.8 + 0.2 * Math.sin(t * 2.7 + bulb.phase);
+      bulb.mat.color.copy(bulb.base).multiplyScalar(factor);
+    }
+    if (this.sceneryStarGroup) {
+      this.sceneryStarGroup.rotation.y = t * 0.03;
+    }
+  }
+
+  /**
+   * Décor de fond lié au thème : forêt de sapins, bonhommes de neige, lutins
+   * et étoiles qui scintillent autour de la peluche. Ajouté à `this.scene`
+   * (PAS au rootGroup) : la peluche respire et se balance, pas la forêt.
+   */
+  private buildWinterScenery() {
+    if (this.siteTheme !== 'noel') return;
+    const groundY = -0.92; // même plan que l'ombre de la peluche
+
+    // — Matières partagées (disposées avec la scène dans dispose()) —
+    const wood = new THREE.MeshStandardMaterial({ color: 0x5d4433, roughness: 0.9 });
+    const greenA = new THREE.MeshStandardMaterial({ color: 0x1d6b45, roughness: 0.85 });
+    const greenB = new THREE.MeshStandardMaterial({ color: 0x2a7d52, roughness: 0.85 });
+    const snow = new THREE.MeshStandardMaterial({ color: 0xf4f9ff, roughness: 0.55 });
+    const carrot = new THREE.MeshStandardMaterial({ color: 0xe8833a, roughness: 0.8 });
+    const coal = new THREE.MeshStandardMaterial({ color: 0x23232f, roughness: 0.7 });
+    const elfBody = new THREE.MeshStandardMaterial({ color: 0x3f9d55, roughness: 0.85 });
+    const elfHat = new THREE.MeshStandardMaterial({ color: 0xd64545, roughness: 0.85 });
+    const elfSkin = new THREE.MeshStandardMaterial({ color: 0xf5cfa8, roughness: 0.8 });
+
+    const mkSapin = () => {
+      const g = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.34, 10), wood);
+      trunk.position.y = 0.17;
+      g.add(trunk);
+      const tiers: Array<[number, number, number, THREE.MeshStandardMaterial]> = [
+        [0.48, 0.52, 0.34, greenA],
+        [0.37, 0.44, 0.66, greenB],
+        [0.26, 0.36, 0.96, greenA],
+      ];
+      for (const [radius, height, y, mat] of tiers) {
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(radius, height, 9), mat);
+        cone.position.y = y;
+        g.add(cone);
+      }
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.24, 9), snow);
+      cap.position.y = 1.2;
+      g.add(cap);
+      return g;
+    };
+
+    const mkBonhomme = (topHat: boolean) => {
+      const g = new THREE.Group();
+      const lower = new THREE.Mesh(new THREE.SphereGeometry(0.3, 20, 16), snow);
+      lower.position.y = 0.26;
+      lower.scale.y = 0.92;
+      g.add(lower);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 20, 16), snow);
+      head.position.y = 0.63;
+      g.add(head);
+      // Écharpe rouge bien serrée sur le cou.
+      const scarf = new THREE.Mesh(
+        new THREE.TorusGeometry(0.16, 0.045, 8, 20),
+        new THREE.MeshStandardMaterial({ color: 0xc23434, roughness: 0.9 }),
+      );
+      scarf.rotation.x = Math.PI / 2;
+      scarf.position.y = 0.47;
+      g.add(scarf);
+      // Carotte pointée vers la caméra.
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.036, 0.15, 8), carrot);
+      nose.rotation.x = Math.PI / 2;
+      nose.position.set(0, 0.63, 0.25);
+      g.add(nose);
+      if (topHat) {
+        const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.035, 12), coal);
+        brim.position.y = 0.78;
+        g.add(brim);
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.17, 12), coal);
+        tube.position.y = 0.88;
+        g.add(tube);
+      } else {
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.28, 12), elfHat);
+        cap.position.y = 0.86;
+        g.add(cap);
+      }
+      return g;
+    };
+
+    const mkLutin = () => {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.16, 6, 14), elfBody);
+      body.position.y = 0.33;
+      g.add(body);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), elfSkin);
+      head.position.y = 0.59;
+      g.add(head);
+      const hat = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.32, 10), elfHat);
+      hat.position.set(0, 0.76, 0);
+      hat.rotation.z = 0.14;
+      g.add(hat);
+      const pom = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), snow);
+      pom.position.set(0.05, 0.91, 0.01);
+      g.add(pom);
+      return g;
+    };
+
+    const place = (obj: THREE.Object3D, x: number, z: number, scale: number) => {
+      obj.position.set(x, groundY, z);
+      obj.scale.setScalar(scale);
+      // Se tourne légèrement vers la peluche.
+      obj.rotation.y = Math.atan2(-x, -z);
+      this.scene.add(obj);
+    };
+
+    // Sapins : loin, ils encadrent la scène sur les côtés et derrière.
+    place(mkSapin(), -2.7, -2.1, 1.35);
+    place(mkSapin(), 2.9, -1.8, 1.0);
+    place(mkSapin(), -3.2, -0.2, 1.1);
+    place(mkSapin(), 3.5, 0.9, 0.8);
+    // Bonhommes de neige : plus proches, au premier plan latéral.
+    place(mkBonhomme(true), 2.05, -1.5, 1.0);
+    place(mkBonhomme(false), -1.85, -1.75, 0.7);
+    // Deux lutins cachés entre les arbres.
+    place(mkLutin(), 1.4, -2.55, 0.95);
+    place(mkLutin(), -2.4, -2.45, 0.75);
+
+    // Étoiles : petits points dorés qui scintillent en tournant lentement.
+    const starGroup = new THREE.Group();
+    const starColors = [0xffd76b, 0xfff3c4, 0x7dd3fc];
+    const starGeo = new THREE.SphereGeometry(0.05, 8, 6);
+    for (let i = 0; i < 16; i++) {
+      const ang = (i / 16) * Math.PI * 2 * 1.618 + 0.6; // spirale dorée
+      const r = 2.2 + ((i * 7) % 10) / 10 * 2.0;
+      const y = 1.3 + ((i * 13) % 10) / 10 * 2.4;
+      const hex = starColors[i % starColors.length] as number;
+      const mat = new THREE.MeshBasicMaterial({ color: hex });
+      const star = new THREE.Mesh(starGeo, mat);
+      star.position.set(Math.cos(ang) * r, y, Math.sin(ang) * r);
+      starGroup.add(star);
+      this.twinkles.push({ mat, base: new THREE.Color(hex), phase: i * 0.9 });
+    }
+    this.sceneryStarGroup = starGroup;
+    this.scene.add(starGroup);
   }
 
   private buildFur(isMobile: boolean) {
@@ -661,6 +835,7 @@ export class PlushEngine {
       this.blinkStart = this.clock.getElapsed();
       this.petAccum += 0.5;
       this.lastPointerDownTime = this.clock.getElapsed();
+      this.cbs.onPet?.();
     }
   };
 
@@ -714,6 +889,7 @@ export class PlushEngine {
     this.updateStrands(dt, t);
     this.updateLife(dt, t);
     this.updateHearts(dt);
+    this.updateTwinkle(t);
 
     this.renderer.render(this.scene, this.camera);
   };

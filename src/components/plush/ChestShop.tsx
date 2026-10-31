@@ -67,7 +67,7 @@ export default function ChestShop() {
   };
 
   return (
-    <main className="min-h-[100dvh] bg-[#070609] px-5 py-6 text-white sm:py-10">
+    <main className="min-h-[100dvh] bg-theme-bg px-5 py-6 text-white sm:py-10">
       <div className="mx-auto w-full max-w-4xl">
         <header className="mb-8 flex items-center justify-between gap-4">
           <Link

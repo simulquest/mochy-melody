@@ -17,8 +17,8 @@ export default function ShopComingSoon() {
   }, []);
 
   return (
-    <main className="flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[#070609] px-5 text-center text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_42%,rgba(217,70,239,0.16),transparent_58%)]" />
+    <main className="flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-theme-bg px-5 text-center text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_42%,var(--theme-glow),transparent_58%)]" />
       <section className="relative flex max-w-md flex-col items-center">
         <motion.div
           animate={{ rotate: 360 }}

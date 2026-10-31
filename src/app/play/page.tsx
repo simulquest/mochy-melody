@@ -9,7 +9,7 @@ export default async function PlayPage() {
   }
 
   return (
-    <main className="h-[100dvh] w-full overflow-hidden bg-[#070609]">
+    <main className="h-[100dvh] w-full overflow-hidden bg-theme-bg">
       <PlushWorld />
     </main>
   );

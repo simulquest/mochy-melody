@@ -32,6 +32,12 @@ import {
   fetchRemoteOwned,
   ownedStackKey,
 } from '@/lib/plush/lootbox-remote';
+import {
+  playGameSound,
+  preloadGameSounds,
+  startBackgroundMusic,
+  stopBackgroundMusic,
+} from '@/lib/plush/game-audio';
 
 type View = { type: 'collection' } | { type: 'species'; id: string };
 
@@ -47,6 +53,22 @@ export default function PlushWorld() {
   const [selectedByShape, setSelectedByShape] = useState<Record<string, string>>({});
   const prevEquippedRef = useRef<string | null>(null);
   const unlockedRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    preloadGameSounds();
+    const playButtonSound = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('button:not(:disabled)')) {
+        startBackgroundMusic();
+        playGameSound('button');
+      }
+    };
+    document.addEventListener('click', playButtonSound, true);
+    return () => {
+      document.removeEventListener('click', playButtonSound, true);
+      stopBackgroundMusic();
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -157,7 +179,7 @@ export default function PlushWorld() {
           collectionLoading ? (
             <LoadingScreen />
           ) : collectionLoadError ? (
-            <div className="flex h-full flex-col items-center justify-center gap-4 bg-[#070609] px-6 text-center">
+            <div className="flex h-full flex-col items-center justify-center gap-4 bg-theme-bg px-6 text-center">
               <p role="alert" className="max-w-md text-sm text-rose-200/90">
                 Impossible de charger votre collection : {collectionLoadError}
               </p>
@@ -266,7 +288,7 @@ function SpeciesView({
   if (!sp) return null;
   if (!isUnlocked(id, unlocked)) {
     return (
-      <div className="h-full overflow-y-auto overscroll-contain bg-[#070609]">
+      <div className="h-full overflow-y-auto overscroll-contain bg-theme-bg">
         <div className="mx-auto w-full max-w-2xl px-5 py-12 sm:pt-20 text-center">
           <button
             onClick={onBack}
@@ -337,7 +359,7 @@ function CollectionView({
   }, [ownedCards, equippedStackId, selectedByShape]);
 
   return (
-    <div className="h-full overflow-y-auto overscroll-contain bg-[#070609]">
+    <div className="h-full overflow-y-auto overscroll-contain bg-theme-bg">
       <div className="mx-auto w-full max-w-4xl px-5 pb-16 pt-8 sm:pt-12">
         <header>
           <div className="flex flex-wrap items-start justify-between gap-3">

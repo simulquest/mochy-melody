@@ -17,12 +17,12 @@ export default function LoadingScreen() {
 
   return (
     <main
-      className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-[#070609]"
+      className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-theme-bg"
       role="status"
       aria-live="polite"
       aria-label="Chargement de la page"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_42%,rgba(217,70,239,0.16),transparent_58%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_42%,var(--theme-glow),transparent_58%)]" />
       <div className="relative flex flex-col items-center gap-5">
         <motion.div
           animate={{ y: [0, -12, 0], rotate: [-4, 4, -4] }}

@@ -28,6 +28,7 @@ import {
   type RemoteClickEvent,
   ownedStackKey,
 } from '@/lib/plush/lootbox-remote';
+import { playGameSound } from '@/lib/plush/game-audio';
 
 /** Coups mémorisés pendant une requête en vol (rejoués ensuite, bornés). */
 const MAX_QUEUED_TAPS = 3;
@@ -277,6 +278,7 @@ export default function Lootbox({
 
     if (ev.type === 'open') {
       const won = ev.won;
+      playGameSound('chest');
       vibrate([20, 60, 30, 60, 80]);
       const wonWithMut: OwnedPlush = { ...won };
       wonPlushRef.current = wonWithMut;

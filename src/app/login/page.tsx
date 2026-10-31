@@ -44,7 +44,7 @@ export default async function LoginPage({
   }
 
   return (
-    <main className="flex min-h-[100dvh] w-full items-center justify-center bg-[#070609] px-5">
+    <main className="flex min-h-[100dvh] w-full items-center justify-center bg-theme-bg px-5">
       <div className="w-full max-w-sm">
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center shadow-2xl backdrop-blur-xl">
           <LoginPlush />

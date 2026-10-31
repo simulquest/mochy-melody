@@ -1,10 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Baloo_2, Geist_Mono, Nunito } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import ThemeDelights from "@/components/theme/ThemeDelights";
+import { getSiteTheme } from "@/lib/theme-server";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Le thème est relu à chaque requête depuis config.json : édition du fichier
+// + refresh → nouveau thème. On interdit donc le rendu statique.
+export const dynamic = "force-dynamic";
+
+const nunito = Nunito({
+  variable: "--font-nunito",
+  subsets: ["latin"],
+});
+
+const baloo = Baloo_2({
+  variable: "--font-baloo-2",
   subsets: ["latin"],
 });
 
@@ -32,12 +44,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const theme = getSiteTheme();
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="fr" data-theme={theme} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${nunito.variable} ${baloo.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}
       >
-        {children}
+        <ThemeProvider theme={theme}>
+          <ThemeDelights />
+          {children}
+        </ThemeProvider>
         <Toaster />
       </body>
     </html>

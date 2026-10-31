@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PlushPreset } from './plush-shape';
 import { PlushSpecies, SpeciesFace } from './species';
+import { buildThemeAccessories } from './plush-accessories';
 import {
   PlushMutation,
 } from './mutations';
@@ -12,6 +13,8 @@ export interface PlushMeshOpts {
   furLength?: number;
   /** Densité appliquée (défaut = config de l'espèce). */
   furDensity?: number;
+  /** Thème du site (config.json) : accessoires portés par la peluche. */
+  theme?: import('@/lib/theme').ThemeId;
 }
 
 /** Réglages allégés pour les aperçus (carte, collection et coffre) : la
@@ -410,6 +413,10 @@ export function createPlushMesh(
     bodyMeshMat.emissive = new THREE.Color(species.ghost.emissive);
     bodyMeshMat.emissiveIntensity = 0.1;
   }
+
+  // ------------------------------------------------------------------ Accessoires de thème
+  const accessories = buildThemeAccessories(species, opts.theme ?? 'default');
+  if (accessories) root.add(accessories);
 
   return root;
 }

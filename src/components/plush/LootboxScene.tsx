@@ -14,6 +14,8 @@ import {
 } from '@/lib/plush/lootbox';
 import { getSpecies } from '@/lib/plush/species';
 import { createPlushMesh, LIGHT_MESH_OPTS } from '@/lib/plush/plush-mesh';
+import { useSiteTheme } from '@/components/theme/ThemeProvider';
+import type { ThemeId } from '@/lib/theme';
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3);
@@ -119,11 +121,15 @@ export default function LootboxScene({
 }: LootboxSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const propsRef = useRef<LootboxSceneProps | null>(null);
+  // Thème du site (config.json) : la peluche révélée porte ses accessoires.
+  const siteTheme = useSiteTheme();
+  const themeRef = useRef<ThemeId>(siteTheme);
   useEffect(() => {
     propsRef.current = {
       rarityIdx, progress, phase, won, flash, chestsAvailable, nextRefillAt,
       onFlashDone, onClick, onOpenComplete, onClose,
     }; // synchronisé après chaque rendu (jamais pendant)
+    themeRef.current = siteTheme;
   });
 
   const prevRarityRef = useRef(rarityIdx);
@@ -232,6 +238,25 @@ export default function LootboxScene({
       color: 0xffffff, transparent: true, opacity: 0.95,
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
+
+    // ----- Étoiles de Noël (thème noel) : scintillent autour du coffre
+    const xlums: Array<{ mat: THREE.MeshBasicMaterial; base: THREE.Color; phase: number }> = [];
+    let xlumT = 0;
+    if (themeRef.current === 'noel') {
+      const xlumColors = [0xffd76b, 0xfff3c4, 0x7dd3fc];
+      const xlumGeo = trackG(new THREE.SphereGeometry(0.05, 8, 6));
+      for (let i = 0; i < 14; i++) {
+        const ang = (i / 14) * Math.PI * 2 * 1.618 + 0.6;
+        const r = 1.7 + ((i * 7) % 10) / 10 * 1.5;
+        const y = 0.1 + ((i * 13) % 10) / 10 * 2.4;
+        const hex = xlumColors[i % xlumColors.length] as number;
+        const mat = trackM(new THREE.MeshBasicMaterial({ color: hex }));
+        const star = new THREE.Mesh(xlumGeo, mat);
+        star.position.set(Math.cos(ang) * r, y, Math.sin(ang) * r);
+        scene.add(star);
+        xlums.push({ mat, base: new THREE.Color(hex), phase: i * 0.9 });
+      }
+    }
 
     // ----- Coffre
     const chest = new THREE.Group();
@@ -505,7 +530,10 @@ export default function LootboxScene({
               disposeObject(plushMesh);
             }
             const species = getSpecies(wonPlush.speciesId ?? 'mochi');
-            plushMesh = createPlushMesh(species, wonPlush, wonPlush.mutation ?? null, LIGHT_MESH_OPTS);
+            plushMesh = createPlushMesh(species, wonPlush, wonPlush.mutation ?? null, {
+              ...LIGHT_MESH_OPTS,
+              theme: themeRef.current,
+            });
             plushMesh.scale.setScalar(0.06);
             plushMesh.position.set(0, 0.9, 0);
             scene.add(plushMesh);
@@ -534,6 +562,13 @@ export default function LootboxScene({
             plushMesh.scale.setScalar(0.58);
           }
         }
+      }
+
+      // Étoiles de Noël : pulsation lumineuse douce.
+      xlumT += dt;
+      for (const b of xlums) {
+        const factor = 0.75 + 0.25 * Math.sin(xlumT * 2.6 + b.phase);
+        b.mat.color.copy(b.base).multiplyScalar(factor);
       }
 
       renderer.render(scene, camera);

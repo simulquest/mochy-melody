@@ -28,6 +28,9 @@ import {
   remotePetAward,
 } from '@/lib/plush/pet-remote';
 import { ownedStackKey } from '@/lib/plush/lootbox-remote';
+import { useSiteTheme } from '@/components/theme/ThemeProvider';
+import { THEME_ENGINE_BG } from '@/lib/theme';
+import { playGameSound, startBackgroundMusic } from '@/lib/plush/game-audio';
 
 interface PlushExperienceProps {
   species: PlushSpecies;
@@ -37,6 +40,8 @@ interface PlushExperienceProps {
 export default function PlushExperience({ species, onBack }: PlushExperienceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<PlushEngine | null>(null);
+  // Thème du site (config.json) : teinte le fond du monde 3D.
+  const siteTheme = useSiteTheme();
   const router = useRouter();
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [showHint, setShowHint] = useState(true);
@@ -68,11 +73,15 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
         engine = new PlushEngine(
           canvasRef.current!,
           {
-            onFirstInteract: () => setShowHint(false),
+            onFirstInteract: () => {
+              setShowHint(false);
+              startBackgroundMusic();
+            },
+            onPet: () => playGameSound('pet'),
             // Une gerbe de cœurs crédite les MochyHearts (voir `awardHearts`).
             onLove: () => petRef.current(),
           },
-          { species },
+          { species, palette: { bg: THEME_ENGINE_BG[siteTheme] }, theme: siteTheme },
         );
         // Paramètres de fourrure figés par le config JSON (plus aucun réglage utilisateur)
         engine.setFurLength(species.furLength);
@@ -201,7 +210,7 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
   const mutated = !!mut;
 
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden bg-[#070609] select-none">
+    <div className="relative h-[100dvh] w-full overflow-hidden bg-theme-bg select-none">
       {/* Canvas 3D */}
       <canvas
         ref={canvasRef}

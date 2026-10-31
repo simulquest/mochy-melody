@@ -209,7 +209,7 @@ export default function GameTutorial({
       />
       {spotlight && (
         <div
-          className="pointer-events-none fixed z-[101] rounded-2xl border-2 border-fuchsia-300 shadow-[0_0_28px_rgba(232,121,249,0.8)]"
+          className="pointer-events-none fixed z-[101] rounded-2xl border-2 border-fuchsia-300 shadow-[0_0_28px_var(--theme-ring)]"
           style={{
             left: spotlight.left,
             top: spotlight.top,
@@ -225,7 +225,7 @@ export default function GameTutorial({
         aria-labelledby="tutorial-title"
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className={`fixed inset-x-4 z-[102] mx-auto w-auto max-w-lg rounded-3xl border border-fuchsia-300/25 bg-[#17121f]/95 p-5 shadow-[0_0_45px_rgba(192,38,211,0.2)] backdrop-blur-xl sm:p-6 ${
+        className={`fixed inset-x-4 z-[102] mx-auto w-auto max-w-lg rounded-3xl border border-fuchsia-300/25 bg-[#17121f]/95 p-5 shadow-[0_0_45px_var(--theme-glow)] backdrop-blur-xl sm:p-6 ${
           step.placement === 'top'
             ? 'top-4 bottom-auto sm:bottom-8 sm:top-auto'
             : 'bottom-4 sm:bottom-8'

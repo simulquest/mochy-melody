@@ -6,6 +6,7 @@ import { createPlushMesh, PREVIEW_MESH_OPTS, LIGHT_MESH_OPTS } from '@/lib/plush
 import { PlushPreset } from '@/lib/plush/plush-shape';
 import { PlushSpecies } from '@/lib/plush/species';
 import { PlushMutation } from '@/lib/plush/mutations';
+import { useSiteTheme } from '@/components/theme/ThemeProvider';
 
 interface PlushPreview3DProps {
   species: PlushSpecies;
@@ -58,6 +59,8 @@ export default function PlushPreview3D({
   size = 120,
 }: PlushPreview3DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Thème du site (config.json) : les aperçus portent les accessoires aussi.
+  const siteTheme = useSiteTheme();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -86,12 +89,10 @@ export default function PlushPreview3D({
     front.position.set(0, 1.2, 4);
     scene.add(front);
 
-    const group = createPlushMesh(
-      species,
-      preset,
-      mutation,
-      size <= 200 ? LIGHT_MESH_OPTS : PREVIEW_MESH_OPTS,
-    );
+    const group = createPlushMesh(species, preset, mutation, {
+      ...(size <= 200 ? LIGHT_MESH_OPTS : PREVIEW_MESH_OPTS),
+      theme: siteTheme,
+    });
     scene.add(group);
 
     // Cadrage automatique : oreilles de lapin et cornes de dragon comprises.
@@ -135,7 +136,7 @@ export default function PlushPreview3D({
       });
       scene.clear();
     };
-  }, [species, preset, mutation, size]);
+  }, [species, preset, mutation, size, siteTheme]);
 
   return (
     <div

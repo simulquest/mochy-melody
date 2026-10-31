@@ -123,9 +123,9 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
   }
 
   return (
-    <div className="min-h-[100dvh] w-full bg-[#070609]">
+    <div className="min-h-[100dvh] w-full bg-theme-bg">
       {/* En-tête */}
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#070609]/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-theme-bg/85 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-4xl items-center gap-3 px-5 py-3">
           <Link
             href="/play"

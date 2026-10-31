@@ -6,8 +6,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-nunito);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-baloo-2);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -37,6 +38,9 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-theme-bg: var(--theme-bg);
+  --color-theme-accent: var(--theme-accent);
+  --color-theme-accent-2: var(--theme-accent-2);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -119,6 +123,247 @@
   body {
     @apply bg-background text-foreground;
   }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+  }
+}
+
+/* ==========================================================================
+ * THÈME DU SITE — `config.json` (racine) → data-theme sur <html>
+ * Le changement est appliqué par le serveur (lecture live du fichier) :
+ * modifier config.json + refresh ⇒ nouveau thème, sans rebuild.
+ *
+ * Techniques :
+ *  - --theme-bg : fond de page (body + utilitaire `bg-theme-bg`) ;
+ *  - --theme-glow / --theme-ring : halos lumineux ;
+ *  - --color-fuchsia-* / --color-pink-* : reprogrammation de la palette
+ *    d'accents du site (Tailwind v4 adresse ces couleurs par variables CSS,
+ *    donc TOUTES les classes fuchsia/pink suivent le thème automatiquement).
+ * ======================================================================== */
+
+:root {
+  --theme-bg: #070609;
+  --theme-glow: rgba(217, 70, 239, 0.16);
+  --theme-ring: rgba(232, 121, 249, 0.8);
+}
+
+/* — Noël : nuit d'hiver, rouge cerise et or (accents fuchsia → rouge, pink → or) — */
+[data-theme='noel'] {
+  --theme-bg: #0c1626;
+  --theme-glow: rgba(125, 211, 252, 0.14);
+  --theme-ring: rgba(248, 113, 113, 0.85);
+  --color-fuchsia-100: #fee2e2;
+  --color-fuchsia-200: #fecaca;
+  --color-fuchsia-300: #fca5a5;
+  --color-fuchsia-400: #f87171;
+  --color-fuchsia-500: #ef4444;
+  --color-fuchsia-600: #dc2626;
+  --color-fuchsia-700: #b91c1c;
+  --color-fuchsia-800: #991b1b;
+  --color-fuchsia-900: #7f1d1d;
+  --color-fuchsia-950: #450a0a;
+  --color-pink-100: #fef3c7;
+  --color-pink-200: #fde68a;
+  --color-pink-300: #fcd34d;
+  --color-pink-400: #fbbf24;
+  --color-pink-500: #f59e0b;
+}
+
+/* — Été : eau turquoise et soleil (fuchsia → cyan, pink → ambre) — */
+[data-theme='ete'] {
+  --theme-bg: #072a3a;
+  --theme-glow: rgba(34, 211, 238, 0.15);
+  --theme-ring: rgba(34, 211, 238, 0.85);
+  --color-fuchsia-100: #cffafe;
+  --color-fuchsia-200: #a5f3fc;
+  --color-fuchsia-300: #67e8f9;
+  --color-fuchsia-400: #22d3ee;
+  --color-fuchsia-500: #06b6d4;
+  --color-fuchsia-600: #0891b2;
+  --color-fuchsia-700: #0e7490;
+  --color-fuchsia-800: #155e75;
+  --color-fuchsia-900: #164e63;
+  --color-fuchsia-950: #083344;
+  --color-pink-100: #fef3c7;
+  --color-pink-200: #fde68a;
+  --color-pink-300: #fcd34d;
+  --color-pink-400: #fbbf24;
+  --color-pink-500: #f59e0b;
+}
+
+/* — Automne : terre chaude, orange cuivré (fuchsia → orange, pink → ambre profond) — */
+[data-theme='automne'] {
+  --theme-bg: #181008;
+  --theme-glow: rgba(249, 115, 22, 0.14);
+  --theme-ring: rgba(251, 146, 60, 0.85);
+  --color-fuchsia-100: #ffedd5;
+  --color-fuchsia-200: #fed7aa;
+  --color-fuchsia-300: #fdba74;
+  --color-fuchsia-400: #fb923c;
+  --color-fuchsia-500: #f97316;
+  --color-fuchsia-600: #ea580c;
+  --color-fuchsia-700: #c2410c;
+  --color-fuchsia-800: #9a3412;
+  --color-fuchsia-900: #7c2d12;
+  --color-fuchsia-950: #431407;
+  --color-pink-100: #fef3c7;
+  --color-pink-200: #fde68a;
+  --color-pink-300: #fcd34d;
+  --color-pink-400: #eab308;
+  --color-pink-500: #d97706;
+}
+
+/* — Nouvel an : nuit noire et or (fuchsia → or, pink → violet) — */
+[data-theme='nouvel-an'] {
+  --theme-bg: #0a0a11;
+  --theme-glow: rgba(250, 204, 21, 0.13);
+  --theme-ring: rgba(250, 204, 21, 0.85);
+  --color-fuchsia-100: #fef9c3;
+  --color-fuchsia-200: #fef08a;
+  --color-fuchsia-300: #fde047;
+  --color-fuchsia-400: #facc15;
+  --color-fuchsia-500: #eab308;
+  --color-fuchsia-600: #ca8a04;
+  --color-fuchsia-700: #a16207;
+  --color-fuchsia-800: #854d0e;
+  --color-fuchsia-900: #713f12;
+  --color-fuchsia-950: #422006;
+  --color-pink-100: #ede9fe;
+  --color-pink-200: #ddd6fe;
+  --color-pink-300: #c4b5fd;
+  --color-pink-400: #a78bfa;
+  --color-pink-500: #8b5cf6;
+}
+
+/* — Anniversaire : pastel festif (les confettis apportent la multitude) — */
+[data-theme='anniversaire'] {
+  --theme-bg: #170e23;
+  --theme-glow: rgba(236, 72, 153, 0.15);
+  --theme-ring: rgba(236, 72, 153, 0.85);
+}
+
+/* — Décorations ambiantes (ThemeDelights) — */
+@keyframes theme-fall {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate3d(var(--drift, 0px), 115vh, 0) rotate(var(--spin, 0deg));
+  }
+}
+
+@keyframes theme-rise {
+  0% {
+    transform: translate3d(var(--drift, 0px), 112vh, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(0, -10vh, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes theme-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.25);
+  }
+}
+
+.theme-fall {
+  animation-name: theme-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.theme-rise {
+  animation-name: theme-rise;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+.theme-twinkle {
+  animation-name: theme-twinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-fall,
+  .theme-rise,
+  .theme-twinkle,
+  .theme-peek {
+    animation: none;
+  }
+}
+
+/* — Coucou : petits personnages qui surgissent au bord de l'écran — */
+.theme-peek {
+  position: absolute;
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.25));
+  animation:
+    theme-peek-in 0.55s cubic-bezier(0.2, 1.55, 0.45, 1) both,
+    theme-peek-wiggle 2.8s 0.55s ease-in-out infinite,
+    theme-peek-out 0.5s var(--hold, 4s) linear forwards;
+}
+
+/* À l'arrivée, le personnage surgit de derrière le bord de l'écran. */
+@keyframes theme-peek-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(var(--pin-x, 0), var(--pin-y, 0), 0) scale(0.55) rotate(-10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+}
+
+/* Petit bonhomme qui fait coucou tant qu'il est là. */
+@keyframes theme-peek-wiggle {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-4deg);
+  }
+  25% {
+    transform: translate3d(0, -0.4rem, 0) rotate(6deg);
+  }
+  50% {
+    transform: translate3d(0, 0, 0) rotate(-6deg);
+  }
+  75% {
+    transform: translate3d(0, -0.25rem, 0) rotate(4deg);
+  }
+}
+
+/* Puis il se re-couche derrière le bord pour revenir plus tard. */
+@keyframes theme-peek-out {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--pout-x, 0), var(--pout-y, 0.8rem), 0) scale(0.6);
+  }
 }
 
 /* ===== Peluche Câline ===== */
@@ -126,7 +371,8 @@ html,
 body {
   height: 100%;
   overscroll-behavior: none;
-  background: #070609;
+  background: var(--theme-bg, #070609);
+  transition: background-color 0.4s ease;
 }
 
 canvas {
