@@ -7,6 +7,7 @@
 
 import { type LootboxPersist, type OwnedPlush } from './lootbox';
 import { mutationKey } from './mutations';
+import type { PlushPreset } from './plush-shape';
 import { SPECIES } from './species';
 
 /** État de la caisse renvoyé par le serveur. */
@@ -28,6 +29,24 @@ export type RemoteClickEvent =
       type: 'open';
       persist: ServerLootboxState;
       won: OwnedPlush;
+    };
+
+type ServerWonCard = {
+  id: string;
+  name: string;
+  speciesId: string;
+  rarityIdx: number;
+  preset: PlushPreset;
+  mutation: OwnedPlush['mutation'];
+  mutationKey: string;
+};
+
+type RemoteClickResponse =
+  | Exclude<RemoteClickEvent, { type: 'open' }>
+  | {
+      type: 'open';
+      persist: ServerLootboxState;
+      won: ServerWonCard;
     };
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -64,7 +83,22 @@ export async function fetchRemoteState(): Promise<ServerLootboxState> {
 
 /** POST /api/lootbox/click */
 export async function remoteClick(): Promise<RemoteClickEvent> {
-  return api<RemoteClickEvent>('/api/lootbox/click', { method: 'POST' });
+  const event = await api<RemoteClickResponse>('/api/lootbox/click', { method: 'POST' });
+  if (event.type !== 'open') return event;
+
+  const { won } = event;
+  return {
+    ...event,
+    won: {
+      ...won.preset,
+      id: won.id,
+      name: won.name,
+      speciesId: won.speciesId,
+      rarityIdx: won.rarityIdx,
+      mutation: won.mutation ?? null,
+      wonAt: Date.now(),
+    },
+  };
 }
 
 /** GET /api/inventory — piles de l'utilisateur, vers la forme OwnedPlush. */
