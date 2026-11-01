@@ -35,8 +35,6 @@ import {
 import {
   playGameSound,
   preloadGameSounds,
-  startBackgroundMusic,
-  stopBackgroundMusic,
 } from '@/lib/plush/game-audio';
 
 type View = { type: 'collection' } | { type: 'species'; id: string };
@@ -59,14 +57,14 @@ export default function PlushWorld() {
     const playButtonSound = (event: MouseEvent) => {
       const target = event.target;
       if (target instanceof Element && target.closest('button:not(:disabled)')) {
-        startBackgroundMusic();
         playGameSound('button');
       }
     };
     document.addEventListener('click', playButtonSound, true);
     return () => {
       document.removeEventListener('click', playButtonSound, true);
-      stopBackgroundMusic();
+      // La musique est gérée par AudioProvider (layout) : elle ne doit pas
+      // s'arrêter quand on quitte la page /play.
     };
   }, []);
 

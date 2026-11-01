@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import ThemeDelights from "@/components/theme/ThemeDelights";
+import { AudioProvider } from "@/components/audio/AudioProvider";
 import { getSiteTheme } from "@/lib/theme-server";
 
 // Le thème est relu à chaque requête depuis config.json : édition du fichier
@@ -37,6 +38,13 @@ export const metadata: Metadata = {
     siteName: "Mochy Melody",
     type: "website",
   },
+  icons: [
+    {
+      rel: "icon",
+      type: "image/png",
+      url: "/favicon.png",
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -52,7 +60,7 @@ export default function RootLayout({
       >
         <ThemeProvider theme={theme}>
           <ThemeDelights />
-          {children}
+          <AudioProvider>{children}</AudioProvider>
         </ThemeProvider>
         <Toaster />
       </body>

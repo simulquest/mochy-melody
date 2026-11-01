@@ -15,6 +15,57 @@
    * sinon le module de secours (mêmes données). */
   const D = HAS3D ? M3 : MM;
 
+  /* ==========================================================================
+     AUDIO — boutons, coffre, musique de fond (persiste sur tout le site)
+     ========================================================================== */
+  const SOUND = {
+    button: new Audio('/api/sound/button-click.mp3'),
+    chest: new Audio('/api/sound/chest-open.mp3'),
+    music: new Audio('/api/sound/background-music.mp3'),
+  };
+  SOUND.button.preload = 'auto';
+  SOUND.button.volume = 0.4;
+  SOUND.chest.preload = 'auto';
+  SOUND.chest.volume = 0.5;
+  SOUND.music.loop = true;
+  SOUND.music.preload = 'auto';
+  SOUND.music.volume = 0.18;
+  let musicStarted = false;
+
+  function playButtonSound() {
+    SOUND.button.currentTime = 0;
+    void SOUND.button.play().catch(() => {});
+    if (!musicStarted) {
+      SOUND.music.currentTime = 0;
+      void SOUND.music.play().catch(() => {});
+      musicStarted = true;
+    }
+  }
+
+  function playChestOpenSound() {
+    SOUND.chest.currentTime = 0;
+    void SOUND.chest.play().catch(() => {});
+    if (!musicStarted) {
+      SOUND.music.currentTime = 0;
+      void SOUND.music.play().catch(() => {});
+      musicStarted = true;
+    }
+  }
+
+  // Musique de fond au premier clic n'importe où sur la landing.
+  document.addEventListener('click', function () {
+    if (!musicStarted) {
+      playButtonSound();
+    }
+  }, { once: true, passive: true });
+
+  // Son de clic sur chaque bouton de la landing.
+  document.addEventListener('click', function (e) {
+    if (e.target instanceof Element && e.target.closest('button:not(:disabled)')) {
+      playButtonSound();
+    }
+  }, true);
+
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -171,6 +222,7 @@
     chestBtn.classList.remove("opening");
     void chestBtn.offsetWidth;
     chestBtn.classList.add("opening");
+    playChestOpenSound();
 
     setTimeout(() => {
       const r = D.RARITIES[lb.rarity];
