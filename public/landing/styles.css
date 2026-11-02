@@ -271,52 +271,6 @@ a { color: inherit; }
 .step-card p { position: relative; z-index: 1; color: var(--ink-soft); font-size: .96rem; }
 .step-card p b { color: var(--pink-strong); }
 
-/* ---------- Collection ---------- */
-.section-collection {
-  max-width: 1240px;
-  background: linear-gradient(180deg, transparent 0%, rgba(255, 233, 245, .5) 18%, rgba(243, 236, 255, .55) 100%);
-  border-radius: 40px; padding-top: 64px; padding-bottom: 60px;
-}
-.filters { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 36px; }
-.chip {
-  --c: var(--pink);
-  padding: 9px 20px; border-radius: 999px; border: 2px solid var(--line); background: #fff;
-  font-weight: 800; font-size: .9rem; color: var(--ink-soft); transition: all .18s ease;
-}
-.chip:hover { transform: translateY(-2px); border-color: var(--c, var(--pink)); color: var(--c, var(--pink-strong)); }
-.chip.active {
-  background: var(--c, var(--pink)); border-color: var(--c, var(--pink)); color: #fff;
-  box-shadow: 0 8px 18px -8px var(--c, var(--pink));
-}
-
-.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 20px; }
-.plush-card {
-  --rc: var(--pink);
-  background: var(--card); border-radius: 24px; border: 2px solid transparent;
-  padding: 18px 16px 16px; text-align: center; position: relative;
-  box-shadow: var(--shadow-sm); transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease, opacity .3s, scale .3s;
-}
-.plush-card:hover { transform: translateY(-8px) rotate(-1deg); box-shadow: 0 24px 40px -18px color-mix(in srgb, var(--rc) 55%, transparent); border-color: var(--rc); }
-.plush-card.hidden { display: none; }
-.plush-card.entering { animation: cardIn .4s ease backwards; }
-@keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
-.card-rarity {
-  position: absolute; top: 12px; left: 12px; font-size: .68rem; font-weight: 900; letter-spacing: .8px;
-  text-transform: uppercase; color: var(--rc); background: color-mix(in srgb, var(--rc) 13%, white);
-  border: 1.5px solid var(--rc); padding: 3px 10px; border-radius: 999px;
-}
-.card-plush { height: 150px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
-.card-plush svg { width: 140px; height: 140px; transition: transform .25s ease; }
-.plush-card:hover .card-plush svg { transform: scale(1.09) rotate(2deg); }
-.plush-card h3 { font-family: var(--font-display); font-size: 1.08rem; line-height: 1.2; }
-.card-species { font-size: .8rem; font-weight: 700; color: var(--ink-soft); margin-top: 2px; }
-.card-muts { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
-.card-muts span {
-  font-size: .68rem; font-weight: 800; color: var(--ink-soft);
-  background: #f6eefb; border: 1px solid var(--line); padding: 2px 9px; border-radius: 999px;
-}
-.empty-note { grid-column: 1 / -1; text-align: center; color: var(--ink-soft); font-weight: 700; padding: 30px 0; }
-
 /* ---------- Mutations ---------- */
 .mut-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; align-items: start; }
 .mut-panel {
@@ -435,7 +389,6 @@ a { color: inherit; }
 }
 @media (max-width: 480px) {
   .hero-stats li { flex: 1 1 40%; }
-  .filters .chip { padding: 8px 14px; font-size: .82rem; }
   .showcase-stage { height: 240px; }
   .carousel-slide canvas { width: 175px !important; height: 168px !important; }
   .result-body { flex-direction: column; text-align: center; }
@@ -466,17 +419,6 @@ a { color: inherit; }
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
 }
-
-/* Cartes de la collection — halo coloré comme dans le jeu (preset.glow) */
-.card-plush { border-radius: 18px; overflow: hidden; }
-.card-plush canvas {
-  width: 156px; height: 146px;
-  animation: plush-sway 5.5s ease-in-out infinite;
-  transform-origin: 50% 62%;
-  filter: drop-shadow(0 10px 14px rgba(58, 43, 74, .18));
-}
-.plush-card:hover .card-plush canvas { animation-duration: 3.2s; }
-.card-tagline { font-size: .76rem; line-height: 1.35; color: var(--ink-soft); margin-top: 6px; }
 
 /* Peluches flottantes du CTA final */
 .cta-plushes canvas { position: absolute; }

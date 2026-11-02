@@ -109,47 +109,6 @@
   }
 
   /* ==========================================================================
-     2. COLLECTION — une peluche par espèce + quelques variations de mutations
-        (37 000+ combinaisons possibles : on n'affiche pas tout !)
-     ========================================================================== */
-  const grid = $("#cards-grid");
-
-  /* Une peluche représentative pour chacune des 10 espèces du jeu,
-   * choisie pour couvrir les 5 niveaux de rareté. */
-  const SPECIES_REPS = [
-    "cafe-creme", "renard-cannelle", "mure-sucree", "ours-myrtille",
-    "aurore-boreale", "grenouille-emeraude", "soleil-couchant",
-    "licorne-celeste", "hibou-galaxie", "pingouin-prisme",
-  ];
-
-  function mutOf(eyeId, furId, tintId) {
-    return {
-      eye: D.EYES.find((e) => e.id === eyeId),
-      fur: D.FUR.find((f) => f.id === furId),
-      tint: D.TINTS.find((t) => t.id === tintId),
-      hetero: null,
-    };
-  }
-
-  /* Deux variations officielles, nées avec des mutations rares. */
-  const VARIANTS = [
-    {
-      entry: D.POOL.find((p) => p.id === "brume-douce"),
-      mut: mutOf("noisette", "nature", "albinos"),
-      name: "Lapin Albinos",
-      speciesLine: "Lapin · mutation Teinte Albinos",
-      tagline: "Née sous la teinte neige : un pelage d'exception que les collectionneurs guettent.",
-    },
-    {
-      entry: D.POOL.find((p) => p.id === "brique-tendresse"),
-      mut: mutOf("amethyste", "galaxie", "naturelle"),
-      name: "Dragon Galaxie",
-      speciesLine: "Dragon · mutation Fourrure Galaxie",
-      tagline: "La mutation la plus convoitée : une fourrure arc-en-ciel qui change au moindre souffle.",
-    },
-  ];
-
-  /* ==========================================================================
      2 bis. CARROUSEL DU HERO — présentation des peluches (vrais modèles 3D)
      ========================================================================== */
   const CAROUSEL_IDS = [
@@ -275,62 +234,6 @@
     showPlush(0);
     startCarousel();
   }
-
-  function addCard(entry, mut, name, speciesLine, tagline, rarityIdx) {
-    const r = D.RARITIES[rarityIdx];
-    const el = document.createElement("article");
-    el.className = "plush-card entering";
-    el.style.setProperty("--rc", r.color);
-    if (HAS3D) el.style.setProperty("--glow", entry.preset.glow);
-    el.dataset.rarity = String(rarityIdx);
-    el.innerHTML =
-      '<span class="card-rarity">' + r.name + "</span>" +
-      '<div class="card-plush"></div>' +
-      "<h3>" + name + "</h3>" +
-      '<p class="card-species">' + speciesLine + "</p>" +
-      '<p class="card-tagline">' + tagline + "</p>";
-    el.querySelector(".card-plush").appendChild(
-      plushNode(entry, mut, { w: 156, h: 146, className: "plush-card-3d" })
-    );
-    grid.appendChild(el);
-  }
-
-  SPECIES_REPS.forEach((id, i) => {
-    const entry = D.POOL.find((p) => p.id === id);
-    if (!entry) return;
-    addCard(entry, null, entry.name, D.SHAPE_LABELS[entry.shape], entry.tagline, entry.rarity);
-  });
-  VARIANTS.forEach((v) => {
-    const rIdx = D.RARITIES.findIndex((r) => r.id === D.mutationRarity(v.mut));
-    addCard(v.entry, v.mut, v.name, v.speciesLine, v.tagline, rIdx);
-  });
-
-  $$(".chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      $$(".chip").forEach((c) => c.classList.remove("active"));
-      chip.classList.add("active");
-      const f = chip.dataset.filter;
-      let visible = 0;
-      $$(".plush-card").forEach((card) => {
-        const show = f === "all" || card.dataset.rarity === f;
-        card.classList.toggle("hidden", !show);
-        card.classList.remove("entering");
-        if (show) {
-          void card.offsetWidth;
-          card.style.animationDelay = Math.min(visible, 14) * 0.05 + "s";
-          card.classList.add("entering");
-          visible++;
-        }
-      });
-      let note = grid.querySelector(".empty-note");
-      if (visible === 0 && !note) {
-        note = document.createElement("p");
-        note.className = "empty-note";
-        note.textContent = "Aucune peluche à ce niveau — ouvrez donc une lootbox !";
-        grid.appendChild(note);
-      } else if (note) note.remove();
-    });
-  });
 
   /* ==========================================================================
      3. MUTATIONS — pools officiels du jeu
