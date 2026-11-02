@@ -726,7 +726,8 @@ export default function Lootbox({
                     )}
                     <div className="mt-3 flex w-full flex-col gap-2">
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (pageMode) {
                             onNavigateCollection?.();
                           } else {
