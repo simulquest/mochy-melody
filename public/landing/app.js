@@ -108,6 +108,33 @@
     toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2600);
   }
 
+  /* Deux variations officielles, nées avec des mutations rares (utilisées par le carrousel). */
+  function mutOf(eyeId, furId, tintId) {
+    return {
+      eye: D.EYES.find((e) => e.id === eyeId),
+      fur: D.FUR.find((f) => f.id === furId),
+      tint: D.TINTS.find((t) => t.id === tintId),
+      hetero: null,
+    };
+  }
+
+  const VARIANTS = [
+    {
+      entry: D.POOL.find((p) => p.id === "brume-douce"),
+      mut: mutOf("noisette", "nature", "albinos"),
+      name: "Lapin Albinos",
+      speciesLine: "Lapin · mutation Teinte Albinos",
+      tagline: "Née sous la teinte neige : un pelage d'exception que les collectionneurs guettent.",
+    },
+    {
+      entry: D.POOL.find((p) => p.id === "brique-tendresse"),
+      mut: mutOf("amethyste", "galaxie", "naturelle"),
+      name: "Dragon Galaxie",
+      speciesLine: "Dragon · mutation Fourrure Galaxie",
+      tagline: "La mutation la plus convoitée : une fourrure arc-en-ciel qui change au moindre souffle.",
+    },
+  ];
+
   /* ==========================================================================
      2 bis. CARROUSEL DU HERO — présentation des peluches (vrais modèles 3D)
      ========================================================================== */
