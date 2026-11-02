@@ -19,6 +19,7 @@ import {
 } from '@/lib/plush/lootbox';
 import LootboxScene, { LootboxPhase } from '@/components/plush/LootboxScene';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
+import LoadingScreen from '@/components/LoadingScreen';
 import { getSpecies, getShapeLabel } from '@/lib/plush/species';
 import {
   fetchRemoteState,
@@ -94,6 +95,10 @@ interface LootboxProps {
   onPauseMain?: (paused: boolean) => void;
   onInventoryChanged?: (owned: OwnedPlush[]) => void;
   embedded?: boolean;
+  /** La lootbox est la page principale du jeu (plein écran dès le chargement). */
+  pageMode?: boolean;
+  /** Depuis la page lootbox, ouvre la collection. */
+  onNavigateCollection?: () => void;
 }
 
 export default function Lootbox({
@@ -104,6 +109,8 @@ export default function Lootbox({
   onPauseMain,
   onInventoryChanged,
   embedded = false,
+  pageMode = false,
+  onNavigateCollection,
 }: LootboxProps) {
   const [persist, setPersist] = useState<LootboxPersist | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -134,6 +141,7 @@ export default function Lootbox({
   const clickPendingRef = useRef(false);
   const queuedTapsRef = useRef(0);
   const clickFnRef = useRef<(() => void) | null>(null);
+  const pageOpenedRef = useRef(false);
 
   // La collection ouverte depuis une peluche regroupe les variantes de la même
   // forme 3D (ex. Ours Caramel + Ours Polaire). Une seule carte est affichée ;
@@ -173,6 +181,15 @@ export default function Lootbox({
       cancelled = true;
     };
   }, []);
+
+  // Mode page : la lootbox 3D s'ouvre dès que l'état serveur est disponible.
+  useEffect(() => {
+    if (!pageMode || pageOpenedRef.current || !mounted || !persist) return;
+    pageOpenedRef.current = true;
+    setSceneBox({ ...persist.box });
+    setScenePhase('idle');
+    setSceneOpen(true);
+  }, [pageMode, mounted, persist]);
 
   // Le toast d'upgrade disparaît tout seul
   useEffect(() => {
@@ -378,14 +395,20 @@ export default function Lootbox({
     setReveal(null);
     setCollectionOpen(false);
     setShowVariants(false);
-    setScenePhase('idle');
-    setSceneOpen(false);
+    if (pageMode) {
+      // En mode page, on revient simplement à la lootbox 3D.
+      setScenePhase('idle');
+      setSceneOpen(true);
+    } else {
+      setScenePhase('idle');
+      setSceneOpen(false);
+    }
     setWonPlush(null);
     wonPlushRef.current = null;
     openDoneRef.current = false;
     setFlash(null);
     if (persist) setSceneBox({ ...persist.box });
-  }, [persist]);
+  }, [persist, pageMode]);
 
   const equip = useCallback(
     (p: OwnedPlush) => {
@@ -409,7 +432,27 @@ export default function Lootbox({
 
   const C = 2 * Math.PI * 26;
 
+  if (pageMode && !mounted) {
+    return <LoadingScreen />;
+  }
+
   if (mounted && !persist) {
+    if (pageMode) {
+      return (
+        <div className="flex h-[100dvh] w-full flex-col items-center justify-center gap-4 bg-theme-bg px-6 text-center">
+          <p role="alert" className="max-w-md text-sm text-rose-200/90">
+            {loadError ?? 'Impossible de charger votre coffre.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:bg-white/10"
+          >
+            Réessayer
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="absolute bottom-28 right-4 z-40 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-rose-300/20 bg-black/80 p-4 text-sm text-white/80 shadow-xl backdrop-blur-xl sm:bottom-7 sm:right-6">
         <p role="alert">
@@ -429,7 +472,7 @@ export default function Lootbox({
   return (
     <>
       {/* ---------- Boutons flottants ---------- */}
-      {mounted && (
+      {mounted && !pageMode && (
         <div
           className={
             embedded
@@ -565,6 +608,8 @@ export default function Lootbox({
             onClick={handleBoxClick}
             onOpenComplete={handleOpenComplete}
             onClose={closeScene}
+            onCollection={pageMode ? onNavigateCollection : undefined}
+            pageMode={pageMode}
           />,
           document.body,
         )}
@@ -602,7 +647,7 @@ export default function Lootbox({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            className={`${pageMode ? 'fixed z-[125]' : 'absolute z-50'} inset-0 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm`}
             onClick={closeCards}
             role="dialog"
             aria-modal="true"
@@ -690,7 +735,16 @@ export default function Lootbox({
                         <Check className="h-4 w-4" aria-hidden /> Équiper cette peluche
                       </button>
                       <button
-                        onClick={() => { setReveal(null); setScenePhase('idle'); setShowVariants(false); setCollectionOpen(true); }}
+                        onClick={() => {
+                          setReveal(null);
+                          setScenePhase('idle');
+                          setShowVariants(false);
+                          if (pageMode) {
+                            onNavigateCollection?.();
+                          } else {
+                            setCollectionOpen(true);
+                          }
+                        }}
                         className="flex h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 text-sm font-medium text-white/70 transition-colors hover:bg-white/10"
                       >
                         Voir ma collection

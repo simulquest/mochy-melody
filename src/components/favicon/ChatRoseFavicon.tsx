@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { createPlushMesh } from '@/lib/plush/plush-mesh';
 import { getSpecies } from '@/lib/plush/species';
@@ -41,15 +41,11 @@ export default function ChatRoseFavicon({
   bodyColor = '#d02bbd',
   eyeColor = '#231a2b',
 }: ChatRoseFaviconProps) {
-  const [sp, setSp] = useState<ReturnType<typeof getSpecies> | null>(null);
+  const sp = getSpecies('mochi');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    setSp(getSpecies('mochi'));
-  }, []);
-
-  useEffect(() => {
-    if (!sp || !canvasRef.current) return;
+    if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -138,16 +134,6 @@ export default function ChatRoseFavicon({
       });
     };
   }, [sp, size, furLength, furDensity, bodyColor, eyeColor]);
-
-  // Placeholder élégant pendant le premier rendu (le temps que React monte le composant)
-  if (!sp) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-gray-400">
-        <div className="w-16 h-16 rounded-full border-4 border-gray-100 border-t-fuchsia-500 animate-spin mb-4" />
-        <p className="text-sm font-medium">Chargement du chat rose…</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex items-center justify-center w-full h-full bg-white">

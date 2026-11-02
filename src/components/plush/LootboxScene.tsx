@@ -3,12 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MousePointerClick, Clock } from 'lucide-react';
+import { X, MousePointerClick, Clock, Gift, Backpack } from 'lucide-react';
 import {
   RARITIES,
   OwnedPlush,
   MAX_CHESTS,
-  CHEST_REFILL_MS,
   formatCooldown,
   vibrate,
 } from '@/lib/plush/lootbox';
@@ -95,6 +94,10 @@ interface LootboxSceneProps {
   onClick: () => void;
   onOpenComplete: () => void;
   onClose: () => void;
+  /** Ouvre la collection depuis l'écran principal (mode page). */
+  onCollection?: () => void;
+  /** Plein écran permanent : la lootbox est la page principale du jeu. */
+  pageMode?: boolean;
 }
 
 /**
@@ -118,6 +121,8 @@ export default function LootboxScene({
   onClick,
   onOpenComplete,
   onClose,
+  onCollection,
+  pageMode = false,
 }: LootboxSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const propsRef = useRef<LootboxSceneProps | null>(null);
@@ -617,11 +622,6 @@ export default function LootboxScene({
   const remaining = refillActive
     ? Math.max(0, nextRefillAt - now)
     : 0;
-  const cooldownPct = locked
-    ? Math.min(100, Math.max(0, (1 - remaining / CHEST_REFILL_MS) * 100))
-    : 0;
-  const pct = locked ? cooldownPct : rar.clicks > 0 ? Math.min(100, (progress / rar.clicks) * 100) : 0;
-  const barColor = locked ? '#fbbf24' : rar.color;
 
   return (
     <motion.div
@@ -649,6 +649,7 @@ export default function LootboxScene({
       {/* scène 3D — toute la surface est cliquable */}
       <canvas
         ref={canvasRef}
+        data-tutorial="lootbox"
         className={`absolute inset-0 h-full w-full touch-none ${locked ? 'cursor-default' : 'cursor-pointer'}`}
         onPointerDown={handlePointerDown}
         onContextMenu={(e) => e.preventDefault()}
@@ -702,84 +703,83 @@ export default function LootboxScene({
                   }}
                 />
               ))}
-              <span className="ml-2 inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-300/90">
-                <span className="relative inline-flex h-4 w-4 items-center justify-center" aria-hidden>
-                  {refillActive && (
-                    <svg className="absolute inset-0 h-4 w-4 -rotate-90" viewBox="0 0 16 16">
-                      <circle cx="8" cy="8" r="6.5" fill="none" stroke="rgba(251,191,36,0.25)" strokeWidth="2" />
-                      <circle
-                        cx="8" cy="8" r="6.5" fill="none" stroke="#fbbf24" strokeWidth="2"
-                        strokeDasharray={2 * Math.PI * 6.5}
-                        strokeDashoffset={2 * Math.PI * 6.5 * (1 - Math.min(1, Math.max(0, 1 - remaining / CHEST_REFILL_MS)))}
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  )}
-                  🎁
-                </span>
-                {chestsAvailable}/{MAX_CHESTS}
-                {refillActive && ` · ${formatCooldown(remaining)}`}
-              </span>
             </div>
           )}
         </div>
 
-        <button
-          onClick={(e) => { e.stopPropagation(); onClose(); }}
-          aria-label="Fermer la lootbox"
-          className="pointer-events-auto rounded-full border border-white/10 bg-white/[0.07] p-2.5 text-white/60 backdrop-blur-xl transition-colors hover:bg-white/15 hover:text-white"
-        >
-          <X className="h-5 w-5" aria-hidden />
-        </button>
+        <div className="pointer-events-auto flex items-center gap-2">
+          {onCollection && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onCollection(); }}
+              aria-label="Voir ma collection"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-4 py-2.5 text-xs font-semibold text-white/75 backdrop-blur-xl transition-colors hover:bg-white/15 hover:text-white"
+            >
+              <Backpack className="h-4 w-4 text-fuchsia-200" aria-hidden />
+              Ma collection
+            </button>
+          )}
+          {!pageMode && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              aria-label="Fermer la lootbox"
+              className="rounded-full border border-white/10 bg-white/[0.07] p-2.5 text-white/60 backdrop-blur-xl transition-colors hover:bg-white/15 hover:text-white"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* barre inférieure : progression + chances */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-2.5 p-4 pb-[max(1.1rem,env(safe-area-inset-bottom))] sm:gap-3 sm:p-6">
-        <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/45 p-3.5 backdrop-blur-xl">
-          <div className="mb-2 flex items-center justify-between text-[11px]">
-            <span className="font-bold uppercase tracking-widest" style={{ color: barColor }}>
-              {locked ? 'Recharge' : rar.name}
+      {/* barre inférieure : nombre de coffres + recharge */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-3 p-4 pb-[max(1.1rem,env(safe-area-inset-bottom))] sm:gap-4 sm:p-6">
+        <div
+          className="flex items-end gap-3 rounded-3xl border border-white/10 bg-black/50 px-6 py-4 backdrop-blur-xl"
+          aria-live="polite"
+          aria-label={`${chestsAvailable} coffres disponibles sur ${MAX_CHESTS}`}
+        >
+          <Gift className="mb-1 h-9 w-9 shrink-0 text-amber-300" aria-hidden />
+          <span className="flex items-baseline gap-1.5">
+            <b className="text-5xl font-black leading-none tabular-nums text-white sm:text-6xl">
+              {chestsAvailable}
+            </b>
+            <span className="text-lg font-bold text-white/40">/ {MAX_CHESTS}</span>
+          </span>
+          <span className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">
+            coffres
+          </span>
+        </div>
+
+        {refillActive ? (
+          <div
+            className="flex items-center gap-3 rounded-full border border-amber-300/40 bg-black/60 px-5 py-2.5 shadow-[0_0_28px_rgba(251,191,36,0.28)] backdrop-blur-xl sm:px-6"
+            role="timer"
+            aria-label={`Prochain coffre dans ${formatCooldown(remaining)}`}
+          >
+            <Clock className="h-5 w-5 shrink-0 animate-pulse text-amber-300" aria-hidden />
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200/65">
+              {locked ? 'Coffre disponible dans' : 'Prochain coffre dans'}
             </span>
-            <span className="font-semibold text-white/70">
-              {locked ? formatCooldown(remaining) : `${progress} / ${rar.clicks}`}
+            <span className="text-2xl font-black leading-none tabular-nums text-amber-200 sm:text-3xl">
+              {formatCooldown(remaining)}
             </span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full transition-[width] duration-200"
-              style={{
-                width: `${pct}%`,
-                background: `linear-gradient(90deg, ${barColor}88, ${barColor})`,
-                boxShadow: `0 0 12px ${barColor}88`,
-              }}
-            />
-          </div>
-          <p className="mt-2 text-center text-[10px] text-white/45">
-            {locked ? (
-              <>Un nouveau coffre toutes les 4 min 30.</>
-            ) : rar.upgrade > 0 ? (
-              <>
-                Chance de monter en rareté à chaque coup :{' '}
-                <b style={{ color: rar.color }}>{Math.round(rar.upgrade * 100)}&nbsp;%</b>
-              </>
+        ) : (
+          <p className="flex items-center gap-2 rounded-full border border-emerald-300/25 bg-black/45 px-4 py-2 text-xs font-semibold text-emerald-200/90 backdrop-blur-md">
+            <Gift className="h-4 w-4 shrink-0" aria-hidden />
+            Coffres pleins — touchez le coffre pour le frapper&nbsp;!
+          </p>
+        )}
+
+        {!refillActive && (
+          <p className="flex items-center gap-1.5 text-xs text-white/55">
+            <MousePointerClick className="h-3.5 w-3.5 shrink-0" style={{ color: rar.color }} aria-hidden />
+            {rar.upgrade > 0 ? (
+              <>Chance de monter en rareté : <b style={{ color: rar.color }}>{Math.round(rar.upgrade * 100)}&nbsp;%</b></>
             ) : (
-              <>Rareté maximale — la caisse s&apos;ouvre à {rar.clicks} coups&nbsp;!</>
+              <>Rareté maximale</>
             )}
           </p>
-        </div>
-        <p className="flex items-center gap-1.5 rounded-full bg-black/40 px-3.5 py-1.5 text-xs text-white/60 backdrop-blur-md">
-          {locked ? (
-            <>
-              <Clock className="h-3.5 w-3.5 shrink-0" style={{ color: '#fbbf24' }} aria-hidden />
-              Prochain coffre dans {formatCooldown(remaining)}&nbsp;!
-            </>
-          ) : (
-            <>
-              <MousePointerClick className="h-3.5 w-3.5 shrink-0" style={{ color: rar.color }} aria-hidden />
-              Touchez le coffre pour le frapper&nbsp;!
-            </>
-          )}
-        </p>
+        )}
       </div>
 
       {webglError && (

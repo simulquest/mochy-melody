@@ -20,13 +20,10 @@
      ========================================================================== */
   const SOUND = {
     button: new Audio('/api/sound/button-click.mp3'),
-    chest: new Audio('/api/sound/chest-open.mp3'),
     music: new Audio('/api/sound/background-music.mp3'),
   };
   SOUND.button.preload = 'auto';
   SOUND.button.volume = 0.4;
-  SOUND.chest.preload = 'auto';
-  SOUND.chest.volume = 0.5;
   SOUND.music.loop = true;
   SOUND.music.preload = 'auto';
   SOUND.music.volume = 0.18;
@@ -35,16 +32,6 @@
   function playButtonSound() {
     SOUND.button.currentTime = 0;
     void SOUND.button.play().catch(() => {});
-    if (!musicStarted) {
-      SOUND.music.currentTime = 0;
-      void SOUND.music.play().catch(() => {});
-      musicStarted = true;
-    }
-  }
-
-  function playChestOpenSound() {
-    SOUND.chest.currentTime = 0;
-    void SOUND.chest.play().catch(() => {});
     if (!musicStarted) {
       SOUND.music.currentTime = 0;
       void SOUND.music.play().catch(() => {});
@@ -122,193 +109,6 @@
   }
 
   /* ==========================================================================
-     1. DÉMO LOOTBOX — jauge, montée en rareté, ouverture, ×N
-        (mécanique et chances officielles du jeu)
-     ========================================================================== */
-  const UPGRADE = [0.12, 0.09, 0.06, 0.035, 0]; // chances officielles de montée en rareté
-  const NEED = 5; // simplifié pour la démo (le vrai jeu : 3/6/10/16/24 clics)
-  const lb = { rarity: 0, progress: 0, chests: 3, busy: false, owned: {} };
-
-  const chestBtn = $("#lootbox-btn");
-  const chestStage = $("#chest-stage");
-  const gaugeFill = $("#gauge-fill");
-  const gaugeLabel = $("#gauge-label");
-  const gaugeTrack = $("#gauge-track");
-  const hint = $("#demo-hint");
-  const chestsLeft = $("#chests-left");
-  const flash = $("#rarity-flash");
-  const burst = $("#burst");
-  const revealPlush = $("#reveal-plush");
-  const resultBox = $("#demo-result");
-
-  function paintChest() {
-    chestStage.innerHTML = "";
-    if (HAS3D) {
-      const c = document.createElement("canvas");
-      c.id = "chest-canvas";
-      c.width = 210;  /* = taille CSS : évite tout écrasement du rendu */
-      c.height = 190;
-      c.style.width = "210px";
-      c.style.height = "190px";
-      chestStage.appendChild(c);
-      M3.renderChest(c, 0, {});
-    } else {
-      chestStage.innerHTML = MM.chestSVG();
-    }
-  }
-  paintChest();
-
-  function paintGauge() {
-    const pct = Math.min(100, (lb.progress / NEED) * 100);
-    gaugeFill.style.width = pct + "%";
-    gaugeTrack.setAttribute("aria-valuenow", String(lb.progress));
-    const r = D.RARITIES[lb.rarity];
-    gaugeLabel.textContent = "Rareté " + r.name + (lb.progress > 0 ? " · " + lb.progress + "/" + NEED : "");
-    chestsLeft.textContent = String(lb.chests);
-  }
-
-  function doFlash(color) {
-    flash.style.background = "radial-gradient(circle, " + color + "55 0%, transparent 65%)";
-    flash.classList.remove("go");
-    void flash.offsetWidth;
-    flash.classList.add("go");
-  }
-
-  function doBurst(color) {
-    burst.innerHTML = "";
-    for (let i = 0; i < 14; i++) {
-      const p = document.createElement("i");
-      const angle = (Math.PI * 2 * i) / 14 + rand(-0.2, 0.2);
-      const dist = rand(70, 120);
-      p.style.setProperty("--dx", Math.cos(angle) * dist + "px");
-      p.style.setProperty("--dy", Math.sin(angle) * dist - 20 + "px");
-      p.style.background = i % 3 === 0 ? "#fff" : i % 3 === 1 ? color : MM.shade(color, .35);
-      burst.appendChild(p);
-    }
-    burst.classList.remove("go");
-    void burst.offsetWidth;
-    burst.classList.add("go");
-  }
-
-  function clickBox() {
-    if (lb.busy || lb.chests <= 0 || revealPlush.classList.contains("show")) return;
-    chestBtn.classList.remove("charging");
-    void chestBtn.offsetWidth;
-    chestBtn.classList.add("charging");
-
-    lb.progress += 1;
-    const r = D.RARITIES[lb.rarity];
-
-    // Montée en rareté — mêmes chances que le moteur serveur du jeu
-    if (lb.rarity < 4 && Math.random() < UPGRADE[lb.rarity]) {
-      lb.rarity += 1;
-      lb.progress = 0;
-      const nr = D.RARITIES[lb.rarity];
-      doFlash(nr.color);
-      hint.textContent = "✨ Montée en rareté : " + nr.name + " ! Continuez !";
-      toast("La jauge passe en <b>" + nr.name + "</b> — prochaine peluche garantie à ce niveau !");
-    } else {
-      hint.textContent =
-        lb.progress >= NEED ? "Le coffre tremble…" : rand(0, 1) < .5 ? "Encore un clic !" : "La jauge se charge…";
-    }
-    paintGauge();
-
-    if (lb.progress >= NEED) openChest();
-  }
-
-  function openChest() {
-    lb.busy = true;
-    lb.chests -= 1;
-    chestBtn.classList.remove("opening");
-    void chestBtn.offsetWidth;
-    chestBtn.classList.add("opening");
-    playChestOpenSound();
-
-    setTimeout(() => {
-      const r = D.RARITIES[lb.rarity];
-      // Tirage fidèle : peluche de la pool officielle au niveau courant + vraie mutation
-      const candidates = D.POOL.filter((p) => p.rarity === lb.rarity);
-      const entry = pick(candidates.length ? candidates : D.POOL);
-      const mut = D.rollMutation();
-
-      const key = D.mutationKey(mut);
-      lb.owned[entry.id + "::" + key] = (lb.owned[entry.id + "::" + key] || 0) + 1;
-      const count = lb.owned[entry.id + "::" + key];
-
-      doBurst(r.color);
-      doFlash(r.color);
-
-      // La VRAIE peluche 3D (ou SVG de secours) révélée sur scène
-      revealPlush.innerHTML = "";
-      revealPlush.appendChild(plushNode(entry, mut, { w: 200, h: 190, className: "plush-reveal-3d" }));
-      revealPlush.classList.add("show");
-      chestStage.style.opacity = "0";
-
-      // Carte résultat
-      $("#result-rarity").textContent = r.name;
-      $("#result-rarity").style.setProperty("--rc", r.color);
-      $("#result-name").textContent = entry.name;
-      $("#result-species").textContent = D.SHAPE_LABELS[entry.shape] + (mut.hetero ? " · Hétérochromie" : "");
-      const mutList = $("#result-mutations");
-      mutList.innerHTML = "";
-      const tags = [
-        "Yeux " + mut.eye.label,
-        mut.fur.id !== "nature" ? mut.fur.label : "Fourrure Nature",
-        mut.tint.kind !== "nature" ? mut.tint.label : null,
-        mut.hetero ? "Hétérochromie ✨" : null,
-      ].filter(Boolean);
-      tags.forEach((t) => {
-        const li = document.createElement("li");
-        li.textContent = t;
-        mutList.appendChild(li);
-      });
-      const dupe = $("#result-dupe");
-      if (count > 1) { dupe.hidden = false; dupe.textContent = "×" + count + " doublon → pile"; }
-      else dupe.hidden = true;
-
-      // Mini peluche sur la carte résultat
-      const miniSlot = $("#result-plush");
-      miniSlot.innerHTML = "";
-      miniSlot.appendChild(plushNode(entry, mut, { w: 110, h: 104, className: "plush-mini-3d" }));
-
-      resultBox.hidden = false;
-      if (lb.rarity >= 3) toast(lb.rarity === 4 ? "🔥 <b>MYTHIQUE</b> ! " + entry.name + " est à vous !" : "🌟 <b>Légendaire</b> — félicitations !");
-      hint.textContent = "Une " + r.name.toLowerCase() + " rejoint votre collection !";
-
-      paintGauge();
-      lb.busy = false;
-    }, 620);
-  }
-
-  function resetReveal() {
-    revealPlush.classList.remove("show");
-    revealPlush.innerHTML = "";
-    chestStage.style.opacity = "1";
-    resultBox.hidden = true;
-    lb.rarity = 0;
-    lb.progress = 0;
-    paintGauge();
-    hint.textContent = lb.chests > 0 ? "Cliquez sur le coffre pour charger la jauge !" : "Coffres épuisés — rechargez la démo !";
-  }
-
-  chestBtn.addEventListener("click", clickBox);
-  $("#demo-again").addEventListener("click", function () {
-    if (lb.chests <= 0) {
-      lb.chests = 3;
-      paintChest();
-      toast("🎁 Démo rechargée — 3 nouveaux coffres !");
-    }
-    resetReveal();
-  });
-  paintGauge();
-
-  // Bouton hero : scrolle vers la démo et déclenche un clic
-  $("#hero-demo-btn").addEventListener("click", function () {
-    $("#demo").scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => { if (!lb.busy) clickBox(); }, 650);
-  });
-
-  /* ==========================================================================
      2. COLLECTION — une peluche par espèce + quelques variations de mutations
         (37 000+ combinaisons possibles : on n'affiche pas tout !)
      ========================================================================== */
@@ -348,6 +148,133 @@
       tagline: "La mutation la plus convoitée : une fourrure arc-en-ciel qui change au moindre souffle.",
     },
   ];
+
+  /* ==========================================================================
+     2 bis. CARROUSEL DU HERO — présentation des peluches (vrais modèles 3D)
+     ========================================================================== */
+  const CAROUSEL_IDS = [
+    "cafe-creme",
+    "mure-sucree",
+    "aurore-boreale",
+    "soleil-couchant",
+    "licorne-celeste",
+    "pingouin-prisme",
+  ];
+  const CAROUSEL_ITEMS = CAROUSEL_IDS
+    .map((id) => D.POOL.find((p) => p.id === id))
+    .filter(Boolean)
+    .map((entry) => ({
+      entry,
+      mut: null,
+      name: entry.name,
+      speciesLine: D.SHAPE_LABELS[entry.shape],
+      rarityIdx: entry.rarity,
+    }))
+    .concat(VARIANTS.map((v) => ({
+      entry: v.entry,
+      mut: v.mut,
+      name: v.name,
+      speciesLine: v.speciesLine,
+      rarityIdx: D.RARITIES.findIndex((r) => r.id === D.mutationRarity(v.mut)),
+    })));
+
+  const carouselStage = $("#carousel-stage");
+  const carouselDots = $("#carousel-dots");
+  const carouselRarity = $("#carousel-rarity");
+  const carouselName = $("#carousel-name");
+  const carouselSpecies = $("#carousel-species");
+  const carouselIndex = $("#carousel-index");
+  const carouselTotal = $("#carousel-total");
+
+  if (carouselStage && carouselDots && CAROUSEL_ITEMS.length) {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let carouselAt = 0;
+    let carouselTimer = null;
+
+    carouselTotal.textContent = String(CAROUSEL_ITEMS.length);
+
+    const slides = CAROUSEL_ITEMS.map((item) => {
+      const slide = document.createElement("div");
+      slide.className = "carousel-slide";
+      slide.setAttribute("aria-hidden", "true");
+      slide.appendChild(
+        plushNode(item.entry, item.mut, { w: 220, h: 210, className: "carousel-plush-3d" })
+      );
+      carouselStage.appendChild(slide);
+      return slide;
+    });
+
+    const dots = CAROUSEL_ITEMS.map((item, index) => {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "carousel-dot";
+      dot.setAttribute("role", "tab");
+      dot.setAttribute("aria-label", item.name);
+      dot.addEventListener("click", () => {
+        showPlush(index);
+        restartCarousel();
+      });
+      carouselDots.appendChild(dot);
+      return dot;
+    });
+
+    function showPlush(index) {
+      carouselAt = (index + CAROUSEL_ITEMS.length) % CAROUSEL_ITEMS.length;
+      const item = CAROUSEL_ITEMS[carouselAt];
+      const rarity = D.RARITIES[item.rarityIdx];
+
+      slides.forEach((slide, i) => {
+        slide.classList.toggle("is-active", i === carouselAt);
+        slide.setAttribute("aria-hidden", String(i !== carouselAt));
+      });
+      dots.forEach((dot, i) => {
+        dot.classList.toggle("is-active", i === carouselAt);
+        dot.setAttribute("aria-selected", String(i === carouselAt));
+      });
+
+      carouselRarity.textContent = rarity.name;
+      carouselRarity.style.setProperty("--rc", rarity.color);
+      carouselName.textContent = item.name;
+      carouselSpecies.textContent = item.speciesLine;
+      carouselIndex.textContent = String(carouselAt + 1);
+    }
+
+    function stopCarousel() {
+      if (carouselTimer) {
+        clearInterval(carouselTimer);
+        carouselTimer = null;
+      }
+    }
+
+    function startCarousel() {
+      if (reduceMotion || CAROUSEL_ITEMS.length < 2) return;
+      stopCarousel();
+      carouselTimer = setInterval(() => showPlush(carouselAt + 1), 4800);
+    }
+
+    function restartCarousel() {
+      stopCarousel();
+      startCarousel();
+    }
+
+    $("#carousel-prev").addEventListener("click", () => {
+      showPlush(carouselAt - 1);
+      restartCarousel();
+    });
+    $("#carousel-next").addEventListener("click", () => {
+      showPlush(carouselAt + 1);
+      restartCarousel();
+    });
+
+    const showcase = $("#hero-showcase");
+    showcase.addEventListener("pointerenter", stopCarousel);
+    showcase.addEventListener("pointerleave", startCarousel);
+    showcase.addEventListener("focusin", stopCarousel);
+    showcase.addEventListener("focusout", startCarousel);
+
+    showPlush(0);
+    startCarousel();
+  }
 
   function addCard(entry, mut, name, speciesLine, tagline, rarityIdx) {
     const r = D.RARITIES[rarityIdx];
@@ -422,72 +349,6 @@
   $("#mut-eyes").append(...D.EYES.map(mutItem));
   $("#mut-fur").append(...D.FUR.map(mutItem));
   $("#mut-tints").append(...D.TINTS.map(mutItem));
-
-  /* ==========================================================================
-     4. ENCHÈRE LIVE SIMULÉE — Prisme Sacré, le mythique historique
-     ========================================================================== */
-  const BOTS = ["MochiKing", "NuageDoux", "PixelPanda", "LunaFan_07", "DragonRoule", "PeluchePro", "MochiMochi", "Tendresse99"];
-  const auction = { price: 12, seconds: 2 * 3600, over: false };
-  const auctionEntry = findPlush("prisme-sacre");
-  $("#auction-plush").appendChild(
-    plushNode(auctionEntry, null, { w: 150, h: 150, className: "plush-auction-3d" })
-  );
-  const priceEl = $("#auction-price");
-  const bidNext = $("#bid-next");
-  const timerEl = $("#auction-timer");
-  const history = $("#bid-history");
-
-  function fmt(t) {
-    const h = String(Math.floor(t / 3600)).padStart(2, "0");
-    const m = String(Math.floor((t % 3600) / 60)).padStart(2, "0");
-    const s = String(t % 60).padStart(2, "0");
-    return h + ":" + m + ":" + s;
-  }
-
-  function addBid(name, amount, you) {
-    const li = document.createElement("li");
-    if (you) li.className = "you";
-    li.innerHTML = "<b>" + name + "</b><span>enchérit " + amount + " 🪙</span><time>" + (you ? "à l'instant" : "il y a " + Math.max(1, Math.round(rand(1, 9))) + " min") + "</time>";
-    history.prepend(li);
-    while (history.children.length > 8) history.lastChild.remove();
-    auction.price = amount;
-    priceEl.textContent = String(amount);
-    bidNext.textContent = String(amount + 1);
-    priceEl.parentElement.classList.remove("bump");
-    void priceEl.offsetWidth;
-    priceEl.parentElement.classList.add("bump");
-  }
-
-  $("#bid-btn").addEventListener("click", () => {
-    if (auction.over) return;
-    addBid("Vous", auction.price + 1, true);
-    toast("✅ Enchère enregistrée : <b>" + auction.price + " 🪙</b> — vous menez l'enchère !");
-  });
-
-  setInterval(() => {
-    if (auction.seconds > 0) {
-      auction.seconds -= 1;
-      timerEl.textContent = fmt(auction.seconds);
-    } else if (!auction.over) {
-      auction.over = true;
-      timerEl.textContent = "Terminé";
-      toast("🔨 Enchère terminée — <b>" + auction.price + " 🪙</b> ! La peluche change de main.");
-    }
-  }, 1000);
-
-  (function botLoop() {
-    setTimeout(() => {
-      if (!auction.over && document.visibilityState === "visible") {
-        if (Math.random() < 0.8) {
-          const amount = auction.price + (Math.random() < 0.22 ? 2 : 1);
-          const botName = pick(BOTS);
-          addBid(botName, amount, false);
-          toast("⚡ <b>" + botName + "</b> vient d'enchérir " + amount + " 🪙");
-        }
-      }
-      botLoop();
-    }, rand(6000, 12000));
-  })();
 
   /* ==========================================================================
      5. COURS DES CARTES — mini graphique canvas

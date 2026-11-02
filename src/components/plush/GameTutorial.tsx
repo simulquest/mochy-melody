@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 
 interface GameTutorialProps {
   onOpenPlush?: () => void;
+  onOpenCollection?: () => void;
   onNavigateToMarket?: () => void;
   initialStep?: number;
   onStepChange?: (stepIndex: number) => void;
@@ -16,16 +17,25 @@ interface TutorialStep {
   description: string;
   target: string;
   openPlush?: boolean;
+  openCollection?: boolean;
   placement?: 'top';
   navigateToMarket?: boolean;
 }
 
 const STEPS: TutorialStep[] = [
   {
+    title: 'Vos coffres',
+    description:
+      'Vous commencez avec cinq coffres. Frappez le coffre pour découvrir votre premier mochy et l’ajouter à votre collection.',
+    target: '[data-tutorial="lootbox"]',
+    placement: 'top',
+  },
+  {
     title: 'Votre collection',
     description:
       'Retrouvez ici les cartes et variantes que vous avez obtenues.',
     target: '[data-tutorial="collection"]',
+    openCollection: true,
   },
   {
     title: 'Votre progression',
@@ -38,13 +48,6 @@ const STEPS: TutorialStep[] = [
     description:
       'Consultez vos MochyCoins et MochyHearts. Vous pouvez convertir 100 MochyHearts en 1 MochyCoin.',
     target: '[data-tutorial="wallet"]',
-  },
-  {
-    title: 'Découvrez votre premier mochy',
-    description:
-      'Vous commencez avec cinq coffres. Ouvrez-en un pour découvrir votre premier mochy et l’ajouter à votre collection.',
-    target: '[data-tutorial="lootbox"]',
-    placement: 'top',
   },
   {
     title: 'Caressez votre mochy',
@@ -76,6 +79,7 @@ const STEPS: TutorialStep[] = [
 
 export default function GameTutorial({
   onOpenPlush,
+  onOpenCollection,
   onNavigateToMarket,
   initialStep = 0,
   onStepChange,
@@ -110,8 +114,9 @@ export default function GameTutorial({
   useEffect(() => {
     if (stepIndex === null) return;
     onStepChange?.(stepIndex);
+    if (step?.openCollection) onOpenCollection?.();
     if (step?.openPlush) onOpenPlush?.();
-  }, [stepIndex, step, onOpenPlush, onStepChange]);
+  }, [stepIndex, step, onOpenCollection, onOpenPlush, onStepChange]);
 
   useEffect(() => {
     if (stepIndex === null || !STEPS[stepIndex]?.navigateToMarket || !onNavigateToMarket) return;
@@ -203,13 +208,13 @@ export default function GameTutorial({
   return (
     <>
       <div
-        className="pointer-events-none fixed inset-0 z-[100] bg-black/75"
+        className="pointer-events-none fixed inset-0 z-[130] bg-black/75"
         style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
         aria-hidden
       />
       {spotlight && (
         <div
-          className="pointer-events-none fixed z-[101] rounded-2xl border-2 border-fuchsia-300 shadow-[0_0_28px_var(--theme-ring)]"
+          className="pointer-events-none fixed z-[131] rounded-2xl border-2 border-fuchsia-300 shadow-[0_0_28px_var(--theme-ring)]"
           style={{
             left: spotlight.left,
             top: spotlight.top,
@@ -225,9 +230,9 @@ export default function GameTutorial({
         aria-labelledby="tutorial-title"
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className={`fixed inset-x-4 z-[102] mx-auto w-auto max-w-lg rounded-3xl border border-fuchsia-300/25 bg-[#17121f]/95 p-5 shadow-[0_0_45px_var(--theme-glow)] backdrop-blur-xl sm:p-6 ${
+        className={`fixed inset-x-4 z-[132] mx-auto w-auto max-w-lg rounded-3xl border border-fuchsia-300/25 bg-[#17121f]/95 p-5 shadow-[0_0_45px_var(--theme-glow)] backdrop-blur-xl sm:p-6 ${
           step.placement === 'top'
-            ? 'top-4 bottom-auto sm:bottom-8 sm:top-auto'
+            ? 'top-4 bottom-auto sm:top-8'
             : 'bottom-4 sm:bottom-8'
         }`}
       >

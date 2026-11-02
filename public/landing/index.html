@@ -73,7 +73,7 @@
           <b>MochyCoins</b>. Chaque tirage est unique — chaque peluche a une âme.
         </p>
         <div class="hero-actions reveal">
-          <button class="btn btn-primary btn-lg" id="hero-demo-btn">🎁 Essayer la lootbox</button>
+          <a class="btn btn-primary btn-lg" href="/play">Jouer maintenant</a>
           <a class="btn btn-ghost btn-lg" href="#jeu">Découvrir le jeu</a>
         </div>
         <a class="hero-play reveal" href="/play">
@@ -87,47 +87,29 @@
         </ul>
       </div>
 
-      <!-- Démo lootbox interactive -->
-      <div class="hero-demo reveal" id="demo">
-        <div class="lootbox-card" aria-label="Démo de la lootbox">
-          <div class="demo-head">
-            <span class="demo-title">🎁 Démo Lootbox</span>
-            <span class="demo-chests">Coffres : <b id="chests-left">3</b></span>
+      <!-- Carrousel de présentation des peluches -->
+      <div class="hero-showcase reveal" id="hero-showcase" aria-label="Aperçu de la collection de peluches">
+        <div class="showcase-card">
+          <div class="showcase-top">
+            <span class="showcase-kicker">✦ La collection</span>
+            <span class="showcase-count"><b id="carousel-index">1</b> / <span id="carousel-total">8</span></span>
           </div>
 
-          <div class="box-stage" id="box-stage">
-            <div class="reveal-plush" id="reveal-plush" aria-hidden="true"></div>
-            <button class="lootbox-btn" id="lootbox-btn" aria-label="Charger la lootbox">
-            <div class="chest-stage" id="chest-stage" role="img" aria-label="Coffre à peluches"></div>
-          </button>
-            <div class="rarity-flash" id="rarity-flash" aria-hidden="true"></div>
-            <div class="burst" id="burst" aria-hidden="true"></div>
+          <div class="showcase-stage" id="carousel-stage"></div>
+
+          <div class="showcase-info" aria-live="polite">
+            <span class="showcase-rarity" id="carousel-rarity">Commune</span>
+            <h2 id="carousel-name">Café Crème</h2>
+            <p class="showcase-species" id="carousel-species">Chat</p>
           </div>
 
-          <div class="gauge" role="progressbar" aria-label="Progression de la lootbox" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" id="gauge-track">
-            <div class="gauge-fill" id="gauge-fill"></div>
-            <span class="gauge-label" id="gauge-label">Rareté Commune</span>
+          <div class="carousel-controls">
+            <button class="carousel-arrow" id="carousel-prev" type="button" aria-label="Peluche précédente">‹</button>
+            <div class="carousel-dots" id="carousel-dots" role="tablist" aria-label="Choisir une peluche"></div>
+            <button class="carousel-arrow" id="carousel-next" type="button" aria-label="Peluche suivante">›</button>
           </div>
 
-          <p class="demo-hint" id="demo-hint">Cliquez sur le coffre pour charger la jauge !</p>
-
-          <div class="demo-result" id="demo-result" hidden>
-            <div class="result-head">
-              <span class="result-rarity" id="result-rarity">Rare</span>
-              <span class="result-dupe" id="result-dupe" hidden>×2 doublon → pile</span>
-            </div>
-            <div class="result-body">
-              <div class="result-plush" id="result-plush" aria-hidden="true"></div>
-              <div class="result-info">
-                <h3 id="result-name">Fraise Tagada</h3>
-                <p id="result-species">Fantôme</p>
-                <ul id="result-mutations"></ul>
-              </div>
-            </div>
-            <button class="btn btn-primary" id="demo-again">Encore une !</button>
-          </div>
-
-          <p class="demo-note">Démo simulée dans le navigateur — dans le jeu, tirage, inventaire et marchés sont <b>100 % serveur-authoritative</b>.</p>
+          <a class="showcase-cta" href="/play">Découvrir cette peluche <span aria-hidden="true">→</span></a>
         </div>
       </div>
     </section>
@@ -169,12 +151,8 @@
     </section>
 
     <!-- ============ COLLECTION ============ -->
-    <section class="section section-collection" id="collection">
-      <div class="section-head reveal">
-        <p class="kicker">La collection</p>
-        <h2>Dix espèces, <span class="grad-text">des milliers de visages</span></h2>
-        <p class="section-sub">Une peluche par espèce, chacune avec sa rareté. Selon les yeux, la fourrure et la teinte reçues à la naissance, on compte plus de <b>37&nbsp;000 peluches différentes</b> — en voici une par espèce, et deux variations nées avec des mutations rares.</p>
-      </div>
+    <section class="section section-collection" id="collection" aria-labelledby="collection-title">
+      <h2 class="sr-only" id="collection-title">La collection</h2>
 
       <div class="filters reveal" role="group" aria-label="Filtrer par rareté">
         <button class="chip active" data-filter="all">Toutes</button>
@@ -228,34 +206,6 @@
       </div>
 
       <div class="market-grid">
-        <!-- Enchère live simulée -->
-        <div class="auction-card reveal" id="auction-card">
-          <div class="auction-head">
-            <span class="live-dot" aria-hidden="true"></span>
-            <span class="auction-live">Enchère en direct</span>
-            <span class="auction-timer" id="auction-timer" aria-label="Temps restant">02:00:00</span>
-          </div>
-          <div class="auction-body">
-            <div class="auction-plush" id="auction-plush" aria-hidden="true"></div>
-            <div class="auction-info">
-              <span class="result-rarity" style="--rc:#ff5f9e">Mythique</span>
-              <h3 id="auction-name">Prisme Sacré</h3>
-              <p class="auction-species">Dragon · fourrure arc-en-ciel · Mythique</p>
-              <div class="auction-price">
-                <span>Prix courant</span>
-                <b><span id="auction-price">12</span> 🪙</b>
-              </div>
-              <button class="btn btn-primary" id="bid-btn">Enchérir <span id="bid-next">13</span> 🪙</button>
-              <p class="auction-escrow">🔒 Vos coins sont bloqués en escrow — remboursés si vous êtes surenchéri.</p>
-            </div>
-          </div>
-          <ul class="bid-history" id="bid-history" aria-label="Historique des enchères">
-            <li><b>MochiKing</b><span>enchérit 12 🪙</span><time>il y a 2 min</time></li>
-            <li><b>NuageDoux</b><span>enchérit 11 🪙</span><time>il y a 5 min</time></li>
-            <li><b>PixelPanda</b><span>enchérit 9 🪙</span><time>il y a 9 min</time></li>
-          </ul>
-        </div>
-
         <!-- Règles + cours -->
         <div class="market-side">
           <article class="rules-card reveal">

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronDown, Store } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Gift, Store } from 'lucide-react';
 import PlushExperience from '@/components/plush/PlushExperience';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import CoinBalance from '@/components/plush/CoinBalance';
@@ -13,6 +13,7 @@ import GameTutorial from '@/components/plush/GameTutorial';
 import LoadingScreen from '@/components/LoadingScreen';
 import Lootbox from '@/components/plush/Lootbox';
 import { SPECIES, PlushSpecies, getSpecies, getShapeLabel } from '@/lib/plush/species';
+import { PlushPreset } from '@/lib/plush/plush-shape';
 import {
   PlushMutation,
   mutationRarity,
@@ -37,11 +38,14 @@ import {
   preloadGameSounds,
 } from '@/lib/plush/game-audio';
 
-type View = { type: 'collection' } | { type: 'species'; id: string };
+type View =
+  | { type: 'lootbox' }
+  | { type: 'collection' }
+  | { type: 'species'; id: string };
 
 export default function PlushWorld() {
   const router = useRouter();
-  const [view, setView] = useState<View>({ type: 'collection' });
+  const [view, setView] = useState<View>({ type: 'lootbox' });
   const [unlocked, setUnlocked] = useState<string[]>([]);
   const [ownedCards, setOwnedCards] = useState<OwnedPlush[]>([]);
   const [ownedCardCount, setOwnedCardCount] = useState<number | null>(null);
@@ -133,7 +137,32 @@ export default function PlushWorld() {
   }, [refreshOwnedCardCount, view]);
 
   const viewKey =
-    view.type === 'species' ? `species-${view.id}` : 'collection';
+    view.type === 'species' ? `species-${view.id}` : view.type;
+
+  const openCollection = useCallback(() => {
+    setView({ type: 'collection' });
+  }, []);
+
+  const openLootbox = useCallback(() => {
+    setView({ type: 'lootbox' });
+  }, []);
+
+  /** La peluche équipée depuis la lootbox devient la sélection de sa famille. */
+  const equipFromLootbox = useCallback((preset: PlushPreset, id: string) => {
+    setEquippedStackId(id);
+    const speciesId = (preset as Partial<OwnedPlush>).speciesId ?? 'mochi';
+    const shape = getSpecies(speciesId).shape;
+    setSelectedByShape((prev) => ({ ...prev, [shape]: id }));
+  }, []);
+
+  /** Le tutoriel pilote la vue : coffre puis collection. */
+  const handleTutorialStep = useCallback((stepIndex: number) => {
+    if (stepIndex === 0) {
+      setView({ type: 'lootbox' });
+    } else if (stepIndex <= 3) {
+      setView((prev) => (prev.type === 'collection' ? prev : { type: 'collection' }));
+    }
+  }, []);
 
   const selectVariant = (shape: string, stackId: string) => {
     setSelectedByShape((prev) => ({ ...prev, [shape]: stackId }));
@@ -173,6 +202,20 @@ export default function PlushWorld() {
         transition={{ duration: 0.3, ease: 'easeOut' }}
         className="h-[100dvh] w-full"
       >
+        {view.type === 'lootbox' && (
+          <Lootbox
+            pageMode
+            speciesId={
+              ownedCards.find((card) => ownedStackKey(card) === equippedStackId)?.speciesId ??
+              'mochi'
+            }
+            equippedId={equippedStackId}
+            onEquip={equipFromLootbox}
+            onCelebrate={() => {}}
+            onInventoryChanged={updateOwnedCards}
+            onNavigateCollection={openCollection}
+          />
+        )}
         {view.type === 'collection' && (
           collectionLoading ? (
             <LoadingScreen />
@@ -195,7 +238,7 @@ export default function PlushWorld() {
               ownedCardCount={ownedCardCount}
               equippedStackId={equippedStackId}
               selectedByShape={selectedByShape}
-              onInventoryChanged={updateOwnedCards}
+              onOpenLootbox={openLootbox}
               onSelectVariant={selectVariant}
               onOpen={openOwnedPlush}
             />
@@ -212,7 +255,9 @@ export default function PlushWorld() {
       </AnimatePresence>
       <GameTutorial
         onOpenPlush={openFirstOwnedPlush}
+        onOpenCollection={openCollection}
         onNavigateToMarket={navigateToMarket}
+        onStepChange={handleTutorialStep}
       />
     </>
   );
@@ -320,7 +365,7 @@ function CollectionView({
   ownedCardCount,
   equippedStackId,
   selectedByShape,
-  onInventoryChanged,
+  onOpenLootbox,
   onSelectVariant,
   onOpen,
 }: {
@@ -328,7 +373,7 @@ function CollectionView({
   ownedCardCount: number | null;
   equippedStackId: string | null;
   selectedByShape: Record<string, string>;
-  onInventoryChanged: (owned: OwnedPlush[]) => void;
+  onOpenLootbox: () => void;
   onSelectVariant: (shape: string, stackId: string) => void;
   onOpen: (card: OwnedPlush) => void;
 }) {
@@ -364,11 +409,19 @@ function CollectionView({
             <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
               Ma <span className="bg-gradient-to-r from-fuchsia-400 to-pink-300 bg-clip-text text-transparent">collection</span>
             </h1>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <span data-tutorial="wallet" className="inline-flex items-center gap-2">
                 <CoinBalance />
                 <MochyWallet />
               </span>
+              <button
+                type="button"
+                onClick={onOpenLootbox}
+                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-fuchsia-300/25 bg-fuchsia-400/[0.08] px-4 py-2 text-xs font-semibold text-fuchsia-100/90 transition-all hover:bg-fuchsia-400/[0.15] hover:text-white active:scale-95"
+              >
+                <Gift className="h-3.5 w-3.5 text-amber-300" aria-hidden />
+                Lootbox
+              </button>
               <Link
                 href="/market"
                 data-tutorial="market"
@@ -396,14 +449,14 @@ function CollectionView({
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/55">
                 Ouvrez un coffre de bienvenue pour découvrir votre premier mochy et commencer votre collection.
               </p>
-              <Lootbox
-                speciesId="mochi"
-                equippedId={null}
-                onEquip={() => {}}
-                onCelebrate={() => {}}
-                onInventoryChanged={onInventoryChanged}
-                embedded
-              />
+              <button
+                type="button"
+                onClick={onOpenLootbox}
+                className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-fuchsia-950/30 transition-transform hover:scale-[1.03] active:scale-95"
+              >
+                <Gift className="h-4 w-4" aria-hidden />
+                Ouvrir la lootbox
+              </button>
             </section>
           ) : families.map(({ shape, label, variants, selected }, index) => {
             const expanded = expandedShape === shape;
