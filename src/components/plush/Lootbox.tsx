@@ -726,22 +726,13 @@ export default function Lootbox({
                     )}
                     <div className="mt-3 flex w-full flex-col gap-2">
                       <button
-                        onClick={() => equip(reveal)}
-                        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-black transition-transform active:scale-95"
-                        style={{
-                          background: `linear-gradient(135deg, ${RARITIES[reveal.rarityIdx].color}, #ffffff88)`,
-                        }}
-                      >
-                        <Check className="h-4 w-4" aria-hidden /> Équiper cette peluche
-                      </button>
-                      <button
                         onClick={() => {
-                          setReveal(null);
-                          setScenePhase('idle');
-                          setShowVariants(false);
                           if (pageMode) {
                             onNavigateCollection?.();
                           } else {
+                            setReveal(null);
+                            setScenePhase('idle');
+                            setShowVariants(false);
                             setCollectionOpen(true);
                           }
                         }}
