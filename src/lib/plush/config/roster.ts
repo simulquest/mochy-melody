@@ -25,6 +25,8 @@ const FUR_BY_SHAPE: Record<string, PlushFurConfig> = {
   renard: { length: 0.62, density: 1, wind: 1.05, countMul: 0.95, lenMul: 1.05, widthMul: 1.15 },
   ours: { length: 0.7, density: 1, wind: 0.9, countMul: 1.1, lenMul: 1, widthMul: 1.3 },
   grenouille: { length: 0.5, density: 0.85, wind: 0.8, countMul: 0.8, lenMul: 0.75, widthMul: 1.05 },
+  cochon: { length: 0.58, density: 0.95, wind: 0.9, countMul: 0.9, lenMul: 0.95, widthMul: 1.2 },
+  vache: { length: 0.6, density: 0.95, wind: 0.85, countMul: 0.95, lenMul: 1, widthMul: 1.2 },
   licorne: { length: 0.68, density: 0.95, wind: 1.2, countMul: 0.9, lenMul: 1.25, widthMul: 1.1 },
   hibou: { length: 0.58, density: 0.95, wind: 0.9, countMul: 0.9, lenMul: 0.95, widthMul: 1.2 },
   pingouin: { length: 0.55, density: 0.9, wind: 0.8, countMul: 0.85, lenMul: 0.9, widthMul: 1.1 },
@@ -38,6 +40,8 @@ const CAM_BY_SHAPE: Record<string, number> = {
   renard: 1.02,
   ours: 1.08,
   grenouille: 1.1,
+  cochon: 1.06,
+  vache: 1.1,
   licorne: 1.12,
   hibou: 1.05,
   pingouin: 1.1,
@@ -51,6 +55,8 @@ type ExtraShape =
   | 'renard'
   | 'ours'
   | 'grenouille'
+  | 'cochon'
+  | 'vache'
   | 'licorne'
   | 'hibou'
   | 'pingouin';
@@ -430,6 +436,104 @@ export const MODEL_CONFIGS: PlushModelConfig[] = [
     shape: 'hibou',
     rarity: 'mythique',
     colors: { root: '#0d0a2a', tip: '#ffffff', body: '#3a2a8a', glow: '#b26bff', hueShift: 1 },
+  }),
+
+  // -------------------------------------------------------------------------
+  // Cochon (5) — 2 communes, 1 rare, 1 épique, 1 légendaire
+  // -------------------------------------------------------------------------
+  makeExtra({
+    id: 'cochon-rosette',
+    name: 'Cochon Rosette',
+    emoji: '🐷',
+    tagline: 'Il grouine de bonheur quand on lui gratte le dos.',
+    shape: 'cochon',
+    rarity: 'commune',
+    colors: { root: '#7a2f42', tip: '#ffc9d6', body: '#e88aa0', glow: '#ff9fb8' },
+  }),
+  makeExtra({
+    id: 'cochon-praline',
+    name: 'Cochon Praline',
+    emoji: '🐷',
+    tagline: 'Rond comme une praline, il adore les siestes au soleil.',
+    shape: 'cochon',
+    rarity: 'commune',
+    colors: { root: '#7a3a2a', tip: '#ffd9c2', body: '#f0a88a', glow: '#ffb89c' },
+  }),
+  makeExtra({
+    id: 'cochon-truffe',
+    name: 'Cochon Truffe',
+    emoji: '🐷',
+    tagline: 'Son groin déniche les meilleures truffes de la forêt.',
+    shape: 'cochon',
+    rarity: 'rare',
+    colors: { root: '#3a2014', tip: '#c99a78', body: '#8a5a3a', glow: '#c98a5c' },
+  }),
+  makeExtra({
+    id: 'cochon-nuage',
+    name: 'Cochon Nuage',
+    emoji: '🐷',
+    tagline: 'Si clair et si doux qu’on le confond avec un petit nuage.',
+    shape: 'cochon',
+    rarity: 'epique',
+    colors: { root: '#8a6a74', tip: '#fff0f4', body: '#f2dce2', glow: '#ffd9e8' },
+  }),
+  makeExtra({
+    id: 'cochon-nuit',
+    name: 'Cochon Nuit',
+    emoji: '🐷',
+    tagline: 'Il court la nuit et son groin brille sous les étoiles.',
+    shape: 'cochon',
+    rarity: 'legendaire',
+    colors: { root: '#241033', tip: '#c9a8ff', body: '#5a3a7a', glow: '#9c6bff' },
+  }),
+
+  // -------------------------------------------------------------------------
+  // Vache (5) — 2 communes, 1 rare, 1 épique, 1 légendaire
+  // -------------------------------------------------------------------------
+  makeExtra({
+    id: 'vache-holstein',
+    name: 'Vache Holstein',
+    emoji: '🐮',
+    tagline: 'Ses taches sont uniques, aucune autre robe ne leur ressemble.',
+    shape: 'vache',
+    rarity: 'commune',
+    colors: { root: '#8a8a92', tip: '#ffffff', body: '#f2f0f2', glow: '#d9d9e8' },
+  }),
+  makeExtra({
+    id: 'vache-vanille',
+    name: 'Vache Vanille',
+    emoji: '🐮',
+    tagline: 'Elle donne un lait si doux, parfait dans le chocolat chaud.',
+    shape: 'vache',
+    rarity: 'commune',
+    colors: { root: '#8a745a', tip: '#fff3dc', body: '#f0e2c8', glow: '#ffe9c2' },
+  }),
+  makeExtra({
+    id: 'vache-fraise',
+    name: 'Vache Fraise',
+    emoji: '🐮',
+    tagline: 'Son lait à la fraise fait fondre tous les gourmands.',
+    shape: 'vache',
+    rarity: 'rare',
+    colors: { root: '#8a5a66', tip: '#ffe0ea', body: '#f6d5de', glow: '#ffb8cf' },
+  }),
+  makeExtra({
+    id: 'vache-prairie',
+    name: 'Vache Prairie',
+    emoji: '🐮',
+    tagline: 'Elle connaît chaque brin d’herbe de son pré par son prénom.',
+    shape: 'vache',
+    rarity: 'epique',
+    colors: { root: '#4a6a52', tip: '#d8ffe6', body: '#cfe8d4', glow: '#a8ffc9' },
+  }),
+  makeExtra({
+    id: 'vache-lune',
+    name: 'Vache Lune',
+    emoji: '🐮',
+    tagline: 'On raconte qu’elle a déjà sauté par-dessus la lune.',
+    shape: 'vache',
+    rarity: 'legendaire',
+    colors: { root: '#3a4a6a', tip: '#dceaff', body: '#d5e2f2', glow: '#a8c9ff' },
   }),
 
   // -------------------------------------------------------------------------

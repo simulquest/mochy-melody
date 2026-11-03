@@ -43,6 +43,16 @@ export interface SpeciesSnout {
   color: string;
   /** Conserve cette couleur sur les variantes (museau clair, bec, etc.). */
   fixedColor?: boolean;
+  /** Deux petites narines sombres posées sur le groin (cochon, vache…). */
+  nostrils?: {
+    /** Écart horizontal (unités locales du groin, -1..1). */
+    dx: number;
+    /** Hauteur locale (défaut 0.1). */
+    y?: number;
+    /** Rayon local de chaque narine. */
+    r: number;
+    color: string;
+  };
 }
 
 export interface SpeciesFace {
@@ -51,12 +61,31 @@ export interface SpeciesFace {
   nose: THREE.Vector3;
   eyeScale: number;
   noseColor: string;
+  /** Décalage supplémentaire des yeux le long de la normale (dôme oculaire). */
+  eyeOffset?: number;
 }
 
 export interface FurAnchorBoost {
   dir: THREE.Vector3;
   sigma: number;             // largeur angulaire de la zone
   boost: number;             // allongement relatif de la fourrure (0.5 = +50 %)
+}
+
+/** Petite boule posée sur le corps (dôme oculaire de la grenouille…). */
+export interface SpeciesBump {
+  dir: THREE.Vector3;        // direction d'ancrage sur le corps (normalisée)
+  r: number;                 // rayon
+  squash?: [number, number, number];
+  color?: string;
+  /** Conserve cette couleur sur les variantes ; sinon couleur du corps. */
+  fixedColor?: boolean;
+}
+
+/** Tache de robe teintée dans la fourrure (robe pie de la vache). */
+export interface FurPatch {
+  dir: THREE.Vector3;        // centre de la tache (normalisé)
+  sigma: number;             // largeur angulaire de la tache
+  strength: number;          // intensité du mélange vers la couleur de tache (0..1)
 }
 
 export interface GhostConfig {
@@ -78,9 +107,13 @@ export interface PlushSpecies {
   surfaceNormal(dir: THREE.Vector3, out: THREE.Vector3): THREE.Vector3;
   face: SpeciesFace;
   ears: SpeciesEar[];
+  bumps?: SpeciesBump[];
   snout?: SpeciesSnout;
   ghost?: GhostConfig;
   furBoost: FurAnchorBoost[];
+  furPatches?: FurPatch[];
+  /** Couleur des taches de robe (fournie avec furPatches). */
+  patchColor?: string;
   furCountMul: number;       // multiplicateur du nombre de brins
   furLenMul: number;         // multiplicateur de longueur
   furWidthMul: number;       // multiplicateur de largeur de lame
@@ -151,6 +184,10 @@ function makeNormal(
 
 const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).normalize();
 
+// Directions partagées des dômes oculaires de la grenouille (yeux posés dessus).
+const FROG_EYE_L = v3(-0.3, 0.88, 0.4);
+const FROG_EYE_R = v3(0.3, 0.88, 0.4);
+
 // ---------------------------------------------------------------------------
 // Construction d'une espèce à partir du catalogue + ses formes 3D
 // ---------------------------------------------------------------------------
@@ -170,6 +207,8 @@ function buildSpecies(cfg: PlushModelConfig, overrides: Partial<PlushSpecies>): 
     face: { eyeL: new THREE.Vector3(), eyeR: new THREE.Vector3(), nose: new THREE.Vector3(), eyeScale: 0.125, noseColor: '#000000' },
     ears: [],
     furBoost: [],
+    bumps: [],
+    furPatches: [],
     furCountMul: cfg.fur.countMul,
     furLenMul: cfg.fur.lenMul,
     furWidthMul: cfg.fur.widthMul,
@@ -401,7 +440,8 @@ const ours = makeShapeBase('ours', 1.08, {
   ],
 });
 
-// Grenouille : corps large et aplati, grands yeux sur le dessus, large bouche.
+// Grenouille : corps large et aplati, gros yeux globeux posés sur deux dômes
+// sur le dessus du crâne, très large bouche — silhouette lisible sans le nom.
 function grenouilleRadius(d: THREE.Vector3): number {
   let r = 1;
   const up = THREE.MathUtils.smoothstep(d.y, -0.3, 0.3);
@@ -416,15 +456,23 @@ const grenouille = makeShapeBase('grenouille', 1.10, {
   surfacePoint: grenouilleSurface,
   surfaceNormal: makeNormal(grenouilleSurface),
   face: {
-    eyeL: v3(-0.34, 0.52, 0.82),
-    eyeR: v3(0.34, 0.52, 0.82),
-    nose: v3(0, 0.20, 1),
-    eyeScale: 0.17,
-    noseColor: '#3a5a1a',
+    eyeL: FROG_EYE_L,
+    eyeR: FROG_EYE_R,
+    nose: v3(0, 0.18, 1),
+    eyeScale: 0.18,
+    eyeOffset: 0.18, // pose l'œil au sommet du dôme oculaire
+    noseColor: '#1c3d1c',
   },
   ears: [],
-  snout: { dir: v3(0, -0.05, 1), scale: [0.34, 0.05, 0.10], color: '#1a3a1a', fixedColor: true },
-  furBoost: [],
+  bumps: [
+    { dir: FROG_EYE_L, r: 0.22, squash: [1, 1.12, 1] },
+    { dir: FROG_EYE_R, r: 0.22, squash: [1, 1.12, 1] },
+  ],
+  snout: { dir: v3(0, -0.16, 1), scale: [0.50, 0.055, 0.10], color: '#1c3d1c', fixedColor: true },
+  furBoost: [
+    { dir: FROG_EYE_L, sigma: 0.35, boost: -0.5 }, // dômes dégagés de la fourrure
+    { dir: FROG_EYE_R, sigma: 0.35, boost: -0.5 },
+  ],
 });
 
 // Licorne : corps élancé, long museau clair et corne dorée sur le front.
@@ -521,6 +569,97 @@ const pingouin = makeShapeBase('pingouin', 1.10, {
   furBoost: [],
 });
 
+// Cochon : corps rondouillard, groin ovale proéminent avec narines,
+// oreilles pointues écartées — le groin suffit à le reconnaître.
+function cochonRadius(d: THREE.Vector3): number {
+  let r = 1.02;
+  // gros ventre rebondi
+  r *= 1 + 0.14 * Math.exp(-((d.y + 0.08) ** 2) / 0.34);
+  const up = THREE.MathUtils.smoothstep(d.y, -0.2, 0.45);
+  r *= 0.78 + 0.18 * up;
+  if (d.y < -0.25) r *= 0.82;
+  // groin bombé sur la face avant
+  if (d.z > 0.5) r += 0.09 * Math.exp(-((d.x * d.x) + (d.y + 0.02) ** 2) / 0.1);
+  return r;
+}
+
+const cochonSurface = makeSurface(cochonRadius, { sx: 1.10, sy: 0.98, sz: 1.08, flatten: 0.80 });
+
+const cochon = makeShapeBase('cochon', 1.06, {
+  surfacePoint: cochonSurface,
+  surfaceNormal: makeNormal(cochonSurface),
+  face: {
+    eyeL: v3(-0.31, 0.30, 0.91),
+    eyeR: v3(0.31, 0.30, 0.91),
+    nose: v3(0, 0.16, 1), // sert au dégagement de fourrure, point noir masqué
+    eyeScale: 0.10,
+    noseColor: '',
+  },
+  ears: [
+    { dir: v3(-0.5, 0.84, -0.02), type: 'cone', h: 0.36, r: 0.115, tilt: 0.5, color: '#e8b8c4' },
+    { dir: v3(0.5, 0.84, -0.02), type: 'cone', h: 0.36, r: 0.115, tilt: 0.5, color: '#e8b8c4' },
+  ],
+  snout: {
+    dir: v3(0, 0, 1),
+    scale: [0.27, 0.20, 0.14],
+    color: '#d8849c',
+    fixedColor: true,
+    nostrils: { dx: 0.4, y: 0.08, r: 0.16, color: '#7d4656' },
+  },
+  furBoost: [
+    { dir: v3(0, 0, 1), sigma: 0.4, boost: 0.25 },
+  ],
+});
+
+// Vache : corps dodu, robe pie (taches sombres dans la fourrure), cornes
+// crème, oreilles latérales et grand museau clair — silhouette inimitable.
+function vacheRadius(d: THREE.Vector3): number {
+  let r = 1.04;
+  r *= 1 + 0.15 * Math.exp(-((d.y + 0.08) ** 2) / 0.34);
+  const up = THREE.MathUtils.smoothstep(d.y, -0.2, 0.45);
+  r *= 0.78 + 0.18 * up;
+  if (d.y < -0.25) r *= 0.82;
+  return r;
+}
+
+const vacheSurface = makeSurface(vacheRadius, { sx: 1.14, sy: 1.0, sz: 1.08, flatten: 0.80 });
+
+const vache = makeShapeBase('vache', 1.10, {
+  surfacePoint: vacheSurface,
+  surfaceNormal: makeNormal(vacheSurface),
+  face: {
+    eyeL: v3(-0.28, 0.33, 0.91),
+    eyeR: v3(0.28, 0.33, 0.91),
+    nose: v3(0, -0.02, 1), // sert au dégagement de fourrure, point noir masqué
+    eyeScale: 0.105,
+    noseColor: '',
+  },
+  ears: [
+    { dir: v3(-0.9, 0.44, 0), type: 'capsule', h: 0.28, r: 0.10, tilt: 0.85, color: '#f2f0f2' },
+    { dir: v3(0.9, 0.44, 0), type: 'capsule', h: 0.28, r: 0.10, tilt: 0.85, color: '#f2f0f2' },
+    { dir: v3(-0.5, 0.9, -0.08), type: 'cone', h: 0.4, r: 0.085, tilt: 0.32, color: '#e6d7b8', fixedColor: true },
+    { dir: v3(0.5, 0.9, -0.08), type: 'cone', h: 0.4, r: 0.085, tilt: 0.32, color: '#e6d7b8', fixedColor: true },
+  ],
+  snout: {
+    dir: v3(0, -0.02, 1),
+    scale: [0.30, 0.21, 0.14],
+    color: '#eec9c4',
+    fixedColor: true,
+    nostrils: { dx: 0.38, y: 0.08, r: 0.15, color: '#b07a72' },
+  },
+  furBoost: [
+    { dir: v3(-0.5, 0.9, -0.08), sigma: 0.3, boost: 0.3 },
+    { dir: v3(0.5, 0.9, -0.08), sigma: 0.3, boost: 0.3 },
+  ],
+  furPatches: [
+    { dir: v3(-0.52, 0.3, 0.6), sigma: 0.55, strength: 0.95 },
+    { dir: v3(0.55, -0.1, 0.62), sigma: 0.5, strength: 0.9 },
+    { dir: v3(-0.3, 0.55, -0.72), sigma: 0.6, strength: 0.95 },
+    { dir: v3(0.42, 0.62, -0.45), sigma: 0.48, strength: 0.85 },
+  ],
+  patchColor: '#3a2f2c',
+});
+
 /** Formes de base réutilisées par les créatures du roster étendu. */
 const SHAPE_BASES: Record<string, PlushSpecies> = {
   mochi,
@@ -530,6 +669,8 @@ const SHAPE_BASES: Record<string, PlushSpecies> = {
   renard,
   ours,
   grenouille,
+  cochon,
+  vache,
   licorne,
   hibou,
   pingouin,
@@ -561,6 +702,11 @@ function makeVariant(base: PlushSpecies, cfg: PlushModelConfig): PlushSpecies {
       dir: ear.dir.clone(),
       color: ear.fixedColor ? ear.color : preset.tip,
     })),
+    bumps: (base.bumps ?? []).map((bump) => ({
+      ...bump,
+      dir: bump.dir.clone(),
+      color: bump.fixedColor ? bump.color : preset.body,
+    })),
     snout: base.snout
       ? {
           ...base.snout,
@@ -573,6 +719,11 @@ function makeVariant(base: PlushSpecies, cfg: PlushModelConfig): PlushSpecies {
       ...boost,
       dir: boost.dir.clone(),
     })),
+    furPatches: (base.furPatches ?? []).map((patch) => ({
+      ...patch,
+      dir: patch.dir.clone(),
+    })),
+    patchColor: base.patchColor,
   };
 }
 
@@ -604,6 +755,8 @@ export const SHAPE_LABELS: Record<string, string> = {
   renard: 'Renard',
   ours: 'Ours',
   grenouille: 'Grenouille',
+  cochon: 'Cochon',
+  vache: 'Vache',
   licorne: 'Licorne',
   hibou: 'Hibou',
   pingouin: 'Pingouin',

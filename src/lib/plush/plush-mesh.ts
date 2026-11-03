@@ -6,6 +6,19 @@ import {
   PlushMutation,
 } from './mutations';
 
+/** Calcule l'intensité de tache de robe pour une direction donnée (0..1). */
+function patchAmountAt(species: PlushSpecies, dir: THREE.Vector3): number {
+  let patch = 0;
+  for (const fp of species.furPatches ?? []) {
+    const ang = dir.angleTo(fp.dir);
+    patch = Math.max(
+      patch,
+      fp.strength * Math.exp(-(ang * ang) / (2 * fp.sigma * fp.sigma)),
+    );
+  }
+  return patch;
+}
+
 export interface PlushMeshOpts {
   /** Nombre de brins de base (performance). */
   baseStrands?: number;
@@ -120,6 +133,7 @@ export function createPlushMesh(
   const restDirs = new Float32Array(N * 3);
   const lens = new Float32Array(N);
   const phases = new Float32Array(N);
+  const patchArr = new Float32Array(N * 6);
   const positions = new Float32Array(N * 18);
 
   for (let i = 0; i < N; i++) {
@@ -142,6 +156,7 @@ export function createPlushMesh(
       const ang = dir.angleTo(fb.dir);
       len *= 1 + fb.boost * Math.exp(-(ang * ang) / (2 * fb.sigma * fb.sigma));
     }
+    const patch = patchAmountAt(species, dir);
     const dEyeL = dir.angleTo(eyeL);
     const dEyeR = dir.angleTo(eyeR);
     const dNose = dir.angleTo(noseD);
@@ -160,6 +175,7 @@ export function createPlushMesh(
     restDirs[i3 + 2] = rest.z;
     lens[i] = len;
     phases[i] = Math.random() * Math.PI * 2;
+    for (let k = 0; k < 6; k++) patchArr[i * 6 + k] = patch;
 
     const p = i * 18;
     const w = (0.011 + Math.random() * 0.008) * species.furWidthMul;
@@ -226,6 +242,7 @@ export function createPlushMesh(
   furGeo.setAttribute('aNormal', new THREE.BufferAttribute(normals, 3));
   furGeo.setAttribute('aT', new THREE.BufferAttribute(ts, 1));
   furGeo.setAttribute('aRand', new THREE.BufferAttribute(rands, 1));
+  furGeo.setAttribute('aPatch', new THREE.BufferAttribute(patchArr, 1));
   furGeo.setIndex(new THREE.BufferAttribute(indices, 1));
   furGeo.setDrawRange(0, Math.floor(N * density) * 6);
 
@@ -238,17 +255,21 @@ export function createPlushMesh(
       uRimColor: { value: new THREE.Color('#ff5ad5') },
       uHueShift: { value: hueShift },
       uTwoTone: { value: twoTone },
+      uPatch: { value: new THREE.Color(species.patchColor ?? '#000000') },
     },
     vertexShader: /* glsl */ `
       attribute vec3 aNormal;
       attribute float aT;
       attribute float aRand;
+      attribute float aPatch;
       varying float vT;
       varying float vRand;
+      varying float vPatch;
       varying vec3 vN;
       void main() {
         vT = aT;
         vRand = aRand;
+        vPatch = aPatch;
         vN = normalize(normalMatrix * aNormal);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
@@ -260,8 +281,10 @@ export function createPlushMesh(
       uniform vec3 uRimColor;
       uniform float uHueShift;
       uniform float uTwoTone;
+      uniform vec3 uPatch;
       varying float vT;
       varying float vRand;
+      varying float vPatch;
       varying vec3 vN;
 
       vec3 hueRotate(vec3 c, float a) {
@@ -289,6 +312,8 @@ export function createPlushMesh(
           col = hueRotate(col, 2.5);
           col *= vec3(0.92, 1.05, 1.04);
         }
+        // robe pie : les brins d'une tache prennent la couleur de tache
+        col = mix(col, uPatch, vPatch);
         gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
       }
@@ -308,6 +333,7 @@ export function createPlushMesh(
   });
   const eyeMaterials: THREE.MeshStandardMaterial[] = [];
   const eyeDirs = [eyeL, eyeR];
+  const eyeOut = face.eyeOffset ?? 0;
   for (const ed of eyeDirs) {
     species.surfacePoint(ed, out);
     species.surfaceNormal(ed, n);
@@ -315,7 +341,7 @@ export function createPlushMesh(
     eyeMaterials.push(eyeMat);
     const eye = new THREE.Mesh(eyeGeo, eyeMat);
     eye.scale.setScalar(face.eyeScale);
-    eye.position.copy(out).addScaledVector(n, 0.03);
+    eye.position.copy(out).addScaledVector(n, 0.03 + eyeOut);
     eyesGroup.add(eye);
 
     const dotGeo = new THREE.SphereGeometry(1, 12, 10);
@@ -354,16 +380,19 @@ export function createPlushMesh(
   species.surfacePoint(noseD, out);
   species.surfaceNormal(noseD, n);
   dir.copy(n);
-  const noseMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(face.noseColor),
-    roughness: 0.4,
-    metalness: 0,
-  });
-  const noseMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 14), noseMat);
-  noseMesh.scale.set(0.048, 0.034, 0.026);
-  noseMesh.position.copy(out).addScaledVector(n, 0.02);
-  noseMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
-  eyesGroup.add(noseMesh);
+  // museau à narines (cochon, vache) : pas de point de nez noir par-dessus
+  if (face.noseColor) {
+    const noseMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(face.noseColor),
+      roughness: 0.4,
+      metalness: 0,
+    });
+    const noseMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 14), noseMat);
+    noseMesh.scale.set(0.048, 0.034, 0.026);
+    noseMesh.position.copy(out).addScaledVector(n, 0.02);
+    noseMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+    eyesGroup.add(noseMesh);
+  }
   root.add(eyesGroup);
 
   // ------------------------------------------------------------------ Oreilles + museau
@@ -387,6 +416,21 @@ export function createPlushMesh(
     root.add(mesh);
   }
 
+  // Boules posées sur le corps (dômes oculaires de la grenouille…)
+  for (const bump of species.bumps ?? []) {
+    species.surfacePoint(bump.dir, out);
+    species.surfaceNormal(bump.dir, n);
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(bump.color ?? preset.body),
+      roughness: 0.92,
+      metalness: 0,
+    });
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(bump.r, 24, 18), mat);
+    if (bump.squash) mesh.scale.set(...bump.squash);
+    mesh.position.copy(out).addScaledVector(n, 0.02);
+    root.add(mesh);
+  }
+
   if (species.snout) {
     species.surfacePoint(species.snout.dir, out);
     species.surfaceNormal(species.snout.dir, n);
@@ -402,6 +446,22 @@ export function createPlushMesh(
       species.snout.scale[2],
     );
     mesh.position.copy(out).addScaledVector(n, 0.03);
+    // narines : deux petits points sombres posés sur le groin
+    const nst = species.snout.nostrils;
+    if (nst) {
+      const ny = nst.y ?? 0.1;
+      const nozMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(nst.color),
+        roughness: 0.6,
+        metalness: 0,
+      });
+      for (const side of [-1, 1]) {
+        const noz = new THREE.Mesh(new THREE.SphereGeometry(nst.r, 12, 10), nozMat);
+        const len = Math.sqrt(Math.max(0.05, 1 - nst.dx * nst.dx - ny * ny));
+        noz.position.set(side * nst.dx, ny, len * 0.92);
+        mesh.add(noz);
+      }
+    }
     root.add(mesh);
   }
 

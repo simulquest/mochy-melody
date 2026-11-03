@@ -75,6 +75,7 @@ export class PlushEngine {
   private positions!: Float32Array;  // 6 sommets × 3 par brin
   private posAttr!: THREE.BufferAttribute;
   private furMaterial!: THREE.ShaderMaterial;
+  private patches!: Float32Array;    // 6N — intensité de tache de robe par sommet
 
   // --- Réglages dynamiques ---
   private furLengthMul = 1;
@@ -205,6 +206,21 @@ export class PlushEngine {
     return sp ? sp.surfaceNormal(dir, out) : mochiSurfaceNormal(dir, out);
   }
 
+  /** Intensité de tache de robe pour une direction (0 si aucune espèce/tache). */
+  private patchAt(dir: THREE.Vector3): number {
+    const sp = this.species;
+    if (!sp?.furPatches?.length) return 0;
+    let patch = 0;
+    for (const fp of sp.furPatches) {
+      const ang = dir.angleTo(fp.dir);
+      patch = Math.max(
+        patch,
+        fp.strength * Math.exp(-(ang * ang) / (2 * fp.sigma * fp.sigma)),
+      );
+    }
+    return patch;
+  }
+
   private buildLights() {
     this.scene.add(new THREE.HemisphereLight(0xfff0f6, 0x241428, 1.0));
     const key = new THREE.DirectionalLight(0xffffff, 1.6);
@@ -253,6 +269,7 @@ export class PlushEngine {
     this.eyeMaterials = [];
 
     const eyeDirs = [this.face.eyeL, this.face.eyeR];
+    const eyeOut = (this.face as SpeciesFace).eyeOffset ?? 0;
     for (const ed of eyeDirs) {
       this.surfaceAt(ed, out);
       this.normalAt(ed, n);
@@ -261,7 +278,7 @@ export class PlushEngine {
       this.eyeMaterials.push(eyeMat);
       const eye = new THREE.Mesh(eyeGeo, eyeMat);
       eye.scale.setScalar(this.eyeScale);
-      eye.position.copy(out).addScaledVector(n, 0.03);
+      eye.position.copy(out).addScaledVector(n, 0.03 + eyeOut);
       this.eyesGroup.add(eye);
       this.eyeMeshes.push(eye);
 
@@ -283,21 +300,23 @@ export class PlushEngine {
       this.eyesGroup.add(small);
     }
 
-    // Nez
+    // Nez (masqué quand le museau porte déjà des narines : cochon, vache)
     this.surfaceAt(this.face.nose, out);
     this.normalAt(this.face.nose, n);
     dir.copy(n);
-    const noseGeo = new THREE.SphereGeometry(1, 16, 14);
-    const noseMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color((this.face as SpeciesFace).noseColor),
-      roughness: 0.4,
-      metalness: 0,
-    });
-    this.noseMesh = new THREE.Mesh(noseGeo, noseMat);
-    this.noseMesh.scale.set(0.048, 0.034, 0.026);
-    this.noseMesh.position.copy(out).addScaledVector(n, 0.02);
-    this.noseMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
-    this.eyesGroup.add(this.noseMesh);
+    if ((this.face as SpeciesFace).noseColor) {
+      const noseGeo = new THREE.SphereGeometry(1, 16, 14);
+      const noseMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color((this.face as SpeciesFace).noseColor),
+        roughness: 0.4,
+        metalness: 0,
+      });
+      this.noseMesh = new THREE.Mesh(noseGeo, noseMat);
+      this.noseMesh.scale.set(0.048, 0.034, 0.026);
+      this.noseMesh.position.copy(out).addScaledVector(n, 0.02);
+      this.noseMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+      this.eyesGroup.add(this.noseMesh);
+    }
 
     this.rootGroup.add(this.eyesGroup);
   }
@@ -328,6 +347,21 @@ export class PlushEngine {
       this.rootGroup.add(mesh);
     }
 
+    // Boules posées sur le corps (dômes oculaires de la grenouille…)
+    for (const bump of sp.bumps ?? []) {
+      sp.surfacePoint(bump.dir, out);
+      sp.surfaceNormal(bump.dir, n);
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(bump.color ?? this.preset.body),
+        roughness: 0.92,
+        metalness: 0,
+      });
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(bump.r, 24, 18), mat);
+      if (bump.squash) mesh.scale.set(...bump.squash);
+      mesh.position.copy(out).addScaledVector(n, 0.02);
+      this.rootGroup.add(mesh);
+    }
+
     if (sp.snout) {
       sp.surfacePoint(sp.snout.dir, out);
       sp.surfaceNormal(sp.snout.dir, n);
@@ -339,6 +373,22 @@ export class PlushEngine {
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), mat);
       mesh.scale.set(sp.snout.scale[0], sp.snout.scale[1], sp.snout.scale[2]);
       mesh.position.copy(out).addScaledVector(n, 0.03);
+      // narines : deux petits points sombres posés sur le groin
+      const nst = sp.snout.nostrils;
+      if (nst) {
+        const ny = nst.y ?? 0.1;
+        const nozMat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(nst.color),
+          roughness: 0.6,
+          metalness: 0,
+        });
+        for (const side of [-1, 1]) {
+          const noz = new THREE.Mesh(new THREE.SphereGeometry(nst.r, 12, 10), nozMat);
+          const len = Math.sqrt(Math.max(0.05, 1 - nst.dx * nst.dx - ny * ny));
+          noz.position.set(side * nst.dx, ny, len * 0.92);
+          mesh.add(noz);
+        }
+      }
       this.rootGroup.add(mesh);
     }
 
@@ -517,6 +567,7 @@ export class PlushEngine {
     this.bends = new Float32Array(N * 3);
     this.bendVels = new Float32Array(N * 3);
     this.positions = new Float32Array(N * 18);
+    this.patches = new Float32Array(N * 6);
 
     const dir = new THREE.Vector3();
     const out = new THREE.Vector3();
@@ -554,6 +605,8 @@ export class PlushEngine {
         const ang = dir.angleTo(fb.dir);
         len *= 1 + fb.boost * Math.exp(-(ang * ang) / (2 * fb.sigma * fb.sigma));
       }
+      const patch = this.patchAt(dir);
+      for (let k = 0; k < 6; k++) this.patches[i * 6 + k] = patch;
 
       // le visage est dégagé : fourrure plus courte autour des yeux/nez
       const dEyeL = dir.angleTo(eyeL);
@@ -626,6 +679,7 @@ export class PlushEngine {
     geo.setAttribute('aNormal', new THREE.BufferAttribute(normals, 3));
     geo.setAttribute('aT', new THREE.BufferAttribute(ts, 1));
     geo.setAttribute('aRand', new THREE.BufferAttribute(rands, 1));
+    geo.setAttribute('aPatch', new THREE.BufferAttribute(this.patches, 1));
     geo.setIndex(new THREE.BufferAttribute(indices, 1));
     geo.setDrawRange(0, Math.floor(N * this.density) * 6);
     this.visibleStrands = Math.floor(N * this.density);
@@ -639,17 +693,21 @@ export class PlushEngine {
         uRimColor: { value: new THREE.Color('#ff5ad5') },
         uHueShift: { value: this.preset.hueShift ?? 0 },
         uTwoTone: { value: 0 },
+        uPatch: { value: new THREE.Color(sp?.patchColor ?? '#000000') },
       },
       vertexShader: /* glsl */ `
         attribute vec3 aNormal;
         attribute float aT;
         attribute float aRand;
+        attribute float aPatch;
         varying float vT;
         varying float vRand;
+        varying float vPatch;
         varying vec3 vN;
         void main() {
           vT = aT;
           vRand = aRand;
+          vPatch = aPatch;
           vN = normalize(normalMatrix * aNormal);
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
@@ -661,8 +719,10 @@ export class PlushEngine {
         uniform vec3 uRimColor;
         uniform float uHueShift;
         uniform float uTwoTone;
+        uniform vec3 uPatch;
         varying float vT;
         varying float vRand;
+        varying float vPatch;
         varying vec3 vN;
 
         // rotation de teinte autour de l'axe gris (préserve la luminance)
@@ -697,6 +757,9 @@ export class PlushEngine {
             col = hueRotate(col, 2.5);
             col *= vec3(0.92, 1.05, 1.04);
           }
+
+          // robe pie : les brins d'une tache prennent la couleur de tache
+          col = mix(col, uPatch, vPatch);
 
           gl_FragColor = vec4(col, 1.0);
           #include <colorspace_fragment>

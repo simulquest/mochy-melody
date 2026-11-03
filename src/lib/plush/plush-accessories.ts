@@ -56,8 +56,12 @@ const HAT_ANCHORS: Record<string, HeadAnchor> = {
   renard: { dir: v3(0, 1, 0.1), tilt: 0.18, scale: 0.78 },
   // Ours : vastes petites oreilles, bonnet posé tranquille.
   ours: { dir: v3(0, 1, 0.02), tilt: 0.22, scale: 1.02 },
-  // Grenouille : corps plat, yeux sur le dessus → bonnet posé au sommet.
-  grenouille: { dir: v3(0, 1, 0), tilt: 0.28, scale: 0.88 },
+  // Grenouille : corps plat, dômes oculaires devant → bonnet posé au sommet arrière.
+  grenouille: { dir: v3(0, 1, -0.18), tilt: 0.28, scale: 0.88 },
+  // Cochon : entre les oreilles pointues, léger avant.
+  cochon: { dir: v3(0, 1, 0.04), tilt: 0.2, scale: 0.95 },
+  // Vache : bonnet niché derrière les cornes.
+  vache: { dir: v3(0, 1, -0.14), tilt: 0.18, scale: 0.9 },
   // Licorne : la corne occupe l'avant du crâne → bonnet à l'arrière.
   licorne: { dir: v3(0, 1, -0.28), tilt: 0.14, scale: 0.82 },
   // Hibou : bonnet entre les aigrettes.
@@ -110,6 +114,10 @@ const NOEL_OUTFITS: Record<string, NoelOutfit> = {
   ours: { hat: '#a06b45', band: '#f7e6c9', scarf: '#e3a92c', lining: '#fff6ee' },
   // Grenouille : vert pomme, écharpe rouge.
   grenouille: { hat: '#79b83f', band: '#ffffff', scarf: '#d03a3a', lining: '#fff6ee' },
+  // Cochon : bonnet rose bonbon & écharpe rouge.
+  cochon: { hat: '#e88aa0', band: '#fff0f4', scarf: '#d03a3a', lining: '#fff6ee' },
+  // Vache : bonnet blanc à bord taché, écharpe charbon.
+  vache: { hat: '#f2f0f2', band: '#3a2f2c', scarf: '#3a2f2c', lining: '#fff6ee' },
   // Licorne : violet pastel & rose.
   licorne: { hat: '#b78ae0', band: '#fff3fa', scarf: '#e8a8d8', lining: '#ffffff' },
   // Hibou : forêt & chêne doré.
