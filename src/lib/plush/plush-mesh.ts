@@ -86,14 +86,26 @@ export function createPlushMesh(
   const noseD = face.nose;
 
   // ------------------------------------------------------------------ Corps
-  const bodyGeo = new THREE.SphereGeometry(1, 110, 78);
+  const bodyGeo = new THREE.SphereGeometry(1, 130, 92);
   const bodyPos = bodyGeo.attributes.position as THREE.BufferAttribute;
+  // Robe pie : masque de taches en vertex colors sur le corps
+  // (blanc = couleur de base, sinon mélange vers la couleur de tache).
+  const patchCol = new THREE.Color(species.patchColor ?? '#000000');
+  const bodyCols = new Float32Array(bodyPos.count * 3);
+  const maskCol = new THREE.Color();
   for (let i = 0; i < bodyPos.count; i++) {
     dir.set(bodyPos.getX(i), bodyPos.getY(i), bodyPos.getZ(i)).normalize();
     species.surfacePoint(dir, out);
     bodyPos.setXYZ(i, out.x, out.y, out.z);
+    maskCol.setRGB(1, 1, 1);
+    const patch = patchAmountAt(species, dir);
+    if (patch > 0) maskCol.lerp(patchCol, Math.min(1, patch * 1.1));
+    bodyCols[i * 3] = maskCol.r;
+    bodyCols[i * 3 + 1] = maskCol.g;
+    bodyCols[i * 3 + 2] = maskCol.b;
   }
   bodyGeo.computeVertexNormals();
+  bodyGeo.setAttribute('color', new THREE.BufferAttribute(bodyCols, 3));
 
   // Couleurs de base (avant mutation)
   const baseRoot = new THREE.Color(preset.root);
@@ -122,6 +134,7 @@ export function createPlushMesh(
 
   const bodyMat = new THREE.MeshStandardMaterial({
     color: bodyColor,
+    vertexColors: true,
     roughness: 0.95,
     metalness: 0,
   });

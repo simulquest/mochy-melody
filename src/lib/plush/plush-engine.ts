@@ -235,19 +235,37 @@ export class PlushEngine {
   }
 
   private buildBody() {
-    const geo = new THREE.SphereGeometry(1, 110, 78);
+    const geo = new THREE.SphereGeometry(1, 130, 92);
     const pos = geo.attributes.position as THREE.BufferAttribute;
     const dir = new THREE.Vector3();
     const out = new THREE.Vector3();
+    // Robe pie : le corps porte un masque de taches en vertex colors
+    // (blanc = couleur de base, sinon mélange vers la couleur de tache).
+    // La couleur de base reste pilotée par material.color dans applyColors().
+    const sp = this.species;
+    const patchCol = new THREE.Color(sp?.patchColor ?? '#000000');
+    const cols = new Float32Array(pos.count * 3);
+    const col = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
       dir.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
       this.surfaceAt(dir, out);
       pos.setXYZ(i, out.x, out.y, out.z);
+      col.setRGB(1, 1, 1);
+      let patch = 0;
+      for (const fp of sp?.furPatches ?? []) {
+        const ang = dir.angleTo(fp.dir);
+        patch = Math.max(patch, fp.strength * Math.exp(-(ang * ang) / (2 * fp.sigma * fp.sigma)));
+      }
+      if (patch > 0) col.lerp(patchCol, Math.min(1, patch * 1.1));
+      cols[i * 3] = col.r;
+      cols[i * 3 + 1] = col.g;
+      cols[i * 3 + 2] = col.b;
     }
     geo.computeVertexNormals();
+    geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
 
     const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(this.preset.root).multiplyScalar(0.9),
+      vertexColors: true,
       roughness: 0.95,
       metalness: 0,
     });

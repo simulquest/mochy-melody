@@ -62,6 +62,26 @@ const HAT_ANCHORS: Record<string, HeadAnchor> = {
   cochon: { dir: v3(0, 1, 0.04), tilt: 0.2, scale: 0.95 },
   // Vache : bonnet niché derrière les cornes.
   vache: { dir: v3(0, 1, -0.14), tilt: 0.18, scale: 0.9 },
+  // Panda : entre les oreilles noires, léger arrière (plaques oculaires devant).
+  panda: { dir: v3(0, 1, -0.08), tilt: 0.2, scale: 0.92 },
+  // Lion : bonnet posé au sommet, devant la crinière qui l'entoure.
+  lion: { dir: v3(0, 1, 0.1), tilt: 0.2, scale: 0.9 },
+  // Éléphant : bonnet niché entre les grandes oreilles plates.
+  elephant: { dir: v3(0, 1, -0.04), tilt: 0.18, scale: 0.94 },
+  // Mouton : bonnet planté dans la laine du sommet.
+  mouton: { dir: v3(0, 1, 0.02), tilt: 0.22, scale: 1.0 },
+  // Singe : entre les grosses oreilles latérales.
+  singe: { dir: v3(0, 1, 0.02), tilt: 0.2, scale: 0.94 },
+  // Hérisson : bonnet posé à l'avant, sur le front lisse entre les piquants.
+  herisson: { dir: v3(0, 0.88, 0.5), tilt: 0.3, scale: 0.8 },
+  // Souris : bonnet niché entre les grandes oreilles rondes.
+  souris: { dir: v3(0, 1, -0.02), tilt: 0.2, scale: 0.9 },
+  // Canard : bonnet penché sur la houppette.
+  canard: { dir: v3(0, 1, 0.08), tilt: 0.26, scale: 0.88 },
+  // Koala : bonnet niché entre les énormes oreilles duveteuses.
+  koala: { dir: v3(0, 1, 0.0), tilt: 0.18, scale: 0.9 },
+  // Tigre : entre les petites oreilles rondes.
+  tigre: { dir: v3(0, 1, 0.04), tilt: 0.2, scale: 0.94 },
   // Licorne : la corne occupe l'avant du crâne → bonnet à l'arrière.
   licorne: { dir: v3(0, 1, -0.28), tilt: 0.14, scale: 0.82 },
   // Hibou : bonnet entre les aigrettes.
@@ -118,6 +138,26 @@ const NOEL_OUTFITS: Record<string, NoelOutfit> = {
   cochon: { hat: '#e88aa0', band: '#fff0f4', scarf: '#d03a3a', lining: '#fff6ee' },
   // Vache : bonnet blanc à bord taché, écharpe charbon.
   vache: { hat: '#f2f0f2', band: '#3a2f2c', scarf: '#3a2f2c', lining: '#fff6ee' },
+  // Panda : bonnet bambou & écharpe vert tendre.
+  panda: { hat: '#79b83f', band: '#fff6ee', scarf: '#4a8f3c', lining: '#fff6ee' },
+  // Lion : bonnet crinière dorée & écharpe terracotta.
+  lion: { hat: '#e3a92c', band: '#fff0d2', scarf: '#cf7040', lining: '#fff6ee' },
+  // Éléphant : bonnet gris perle & écharpe prune.
+  elephant: { hat: '#9aa0b5', band: '#fff6ee', scarf: '#8a5aa8', lining: '#fff6ee' },
+  // Mouton : bonnet laine ivoire & écharpe charbon.
+  mouton: { hat: '#f2e8d4', band: '#4a4a52', scarf: '#4a4a52', lining: '#fff6ee' },
+  // Singe : bonnet cacao & écharpe banane.
+  singe: { hat: '#6a4a34', band: '#ffe08f', scarf: '#e3b23c', lining: '#fff6ee' },
+  // Hérisson : bonnet feuille d'automne & écharpe châtaigne.
+  herisson: { hat: '#c97a3a', band: '#fff0d2', scarf: '#8a5a3a', lining: '#ffe9c9' },
+  // Souris : bonnet gris bleu & écharpe rose.
+  souris: { hat: '#9aa0b8', band: '#fff6ee', scarf: '#e88aa0', lining: '#fff6ee' },
+  // Canard : bonnet jaune poussin & écharpe orange.
+  canard: { hat: '#f2d44d', band: '#fff8e0', scarf: '#f0913a', lining: '#fff6ee' },
+  // Koala : bonnet gris eucalyptus & écharpe vert doux.
+  koala: { hat: '#a8b0aa', band: '#fff6ee', scarf: '#7ac9a0', lining: '#fff6ee' },
+  // Tigre : bonnet braise & écharpe ivoire.
+  tigre: { hat: '#e08a3a', band: '#3a2a20', scarf: '#f5efe6', lining: '#fff6ee' },
   // Licorne : violet pastel & rose.
   licorne: { hat: '#b78ae0', band: '#fff3fa', scarf: '#e8a8d8', lining: '#ffffff' },
   // Hibou : forêt & chêne doré.

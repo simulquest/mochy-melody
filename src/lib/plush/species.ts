@@ -652,12 +652,360 @@ const vache = makeShapeBase('vache', 1.10, {
     { dir: v3(0.5, 0.9, -0.08), sigma: 0.3, boost: 0.3 },
   ],
   furPatches: [
-    { dir: v3(-0.52, 0.3, 0.6), sigma: 0.55, strength: 0.95 },
-    { dir: v3(0.55, -0.1, 0.62), sigma: 0.5, strength: 0.9 },
-    { dir: v3(-0.3, 0.55, -0.72), sigma: 0.6, strength: 0.95 },
-    { dir: v3(0.42, 0.62, -0.45), sigma: 0.48, strength: 0.85 },
+    { dir: v3(-0.52, 0.3, 0.6), sigma: 0.36, strength: 0.95 },
+    { dir: v3(0.55, -0.1, 0.62), sigma: 0.34, strength: 0.9 },
+    { dir: v3(-0.3, 0.55, -0.72), sigma: 0.42, strength: 0.95 },
+    { dir: v3(0.42, 0.62, -0.45), sigma: 0.34, strength: 0.85 },
+    { dir: v3(0.2, -0.45, 0.75), sigma: 0.3, strength: 0.85 },
   ],
   patchColor: '#3a2f2c',
+});
+
+// Panda : corps blanc rondouillard, oreilles et plaques oculaires noires,
+// bandeau sombre sur les épaules — impossible à confondre avec un ours.
+function pandaRadius(d: THREE.Vector3): number {
+  let r = 1.04;
+  r *= 1 + 0.15 * Math.exp(-((d.y + 0.08) ** 2) / 0.34);
+  const up = THREE.MathUtils.smoothstep(d.y, -0.2, 0.45);
+  r *= 0.78 + 0.18 * up;
+  if (d.y < -0.25) r *= 0.82;
+  return r;
+}
+
+const pandaSurface = makeSurface(pandaRadius, { sx: 1.12, sy: 0.98, sz: 1.06, flatten: 0.80 });
+
+const panda = makeShapeBase('panda', 1.08, {
+  surfacePoint: pandaSurface,
+  surfaceNormal: makeNormal(pandaSurface),
+  face: {
+    eyeL: v3(-0.24, 0.33, 0.92),
+    eyeR: v3(0.24, 0.33, 0.92),
+    nose: v3(0, 0.06, 1), // masqué : le museau noir fait office de truffe
+    eyeScale: 0.115,
+    eyeOffset: 0.11, // pose l'œil sur la plaque oculaire noire
+    noseColor: '',
+  },
+  ears: [
+    { dir: v3(-0.45, 0.82, -0.05), type: 'capsule', h: 0.26, r: 0.20, tilt: 0.28, color: '#2b2b2b', fixedColor: true },
+    { dir: v3(0.45, 0.82, -0.05), type: 'capsule', h: 0.26, r: 0.20, tilt: 0.28, color: '#2b2b2b', fixedColor: true },
+  ],
+  bumps: [
+    // plaques oculaires noires aplaties contre le visage
+    { dir: v3(-0.24, 0.33, 0.92), r: 0.17, squash: [1.25, 1.35, 0.6], color: '#2b2b2b', fixedColor: true },
+    { dir: v3(0.24, 0.33, 0.92), r: 0.17, squash: [1.25, 1.35, 0.6], color: '#2b2b2b', fixedColor: true },
+  ],
+  snout: { dir: v3(0, 0.06, 1), scale: [0.15, 0.11, 0.09], color: '#2b2b2b', fixedColor: true },
+  furBoost: [
+    { dir: v3(-0.45, 0.82, -0.05), sigma: 0.3, boost: 0.3 },
+    { dir: v3(0.45, 0.82, -0.05), sigma: 0.3, boost: 0.3 },
+  ],
+  furPatches: [
+    { dir: v3(-0.62, 0.52, -0.3), sigma: 0.5, strength: 0.85 },
+    { dir: v3(0.62, 0.52, -0.3), sigma: 0.5, strength: 0.85 },
+    { dir: v3(0, 0.75, -0.55), sigma: 0.45, strength: 0.7 },
+  ],
+  patchColor: '#2b2b2b',
+});
+
+// Lion : corps doré, crinière fournie (fourrure longue et sombre en anneau
+// autour du visage), petit museau tan — la crinière suffit à le reconnaître.
+const lion = makeShapeBase('lion', 1.08, {
+  surfacePoint: oursSurface,
+  surfaceNormal: makeNormal(oursSurface),
+  face: {
+    eyeL: v3(-0.26, 0.34, 0.91),
+    eyeR: v3(0.26, 0.34, 0.91),
+    nose: v3(0, 0.08, 1),
+    eyeScale: 0.105,
+    noseColor: '#8a5a3a',
+  },
+  ears: [
+    { dir: v3(-0.44, 0.82, -0.02), type: 'capsule', h: 0.18, r: 0.14, tilt: 0.32, color: '#8a5222' },
+    { dir: v3(0.44, 0.82, -0.02), type: 'capsule', h: 0.18, r: 0.14, tilt: 0.32, color: '#8a5222' },
+  ],
+  snout: { dir: v3(0, 0.02, 1), scale: [0.21, 0.14, 0.12], color: '#d9a86c', fixedColor: true },
+  furBoost: [
+    { dir: v3(-0.92, 0.32, 0.18), sigma: 0.55, boost: 1.3 },
+    { dir: v3(0.92, 0.32, 0.18), sigma: 0.55, boost: 1.3 },
+    { dir: v3(0, 0.92, 0.15), sigma: 0.5, boost: 0.9 },
+    { dir: v3(-0.55, 0.4, -0.7), sigma: 0.55, boost: 1.0 },
+    { dir: v3(0.55, 0.4, -0.7), sigma: 0.55, boost: 1.0 },
+    { dir: v3(0, 0.35, -0.9), sigma: 0.55, boost: 0.8 },
+  ],
+  furPatches: [
+    { dir: v3(-0.92, 0.32, 0.18), sigma: 0.55, strength: 1.0 },
+    { dir: v3(0.92, 0.32, 0.18), sigma: 0.55, strength: 1.0 },
+    { dir: v3(0, 0.92, 0.15), sigma: 0.5, strength: 0.85 },
+    { dir: v3(-0.55, 0.4, -0.7), sigma: 0.55, strength: 0.95 },
+    { dir: v3(0.55, 0.4, -0.7), sigma: 0.55, strength: 0.95 },
+    { dir: v3(0, 0.35, -0.9), sigma: 0.55, strength: 0.85 },
+  ],
+  patchColor: '#5f340e',
+});
+
+// Éléphant : corps gris massif, grandes oreilles plates sur les côtés et
+// trompe pendante au milieu du visage — silhouette inimitable.
+const elephant = makeShapeBase('elephant', 1.10, {
+  surfacePoint: oursSurface,
+  surfaceNormal: makeNormal(oursSurface),
+  face: {
+    eyeL: v3(-0.3, 0.44, 0.86),
+    eyeR: v3(0.3, 0.44, 0.86),
+    nose: v3(0, 0.2, 1), // masqué : la trompe remplace le nez
+    eyeScale: 0.085,
+    noseColor: '',
+  },
+  ears: [],
+  bumps: [
+    // grandes oreilles plates, fines sur l'axe latéral
+    { dir: v3(-0.88, 0.42, 0.06), r: 0.30, squash: [0.32, 1.15, 1.15] },
+    { dir: v3(0.88, 0.42, 0.06), r: 0.30, squash: [0.32, 1.15, 1.15] },
+    // trompe : ellipsoïde vertical qui pend sous le front
+    { dir: v3(0, -0.15, 0.92), r: 0.155, squash: [0.95, 1.9, 0.95] },
+  ],
+  furBoost: [],
+});
+
+// Mouton : pelote de laine crème très dense, oreilles sombres tombantes et
+// petit museau beige — la laine suffit à le reconnaître.
+const mouton = makeShapeBase('mouton', 1.06, {
+  surfacePoint: oursSurface,
+  surfaceNormal: makeNormal(oursSurface),
+  face: {
+    eyeL: v3(-0.24, 0.34, 0.91),
+    eyeR: v3(0.24, 0.34, 0.91),
+    nose: v3(0, 0.12, 1), // masqué : museau beige avec narines
+    eyeScale: 0.10,
+    noseColor: '',
+  },
+  ears: [
+    { dir: v3(-0.6, 0.7, 0.05), type: 'capsule', h: 0.20, r: 0.105, tilt: 0.62, color: '#4a4a52', fixedColor: true },
+    { dir: v3(0.6, 0.7, 0.05), type: 'capsule', h: 0.20, r: 0.105, tilt: 0.62, color: '#4a4a52', fixedColor: true },
+  ],
+  snout: {
+    dir: v3(0, 0.04, 1),
+    scale: [0.24, 0.16, 0.13],
+    color: '#e8d8c4',
+    fixedColor: true,
+    nostrils: { dx: 0.42, y: 0.05, r: 0.13, color: '#6a5a52' },
+  },
+  furBoost: [
+    { dir: v3(0, 0.45, -0.55), sigma: 0.85, boost: 0.45 },
+    { dir: v3(-0.5, 0.25, 0.7), sigma: 0.4, boost: 0.3 },
+    { dir: v3(0.5, 0.25, 0.7), sigma: 0.4, boost: 0.3 },
+  ],
+});
+
+// Singe : corps brun, grande plaque faciale beige, grosses oreilles rondes
+// sur les côtés — le masque clair suffit à le reconnaître.
+const singe = makeShapeBase('singe', 1.06, {
+  surfacePoint: oursSurface,
+  surfaceNormal: makeNormal(oursSurface),
+  face: {
+    eyeL: v3(-0.26, 0.38, 0.89),
+    eyeR: v3(0.26, 0.38, 0.89),
+    nose: v3(0, 0.16, 1),
+    eyeScale: 0.115,
+    eyeOffset: 0.07, // pose l'œil sur la plaque faciale
+    noseColor: '#4a3020',
+  },
+  ears: [
+    { dir: v3(-0.86, 0.42, 0.02), type: 'capsule', h: 0.16, r: 0.20, tilt: 0.72, color: '#6a4a34', fixedColor: true },
+    { dir: v3(0.86, 0.42, 0.02), type: 'capsule', h: 0.16, r: 0.20, tilt: 0.72, color: '#6a4a34', fixedColor: true },
+  ],
+  bumps: [
+    // plaque faciale beige aplatie contre le museau
+    { dir: v3(0, 0.24, 0.9), r: 0.33, squash: [1.2, 1.05, 0.5], color: '#e8cfa8', fixedColor: true },
+  ],
+  snout: { dir: v3(0, 0.1, 1), scale: [0.19, 0.13, 0.11], color: '#e8cfa8', fixedColor: true },
+  furBoost: [
+    { dir: v3(-0.86, 0.42, 0.02), sigma: 0.3, boost: 0.35 },
+    { dir: v3(0.86, 0.42, 0.02), sigma: 0.3, boost: 0.35 },
+    { dir: v3(-0.5, 0.15, 0.75), sigma: 0.4, boost: 0.25 },
+    { dir: v3(0.5, 0.15, 0.75), sigma: 0.4, boost: 0.25 },
+  ],
+});
+
+// Hérisson : petits yeux et museau pointu devant, dos couvert de longs
+// piquants (fourrure très longue et sombre) — silhouette unique.
+function herissonRadius(d: THREE.Vector3): number {
+  let r = 1.0;
+  r *= 1 + 0.14 * Math.exp(-((d.y + 0.05) ** 2) / 0.34);
+  const up = THREE.MathUtils.smoothstep(d.y, -0.2, 0.45);
+  r *= 0.78 + 0.18 * up;
+  if (d.y < -0.25) r *= 0.82;
+  // bosse des piquants sur le dos
+  r += 0.1 * Math.exp(-((d.y - 0.3) ** 2) / 0.35) * (1 - d.z);
+  return r;
+}
+
+const herissonSurface = makeSurface(herissonRadius, { sx: 1.06, sy: 1.04, sz: 1.06, flatten: 0.78 });
+
+const herisson = makeShapeBase('herisson', 1.06, {
+  surfacePoint: herissonSurface,
+  surfaceNormal: makeNormal(herissonSurface),
+  face: {
+    eyeL: v3(-0.24, 0.3, 0.92),
+    eyeR: v3(0.24, 0.3, 0.92),
+    nose: v3(0, 0.08, 1),
+    eyeScale: 0.10,
+    noseColor: '#3a2620',
+  },
+  ears: [
+    { dir: v3(-0.42, 0.78, 0.02), type: 'capsule', h: 0.13, r: 0.075, tilt: 0.4, color: '#4a3628', fixedColor: true },
+    { dir: v3(0.42, 0.78, 0.02), type: 'capsule', h: 0.13, r: 0.075, tilt: 0.4, color: '#4a3628', fixedColor: true },
+  ],
+  snout: { dir: v3(0, 0.02, 1), scale: [0.15, 0.11, 0.17], color: '#ecd4b4', fixedColor: true },
+  furBoost: [
+    { dir: v3(0, 0.75, -0.45), sigma: 0.6, boost: 1.5 },
+    { dir: v3(-0.75, 0.35, -0.4), sigma: 0.55, boost: 1.2 },
+    { dir: v3(0.75, 0.35, -0.4), sigma: 0.55, boost: 1.2 },
+    { dir: v3(-0.85, 0.05, 0.25), sigma: 0.45, boost: 0.85 },
+    { dir: v3(0.85, 0.05, 0.25), sigma: 0.45, boost: 0.85 },
+    { dir: v3(0, 0.72, 0.42), sigma: 0.5, boost: 1.1 }, // couronne de piquants au-dessus du front
+    { dir: v3(0, 0.55, 0.55), sigma: 0.35, boost: 0.3 },
+    { dir: v3(0, 0.05, 0.95), sigma: 0.42, boost: -0.5 }, // visage lisse
+  ],
+  furPatches: [
+    // piquants sombres couvrant le sommet et l'arrière du dos
+    { dir: v3(0, 0.65, 0.15), sigma: 0.75, strength: 0.6 },
+  ],
+  patchColor: '#4e3826',
+});
+
+// Souris : petite boule grise, énormes oreilles rondes plates et petit groin
+// rose — les oreilles suffisent à la reconnaître.
+const souris = makeShapeBase('souris', 0.98, {
+  surfacePoint: oursSurface,
+  surfaceNormal: makeNormal(oursSurface),
+  face: {
+    eyeL: v3(-0.25, 0.36, 0.9),
+    eyeR: v3(0.25, 0.36, 0.9),
+    nose: v3(0, 0.1, 1),
+    eyeScale: 0.11,
+    noseColor: '#e88aa0',
+  },
+  ears: [],
+  bumps: [
+    // grandes oreilles rondes plaquées face à la caméra (disques fins en z)
+    { dir: v3(-0.55, 0.78, 0.12), r: 0.28, squash: [1.08, 1.08, 0.35] },
+    { dir: v3(0.55, 0.78, 0.12), r: 0.28, squash: [1.08, 1.08, 0.35] },
+  ],
+  snout: { dir: v3(0, 0.04, 1), scale: [0.13, 0.09, 0.1], color: '#9aa0b8' },
+  furBoost: [
+    { dir: v3(-0.55, 0.78, 0.12), sigma: 0.35, boost: 0.6 },
+    { dir: v3(0.55, 0.78, 0.12), sigma: 0.35, boost: 0.6 },
+    { dir: v3(0, 0.3, -0.6), sigma: 0.7, boost: 0.2 },
+  ],
+});
+
+// Canard : boule jaune haute, bec orange plat et large, petites ailes
+// plaquées sur les côtés — le bec suffit à le reconnaître.
+const canard = makeShapeBase('canard', 1.06, {
+  surfacePoint: oursSurface,
+  surfaceNormal: makeNormal(oursSurface),
+  face: {
+    eyeL: v3(-0.24, 0.42, 0.89),
+    eyeR: v3(0.24, 0.42, 0.89),
+    nose: v3(0, 0.18, 1), // masqué : le bec remplace le nez
+    eyeScale: 0.11,
+    noseColor: '',
+  },
+  ears: [],
+  bumps: [
+    // ailes plates plaquées sur les flancs
+    { dir: v3(-0.88, 0.0, 0.12), r: 0.19, squash: [0.35, 1.05, 1.35] },
+    { dir: v3(0.88, 0.0, 0.12), r: 0.19, squash: [0.35, 1.05, 1.35] },
+    // petite houppette sur le sommet du crâne
+    { dir: v3(0, 0.95, 0.12), r: 0.085, squash: [1, 0.85, 1] },
+  ],
+  snout: { dir: v3(0, 0.14, 1), scale: [0.30, 0.085, 0.13], color: '#f0913a', fixedColor: true },
+  furBoost: [
+    { dir: v3(-0.88, 0.0, 0.12), sigma: 0.35, boost: 0.3 },
+    { dir: v3(0.88, 0.0, 0.12), sigma: 0.35, boost: 0.3 },
+  ],
+  furPatches: [
+    { dir: v3(0, -0.6, 0.5), sigma: 0.55, strength: 0.65 },
+  ],
+  patchColor: '#fff3d8',
+});
+
+// Koala : corps gris rondouillard, énormes oreilles duveteuses et grand nez
+// sombre ovale — le nez suffit à le reconnaître.
+const koala = makeShapeBase('koala', 1.08, {
+  surfacePoint: oursSurface,
+  surfaceNormal: makeNormal(oursSurface),
+  face: {
+    eyeL: v3(-0.25, 0.36, 0.9),
+    eyeR: v3(0.25, 0.36, 0.9),
+    nose: v3(0, 0.06, 1), // masqué : le grand nez sombre fait office de truffe
+    eyeScale: 0.10,
+    noseColor: '',
+  },
+  ears: [
+    { dir: v3(-0.62, 0.7, -0.02), type: 'capsule', h: 0.32, r: 0.26, tilt: 0.55, color: '#d0dad2' },
+    { dir: v3(0.62, 0.7, -0.02), type: 'capsule', h: 0.32, r: 0.26, tilt: 0.55, color: '#d0dad2' },
+  ],
+  snout: { dir: v3(0, 0.06, 1), scale: [0.19, 0.23, 0.11], color: '#4a3a34', fixedColor: true },
+  furBoost: [
+    { dir: v3(-0.62, 0.7, -0.02), sigma: 0.4, boost: 0.85 },
+    { dir: v3(0.62, 0.7, -0.02), sigma: 0.4, boost: 0.85 },
+    { dir: v3(-0.5, 0.12, 0.78), sigma: 0.4, boost: 0.35 },
+    { dir: v3(0.5, 0.12, 0.78), sigma: 0.4, boost: 0.35 },
+  ],
+});
+
+// Tigre : corps orange, rayures sombres dans la fourrure, museau blanc et
+// petites oreilles rondes — les rayures suffisent à le reconnaître.
+function tigreRadius(d: THREE.Vector3): number {
+  let r = 1.02;
+  r *= 1 + 0.14 * Math.exp(-((d.y + 0.08) ** 2) / 0.34);
+  const up = THREE.MathUtils.smoothstep(d.y, -0.2, 0.45);
+  r *= 0.78 + 0.18 * up;
+  if (d.y < -0.25) r *= 0.82;
+  // museau bombé sur la face avant
+  if (d.z > 0.5) r += 0.06 * Math.exp(-((d.x * d.x) + (d.y + 0.02) ** 2) / 0.1);
+  return r;
+}
+
+const tigreSurface = makeSurface(tigreRadius, { sx: 1.04, sy: 1.0, sz: 1.06, flatten: 0.78 });
+
+const tigre = makeShapeBase('tigre', 1.04, {
+  surfacePoint: tigreSurface,
+  surfaceNormal: makeNormal(tigreSurface),
+  face: {
+    eyeL: v3(-0.26, 0.32, 0.91),
+    eyeR: v3(0.26, 0.32, 0.91),
+    nose: v3(0, 0.06, 1),
+    eyeScale: 0.105,
+    noseColor: '#c46a70',
+  },
+  ears: [
+    { dir: v3(-0.46, 0.82, -0.02), type: 'capsule', h: 0.15, r: 0.15, tilt: 0.38, color: '#8a5a2a' },
+    { dir: v3(0.46, 0.82, -0.02), type: 'capsule', h: 0.15, r: 0.15, tilt: 0.38, color: '#8a5a2a' },
+  ],
+  snout: { dir: v3(0, 0.02, 1), scale: [0.24, 0.15, 0.13], color: '#f5efe6', fixedColor: true },
+  furBoost: [
+    { dir: v3(-0.45, 0.08, 0.8), sigma: 0.4, boost: 0.4 },
+    { dir: v3(0.45, 0.08, 0.8), sigma: 0.4, boost: 0.4 },
+  ],
+  furPatches: [
+    // bandes sombres bien séparées : couronne, bande frontale, joues, flancs, dos
+    { dir: v3(0, 0.72, 0.6), sigma: 0.26, strength: 1.0 },
+    { dir: v3(0, 0.58, 0.82), sigma: 0.16, strength: 1.0 },
+    { dir: v3(-0.52, 0.52, 0.62), sigma: 0.26, strength: 0.95 },
+    { dir: v3(0.52, 0.52, 0.62), sigma: 0.26, strength: 0.95 },
+    { dir: v3(-0.8, 0.18, 0.5), sigma: 0.26, strength: 0.95 },
+    { dir: v3(0.8, 0.18, 0.5), sigma: 0.26, strength: 0.95 },
+    { dir: v3(-0.95, 0.25, 0.02), sigma: 0.3, strength: 1.0 },
+    { dir: v3(0.95, 0.25, 0.02), sigma: 0.3, strength: 1.0 },
+    { dir: v3(0, 0.3, -0.92), sigma: 0.35, strength: 1.0 },
+    { dir: v3(-0.62, 0.4, -0.66), sigma: 0.3, strength: 0.95 },
+    { dir: v3(0.62, 0.4, -0.66), sigma: 0.3, strength: 0.95 },
+    { dir: v3(-0.88, -0.15, -0.35), sigma: 0.3, strength: 0.95 },
+    { dir: v3(0.88, -0.15, -0.35), sigma: 0.3, strength: 0.95 },
+  ],
+  patchColor: '#1e1814',
 });
 
 /** Formes de base réutilisées par les créatures du roster étendu. */
@@ -671,6 +1019,16 @@ const SHAPE_BASES: Record<string, PlushSpecies> = {
   grenouille,
   cochon,
   vache,
+  panda,
+  lion,
+  elephant,
+  mouton,
+  singe,
+  herisson,
+  souris,
+  canard,
+  koala,
+  tigre,
   licorne,
   hibou,
   pingouin,
@@ -757,6 +1115,16 @@ export const SHAPE_LABELS: Record<string, string> = {
   grenouille: 'Grenouille',
   cochon: 'Cochon',
   vache: 'Vache',
+  panda: 'Panda',
+  lion: 'Lion',
+  elephant: 'Éléphant',
+  mouton: 'Mouton',
+  singe: 'Singe',
+  herisson: 'Hérisson',
+  souris: 'Souris',
+  canard: 'Canard',
+  koala: 'Koala',
+  tigre: 'Tigre',
   licorne: 'Licorne',
   hibou: 'Hibou',
   pingouin: 'Pingouin',
