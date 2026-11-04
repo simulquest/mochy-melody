@@ -19,7 +19,9 @@ import {
 import {
   GROUND_THEMES,
   OBJECT_CATALOG as OBJECT_PALETTE,
+  OBJECT_CATS,
   getObjectDef,
+  type SceneObjectCat,
 } from '@/lib/community/scene-objects';
 import {
   MAX_OBJECTS,
@@ -50,6 +52,15 @@ const DRAFT_KEY = 'mochy-scene-draft';
 const THUMB_W = 480;
 const THUMB_H = 300;
 
+/** Article proposé à l'achat dans la modale boutique. */
+interface BuyTarget {
+  id: string;
+  kind: 'object' | 'theme';
+  label: string;
+  price: number;
+  icon: string;
+}
+
 export default function SceneBuilder({
   initialScene,
   plush,
@@ -73,6 +84,13 @@ export default function SceneBuilder({
   const [busy, setBusy] = useState<'save' | 'publish' | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  // ----- Boutique MochyHearts : articles possédés + solde + achat en cours
+  const [owned, setOwned] = useState<ReadonlySet<string>>(new Set());
+  const [hearts, setHearts] = useState<number | null>(null);
+  const [cat, setCat] = useState<SceneObjectCat | 'tous'>('tous');
+  const [buyTarget, setBuyTarget] = useState<BuyTarget | null>(null);
+  const [buying, setBuying] = useState(false);
+
   // ----- Références Three.js
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -93,6 +111,70 @@ export default function SceneBuilder({
     setToast(msg);
     window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 2600);
   }, []);
+
+  // ------------------------------------------------ Chargement de la boutique
+  // Articles achetés + solde MochyHearts (une seule requête au montage).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/community/unlocks', { cache: 'no-store' });
+        const json = (await res.json().catch(() => ({}))) as {
+          owned?: string[];
+          hearts?: number;
+          error?: string;
+        };
+        if (!res.ok) throw new Error(json.error || 'Boutique indisponible');
+        if (cancelled) return;
+        setOwned(new Set(json.owned ?? []));
+        setHearts(Number(json.hearts) || 0);
+      } catch {
+        // Non connecté / hors ligne : seuls les articles gratuits restent posables.
+        if (!cancelled) setHearts(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isUnlocked = useCallback(
+    (id: string, price: number) => price === 0 || owned.has(id),
+    [owned],
+  );
+
+  const askBuy = useCallback((target: BuyTarget) => setBuyTarget(target), []);
+
+  /** Achète l'article proposé (débit atomique côté serveur). */
+  const confirmBuy = useCallback(async () => {
+    if (!buyTarget || buying) return;
+    setBuying(true);
+    try {
+      const res = await fetch('/api/community/unlocks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: buyTarget.id }),
+        cache: 'no-store',
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        unlocked?: boolean;
+        hearts?: number;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(json.error || 'Achat impossible');
+      const bought = buyTarget;
+      setOwned((prev) => new Set(prev).add(bought.id));
+      if (typeof json.hearts === 'number') setHearts(json.hearts);
+      setBuyTarget(null);
+      showToast(`${bought.label} débloqué !`);
+      // Un thème acheté s'applique tout de suite.
+      if (bought.kind === 'theme') setThemeId(bought.id);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Achat impossible');
+    } finally {
+      setBuying(false);
+    }
+  }, [buyTarget, buying, showToast]);
 
   /** Commite la liste d'objets vers React (rebuild complet via l'effet). */
   const commit = useCallback((next: SceneObjectData[]) => {
@@ -468,6 +550,11 @@ export default function SceneBuilder({
   // ------------------------------------------------------- Actions objets
   const addObject = useCallback(
     (type: string) => {
+      const def = getObjectDef(type);
+      if (def && !isUnlocked(def.id, def.price)) {
+        askBuy({ id: def.id, kind: 'object', label: def.label, price: def.price, icon: def.icon });
+        return;
+      }
       if (objectsRef.current.length >= MAX_OBJECTS) {
         showToast(`Maximum ${MAX_OBJECTS} objets`);
         return;
@@ -488,7 +575,21 @@ export default function SceneBuilder({
       selectedRef.current = id;
       setSelectedId(id);
     },
-    [commit, showToast],
+    [askBuy, commit, isUnlocked, showToast],
+  );
+
+  /** Sélectionne un thème (ou ouvre la boutique s'il est verrouillé). */
+  const selectTheme = useCallback(
+    (id: string) => {
+      const t = GROUND_THEMES.find((x) => x.id === id);
+      if (!t) return;
+      if (!isUnlocked(t.id, t.price)) {
+        askBuy({ id: t.id, kind: 'theme', label: t.label, price: t.price, icon: t.icon });
+        return;
+      }
+      setThemeId(id);
+    },
+    [askBuy, isUnlocked],
   );
 
   const selectedObj = objects.find((o) => o.id === selectedId) ?? null;
@@ -743,43 +844,94 @@ export default function SceneBuilder({
         </label>
       </div>
 
-      {/* Thèmes de sol */}
+      {/* Thèmes de sol (les « scènes ») — verrouillés = boutique MochyHearts */}
       <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {GROUND_THEMES.map((t) => (
+        {GROUND_THEMES.map((t) => {
+          const locked = !isUnlocked(t.id, t.price);
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => selectTheme(t.id)}
+              aria-pressed={themeId === t.id}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 ${
+                themeId === t.id
+                  ? 'border-fuchsia-300/40 bg-fuchsia-500/20 text-fuchsia-100'
+                  : 'border-white/10 bg-white/[0.04] text-white/55 hover:bg-white/10'
+              }`}
+            >
+              <i className={`${t.icon} text-[11px] ${locked ? 'opacity-50' : ''}`} aria-hidden />
+              {t.label}
+              {locked && (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-300/15 px-1.5 py-0.5 text-[9px] font-black tabular-nums text-amber-300">
+                  <i className="fa-solid fa-lock text-[7px]" aria-hidden />
+                  {t.price}
+                  <i className="fa-solid fa-heart text-[7px]" aria-hidden />
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Palette d'objets — filtres par famille + articles verrouillés */}
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
+          Objets — touche pour poser
+        </p>
+        {hearts !== null && (
+          <span
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-rose-300/25 bg-rose-300/[0.07] px-2.5 py-1 text-xs font-black tabular-nums text-rose-200"
+            title="Ton solde de MochyHearts — caresse tes Mochies pour en gagner"
+          >
+            <i className="fa-solid fa-heart text-[10px]" aria-hidden />
+            {hearts.toLocaleString('fr-FR')}
+          </span>
+        )}
+      </div>
+      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {OBJECT_CATS.map((c) => (
           <button
-            key={t.id}
+            key={c.id}
             type="button"
-            onClick={() => setThemeId(t.id)}
-            aria-pressed={themeId === t.id}
-            className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 ${
-              themeId === t.id
-                ? 'border-fuchsia-300/40 bg-fuchsia-500/20 text-fuchsia-100'
-                : 'border-white/10 bg-white/[0.04] text-white/55 hover:bg-white/10'
+            onClick={() => setCat(c.id)}
+            aria-pressed={cat === c.id}
+            className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all active:scale-95 ${
+              cat === c.id
+                ? 'border-sky-300/40 bg-sky-400/15 text-sky-100'
+                : 'border-white/10 bg-white/[0.04] text-white/50 hover:bg-white/10'
             }`}
           >
-            <i className={`${t.icon} text-[11px]`} aria-hidden />
-            {t.label}
+            <i className={`${c.icon} text-[10px]`} aria-hidden />
+            {c.label}
           </button>
         ))}
       </div>
-
-      {/* Palette d'objets */}
-      <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
-        Objets — touche pour poser
-      </p>
       <div className="mt-2 flex gap-1.5 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {OBJECT_PALETTE.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            onClick={() => addObject(o.id)}
-            className="flex h-[4.25rem] w-[4.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border border-white/10 bg-white/[0.04] transition-all hover:border-fuchsia-300/30 hover:bg-fuchsia-500/10 active:scale-90"
-            aria-label={`Poser : ${o.label}`}
-          >
-            <i className={`${o.icon} text-lg text-white/85`} aria-hidden />
-            <span className="text-[9px] font-medium text-white/45">{o.label}</span>
-          </button>
-        ))}
+        {OBJECT_PALETTE.filter((o) => cat === 'tous' || o.cat === cat).map((o) => {
+          const locked = !isUnlocked(o.id, o.price);
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => addObject(o.id)}
+              className="relative flex h-[4.75rem] w-[4.25rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/10 bg-white/[0.04] transition-all hover:border-fuchsia-300/30 hover:bg-fuchsia-500/10 active:scale-90"
+              aria-label={locked ? `Acheter : ${o.label} pour ${o.price} MochyHearts` : `Poser : ${o.label}`}
+            >
+              <i className={`${o.icon} text-lg ${locked ? 'text-white/35' : 'text-white/85'}`} aria-hidden />
+              <span className="max-w-full truncate px-1 text-[9px] font-medium text-white/45">{o.label}</span>
+              {locked && (
+                <span className="inline-flex items-center gap-0.5 text-[9px] font-black tabular-nums text-amber-300">
+                  <i className="fa-solid fa-heart text-[7px]" aria-hidden />
+                  {o.price}
+                </span>
+              )}
+              {locked && (
+                <i className="fa-solid fa-lock absolute right-1.5 top-1.5 text-[8px] text-white/40" aria-hidden />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Enregistrement / publication */}
@@ -817,6 +969,95 @@ export default function SceneBuilder({
           {toast}
         </div>
       )}
+
+      {/* Modale d'achat boutique (MochyHearts) */}
+      <AnimatePresence>
+        {buyTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => {
+              if (!buying) setBuyTarget(null);
+            }}
+            className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Acheter ${buyTarget.label}`}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 18, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.94, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xs rounded-3xl border border-white/12 bg-[#17121f] p-5 shadow-2xl shadow-black/60"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/10">
+                  <i className={`${buyTarget.icon} text-xl text-amber-200`} aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-white">{buyTarget.label}</p>
+                  <p className="text-[11px] text-white/45">
+                    {buyTarget.kind === 'theme' ? 'Scène (sol + ambiance)' : 'Décoration 3D'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
+                <span className="inline-flex items-center gap-1 text-sm font-black text-amber-300">
+                  <i className="fa-solid fa-heart text-xs" aria-hidden />
+                  {buyTarget.price.toLocaleString('fr-FR')}
+                </span>
+                <span className="text-[11px] font-medium tabular-nums text-white/50">
+                  solde : {hearts === null ? '…' : hearts.toLocaleString('fr-FR')}
+                </span>
+              </div>
+              {hearts !== null && hearts < buyTarget.price && (
+                <p className="mt-2 text-[11px] font-medium text-rose-300/90">
+                  Il te manque {(buyTarget.price - hearts).toLocaleString('fr-FR')} MochyHearts — caresse tes Mochies pour en gagner.
+                </p>
+              )}
+              <p className="mt-2.5 text-[11px] leading-snug text-white/40">
+                Achat définitif : cet article restera débloqué pour toujours sur ton compte.
+              </p>
+
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBuyTarget(null)}
+                  disabled={buying}
+                  className="flex-1 rounded-full border border-white/15 bg-white/[0.06] py-2.5 text-sm font-bold text-white/75 transition-all hover:bg-white/10 active:scale-95 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmBuy()}
+                  disabled={buying || (hearts !== null && hearts < buyTarget.price)}
+                  className="flex flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-rose-400 py-2.5 text-sm font-black text-[#2a0d18] shadow-lg shadow-amber-400/20 transition-all hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {buying ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin text-xs" aria-hidden />
+                      Achat…
+                    </>
+                  ) : hearts !== null && hearts < buyTarget.price ? (
+                    'Pas assez de cœurs'
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-heart text-xs" aria-hidden />
+                      Acheter
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

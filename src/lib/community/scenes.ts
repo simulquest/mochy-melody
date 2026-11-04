@@ -5,7 +5,7 @@
 // payload avec `validateScenePayload` avant écriture en base.
 // ---------------------------------------------------------------------------
 
-import { GROUND_IDS, OBJECT_IDS, getObjectDef } from './scene-objects';
+import { GROUND_THEMES, GROUND_IDS, OBJECT_IDS, getObjectDef } from './scene-objects';
 
 // ---------------------------------------------------------------------------
 // Format de sérialisation d'une scène (stocké en jsonb)
@@ -124,10 +124,22 @@ function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
 }
 
-function sanitizeObject(raw: unknown, idx: number): SceneObjectData | null {
+/**
+ * Articles déverrouillés par le joueur courant (achats MochyHearts).
+ * Les articles gratuits (prix 0) sont toujours autorisés.
+ */
+type OwnedSet = Set<string> | undefined;
+
+function isItemAllowed(type: string, owned: OwnedSet): boolean {
+  const def = getObjectDef(type);
+  if (!def) return false;
+  return def.price === 0 || (owned?.has(type) ?? false);
+}
+
+function sanitizeObject(raw: unknown, idx: number, owned: OwnedSet): SceneObjectData | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const o = raw as Record<string, unknown>;
-  if (typeof o.type !== 'string' || !OBJECT_IDS.has(o.type)) return null;
+  if (typeof o.type !== 'string' || !isItemAllowed(o.type, owned)) return null;
   if (!isFiniteNumber(o.x) || !isFiniteNumber(o.z)) return null;
 
   let x = Math.max(-SCENE_RADIUS, Math.min(SCENE_RADIUS, o.x));
@@ -156,8 +168,13 @@ function sanitizeObject(raw: unknown, idx: number): SceneObjectData | null {
 /**
  * Valide et normalise un payload de scène. Lève une Error avec un message
  * FR si le payload est invalide.
+ *
+ * `owned` = identifiants des articles payants possédés par le joueur
+ * (achats MochyHearts). Tout objet payant non possédé est retiré de la
+ * scène, et un thème payant non possédé est refusé : un client modifié ne
+ * peut pas publier une scène avec des décorations qu'il n'a pas achetées.
  */
-export function validateScenePayload(input: unknown): ScenePayload {
+export function validateScenePayload(input: unknown, owned?: Set<string>): ScenePayload {
   if (typeof input !== 'object' || input === null) {
     throw new Error('Payload de scène invalide');
   }
@@ -169,13 +186,20 @@ export function validateScenePayload(input: unknown): ScenePayload {
   }
 
   const d = (typeof p.data === 'object' && p.data !== null ? p.data : {}) as Record<string, unknown>;
-  const theme = typeof d.theme === 'string' && GROUND_IDS.has(d.theme) ? d.theme : 'prairie';
+  const themeDef =
+    typeof d.theme === 'string' && GROUND_IDS.has(d.theme)
+      ? GROUND_THEMES.find((t) => t.id === d.theme)
+      : undefined;
+  if (themeDef && themeDef.price > 0 && !(owned?.has(themeDef.id) ?? false)) {
+    throw new Error('Tu ne possèdes pas ce thème de sol');
+  }
+  const theme = themeDef?.id ?? 'prairie';
   const rawObjects = Array.isArray(d.objects) ? d.objects : [];
   if (rawObjects.length > MAX_OBJECTS) {
     throw new Error(`Trop d'objets (${rawObjects.length}), maximum ${MAX_OBJECTS}`);
   }
   const objects = rawObjects
-    .map((o, i) => sanitizeObject(o, i))
+    .map((o, i) => sanitizeObject(o, i, owned))
     .filter((o): o is SceneObjectData => o !== null);
 
   // --- Mochy central : hauteur (élévation) et taille

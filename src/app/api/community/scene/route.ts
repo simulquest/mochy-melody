@@ -12,7 +12,19 @@ export async function PUT(req: NextRequest) {
     const { user } = await requireUser();
     const supabase = getSupabaseAdmin();
 
-    const payload = validateScenePayload(await req.json().catch(() => null));
+    // Articles payants possédés (boutique MochyHearts) : le serveur vérifie
+    // que la scène n'utilise que des décorations achetées. Si la table des
+    // achats n'existe pas encore (SQL non exécuté), on considère le joueur
+    // sans achat — seuls les articles gratuits passent.
+    const unlocksRes = await supabase
+      .from('community_unlocks')
+      .select('item_id')
+      .eq('user_id', user.id);
+    const owned = unlocksRes.error
+      ? new Set<string>()
+      : new Set((unlocksRes.data ?? []).map((r) => r.item_id as string));
+
+    const payload = validateScenePayload(await req.json().catch(() => null), owned);
 
     const { data: existing } = await supabase
       .from('community_scenes')

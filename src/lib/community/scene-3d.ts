@@ -448,6 +448,451 @@ export function buildObjectGroup(type: string, color: string): THREE.Group {
       root.add(stringM);
       break;
     }
+    case 'palmier': {
+      // Tronc incurvé : segments empilés avec décalage progressif.
+      const segs = 4;
+      for (let i = 0; i < segs; i++) {
+        const s = cyl(0.13 - i * 0.012, 0.17 - i * 0.012, 0.52, '#8a6a44', 10);
+        s.position.set(i * 0.13, 0.24 + i * 0.48, 0);
+        s.rotation.z = -0.12;
+        root.add(s);
+      }
+      const topX = (segs - 1) * 0.13 + 0.05;
+      const topY = 0.24 + segs * 0.48;
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const frond = sphere(0.52, c, 12);
+        frond.scale.set(1, 0.16, 0.34);
+        frond.position.set(topX + Math.cos(a) * 0.44, topY - 0.02, Math.sin(a) * 0.44);
+        frond.rotation.y = -a;
+        frond.rotation.z = -0.35;
+        root.add(frond);
+      }
+      for (const dx of [-0.1, 0.12]) {
+        const coco = sphere(0.09, '#7a4a2b', 10);
+        coco.position.set(topX + dx, topY - 0.16, 0.05);
+        root.add(coco);
+      }
+      break;
+    }
+    case 'etang': {
+      const water = cyl(0.95, 1.05, 0.1, c, 26);
+      water.position.y = 0.05;
+      root.add(water);
+      const rim = cyl(1.12, 1.18, 0.09, '#8d7b62', 26);
+      rim.position.y = 0.03;
+      root.add(rim);
+      for (const [lx, lz] of [[0.25, 0.18], [-0.3, 0.05], [0.05, -0.32]] as const) {
+        const pad = cyl(0.16, 0.16, 0.03, '#3f9e5f', 12);
+        pad.position.set(lx, 0.12, lz);
+        root.add(pad);
+      }
+      const flower = sphere(0.08, '#f472b6', 10);
+      flower.position.set(0.25, 0.18, 0.18);
+      root.add(flower);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + 0.4;
+        const stone = new THREE.Mesh(
+          new THREE.DodecahedronGeometry(0.11, 0),
+          mat('#94a3b8', { roughness: 0.95 }),
+        );
+        stone.position.set(Math.cos(a) * 1.02, 0.1, Math.sin(a) * 1.02);
+        stone.rotation.y = a;
+        root.add(stone);
+      }
+      break;
+    }
+    case 'bonhomme_neige': {
+      const bottom = sphere(0.42, '#f4f7fb', 18);
+      bottom.position.y = 0.38;
+      root.add(bottom);
+      const middle = sphere(0.3, '#f4f7fb', 16);
+      middle.position.y = 0.94;
+      root.add(middle);
+      const head = sphere(0.24, '#f4f7fb', 16);
+      head.position.y = 1.32;
+      root.add(head);
+      for (const dx of [-0.09, 0.09]) {
+        const eye = sphere(0.028, '#1e1b2e', 6);
+        eye.position.set(dx, 1.37, 0.22);
+        root.add(eye);
+      }
+      const nose = cone(0.045, 0.2, '#fb923c', 8);
+      nose.position.set(0, 1.32, 0.3);
+      nose.rotation.x = Math.PI / 2;
+      root.add(nose);
+      const scarf = cyl(0.2, 0.23, 0.1, c, 14);
+      scarf.position.y = 1.12;
+      root.add(scarf);
+      const hatBrim = cyl(0.24, 0.24, 0.04, '#1e1b2e', 16);
+      hatBrim.position.y = 1.52;
+      root.add(hatBrim);
+      const hatTop = cyl(0.15, 0.17, 0.22, '#1e1b2e', 14);
+      hatTop.position.y = 1.65;
+      root.add(hatTop);
+      for (const dz of [0.1, -0.1]) {
+        const arm = box(0.55, 0.045, 0.045, '#7a4a2b');
+        arm.position.set(dz > 0 ? 0.34 : -0.34, 1.0, dz);
+        arm.rotation.z = dz > 0 ? -0.4 : 0.4;
+        arm.rotation.y = dz > 0 ? 0.2 : -0.2;
+        root.add(arm);
+      }
+      for (const bx of [-0.16, 0.05, 0.2]) {
+        const btn = sphere(0.035, '#334155', 6);
+        btn.position.set(bx, 0.95 - Math.abs(bx) * 0.5, 0.27);
+        root.add(btn);
+      }
+      break;
+    }
+    case 'cadeau': {
+      const boxM = box(0.62, 0.5, 0.62, c);
+      boxM.position.y = 0.25;
+      root.add(boxM);
+      const lid = box(0.7, 0.14, 0.7, c);
+      lid.position.y = 0.55;
+      root.add(lid);
+      const ribV = box(0.09, 0.52, 0.65, '#f8f4ec');
+      ribV.position.y = 0.26;
+      root.add(ribV);
+      const ribH = box(0.65, 0.52, 0.09, '#f8f4ec');
+      ribH.position.y = 0.26;
+      root.add(ribH);
+      const ribLidV = box(0.09, 0.16, 0.73, '#f8f4ec');
+      ribLidV.position.y = 0.55;
+      root.add(ribLidV);
+      const bow1 = sphere(0.09, '#f8f4ec', 10);
+      bow1.position.set(-0.08, 0.68, 0);
+      bow1.scale.set(1.2, 0.7, 0.8);
+      root.add(bow1);
+      const bow2 = sphere(0.09, '#f8f4ec', 10);
+      bow2.position.set(0.08, 0.68, 0);
+      bow2.scale.set(1.2, 0.7, 0.8);
+      root.add(bow2);
+      break;
+    }
+    case 'coeur': {
+      const shape = new THREE.Shape();
+      shape.moveTo(0, -0.42);
+      shape.bezierCurveTo(-0.5, -0.05, -0.44, 0.42, 0, 0.18);
+      shape.bezierCurveTo(0.44, 0.42, 0.5, -0.05, 0, -0.42);
+      const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.14, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 2 });
+      geo.center();
+      const heart = new THREE.Mesh(geo, mat(c, { roughness: 0.35 }));
+      heart.position.y = 0.55;
+      emissiveMesh(heart, c, 0.3);
+      root.add(heart);
+      break;
+    }
+    case 'statue': {
+      const pedestal = cyl(0.44, 0.5, 0.3, '#57506b', 18);
+      pedestal.position.y = 0.15;
+      root.add(pedestal);
+      const ringM = cyl(0.5, 0.5, 0.05, '#6d6484', 18);
+      ringM.position.y = 0.32;
+      root.add(ringM);
+      const stoneMat = mat('#c9c4d4', { roughness: 0.6, metalness: 0.12 });
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.36, 18, 14), stoneMat);
+      body.scale.set(1, 1.1, 0.9);
+      body.position.y = 0.72;
+      root.add(body);
+      const headM = new THREE.Mesh(new THREE.SphereGeometry(0.28, 18, 14), stoneMat);
+      headM.position.y = 1.26;
+      root.add(headM);
+      for (const dx of [-0.16, 0.16]) {
+        const ear = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.24, 10), stoneMat);
+        ear.position.set(dx, 1.54, 0);
+        root.add(ear);
+      }
+      const crown = cyl(0.14, 0.17, 0.1, c, 12);
+      crown.position.y = 1.5;
+      root.add(crown);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        const spike = cone(0.035, 0.1, c, 6);
+        spike.position.set(Math.cos(a) * 0.13, 1.6, Math.sin(a) * 0.13);
+        root.add(spike);
+      }
+      const plaque = box(0.3, 0.08, 0.04, c);
+      plaque.position.set(0, 0.32, 0.48);
+      root.add(plaque);
+      break;
+    }
+    case 'banc': {
+      const seat = box(1.15, 0.09, 0.38, c);
+      seat.position.y = 0.42;
+      root.add(seat);
+      const back = box(1.15, 0.42, 0.07, c);
+      back.position.set(0, 0.68, -0.16);
+      root.add(back);
+      for (const lx of [-0.48, 0.48]) {
+        const leg = box(0.09, 0.42, 0.34, c);
+        leg.position.set(lx, 0.21, 0);
+        root.add(leg);
+        const post = box(0.07, 0.3, 0.07, c);
+        post.position.set(lx, 0.72, -0.16);
+        root.add(post);
+      }
+      break;
+    }
+    case 'pont': {
+      const planks = 5;
+      for (let i = 0; i < planks; i++) {
+        const t = i / (planks - 1);
+        const x = -1.0 + t * 2.0;
+        const y = 0.16 + Math.sin(t * Math.PI) * 0.42;
+        const plank = box(0.48, 0.07, 0.6, c);
+        plank.position.set(x, y, 0);
+        plank.rotation.z = Math.cos(t * Math.PI) * 0.42;
+        root.add(plank);
+      }
+      for (const px of [-1.05, 1.05]) {
+        for (const pz of [-0.28, 0.28]) {
+          const post = cyl(0.06, 0.07, 0.5, c, 8);
+          post.position.set(px, 0.25, pz);
+          root.add(post);
+        }
+      }
+      const railL = box(2.2, 0.06, 0.06, c);
+      railL.position.set(0, 0.72, -0.28);
+      railL.rotation.z = 0.0;
+      root.add(railL);
+      const railR = box(2.2, 0.06, 0.06, c);
+      railR.position.set(0, 0.72, 0.28);
+      root.add(railR);
+      break;
+    }
+    case 'parasol': {
+      const base = cyl(0.24, 0.28, 0.08, '#57506b', 14);
+      base.position.y = 0.04;
+      root.add(base);
+      const pole = cyl(0.04, 0.05, 1.35, '#e2e8f0', 8);
+      pole.position.y = 0.72;
+      root.add(pole);
+      const canopy = cone(0.72, 0.42, c, 20);
+      canopy.position.y = 1.52;
+      root.add(canopy);
+      const canopyTop = cone(0.5, 0.3, c, 18);
+      canopyTop.position.y = 1.74;
+      root.add(canopyTop);
+      const tip = sphere(0.06, '#facc15', 8);
+      tip.position.y = 1.94;
+      root.add(tip);
+      break;
+    }
+    case 'guitare': {
+      const lower = sphere(0.36, c, 18);
+      lower.scale.set(1, 1.12, 0.42);
+      lower.position.y = 0.44;
+      root.add(lower);
+      const upper = sphere(0.26, c, 16);
+      upper.scale.set(1, 1.1, 0.42);
+      upper.position.y = 0.92;
+      root.add(upper);
+      const hole = cyl(0.1, 0.1, 0.03, '#1e1b2e', 12);
+      hole.rotation.x = Math.PI / 2;
+      hole.position.set(0, 0.86, 0.12);
+      root.add(hole);
+      const neck = box(0.09, 0.85, 0.06, '#7a4a2b');
+      neck.position.set(0, 1.5, 0);
+      root.add(neck);
+      const headM = box(0.17, 0.2, 0.05, '#5c3a20');
+      headM.position.set(0, 1.98, 0);
+      root.add(headM);
+      const bridge = box(0.2, 0.05, 0.03, '#5c3a20');
+      bridge.position.set(0, 0.38, 0.155);
+      root.add(bridge);
+      const stringM = box(0.02, 1.5, 0.012, '#e2e8f0');
+      stringM.position.set(0, 1.2, 0.155);
+      root.add(stringM);
+      root.rotation.z = 0.1;
+      break;
+    }
+    case 'cloche': {
+      for (const px of [-0.42, 0.42]) {
+        const post = cyl(0.055, 0.07, 1.1, '#7a4a2b', 10);
+        post.position.set(px, 0.55, 0);
+        root.add(post);
+      }
+      const bar = box(1.02, 0.09, 0.09, '#7a4a2b');
+      bar.position.y = 1.12;
+      root.add(bar);
+      const roof = cone(0.62, 0.28, '#8d7b62', 4);
+      roof.rotation.y = Math.PI / 4;
+      roof.position.y = 1.32;
+      root.add(roof);
+      const rope = cyl(0.02, 0.02, 0.28, '#b08050', 6);
+      rope.position.y = 0.94;
+      root.add(rope);
+      const bell = cyl(0.13, 0.3, 0.42, c, 18);
+      bell.position.y = 0.6;
+      root.add(bell);
+      const rim = cyl(0.31, 0.31, 0.05, c, 18);
+      rim.position.y = 0.4;
+      root.add(rim);
+      const clapper = sphere(0.06, '#57506b', 8);
+      clapper.position.y = 0.34;
+      root.add(clapper);
+      break;
+    }
+    case 'vinyle': {
+      const stand = box(0.5, 0.07, 0.34, '#2f2a44');
+      stand.position.y = 0.035;
+      root.add(stand);
+      const support = box(0.08, 0.4, 0.08, '#2f2a44');
+      support.position.set(0, 0.24, -0.14);
+      root.add(support);
+      const disc = cyl(0.46, 0.46, 0.05, '#15131f', 32);
+      disc.rotation.x = Math.PI / 2;
+      disc.rotation.z = 0.06;
+      disc.position.set(0, 0.56, 0.04);
+      root.add(disc);
+      const label = cyl(0.17, 0.17, 0.056, c, 20);
+      label.rotation.x = Math.PI / 2;
+      label.rotation.z = 0.06;
+      label.position.set(0, 0.56, 0.042);
+      root.add(label);
+      const holeM = cyl(0.025, 0.025, 0.06, '#e2e8f0', 8);
+      holeM.rotation.x = Math.PI / 2;
+      holeM.position.set(0, 0.56, 0.045);
+      root.add(holeM);
+      const shine = box(0.02, 0.5, 0.012, '#8f8ba8');
+      shine.rotation.x = Math.PI / 2;
+      shine.rotation.z = 0.5;
+      shine.position.set(0.18, 0.62, 0.07);
+      root.add(shine);
+      break;
+    }
+    case 'portail': {
+      for (const px of [-0.62, 0.62]) {
+        const stone = new THREE.Mesh(
+          new THREE.DodecahedronGeometry(0.16, 0),
+          mat('#57506b', { roughness: 0.9 }),
+        );
+        stone.position.set(px, 0.14, 0);
+        stone.rotation.y = px;
+        root.add(stone);
+        const pillar = cyl(0.09, 0.11, 1.5, '#3d365c', 10);
+        pillar.position.set(px, 0.85, 0);
+        root.add(pillar);
+      }
+      const ringM = new THREE.Mesh(
+        new THREE.TorusGeometry(0.56, 0.09, 14, 40),
+        mat(c, { roughness: 0.3, metalness: 0.3 }),
+      );
+      ringM.position.y = 1.42;
+      emissiveMesh(ringM, c, 0.55);
+      root.add(ringM);
+      const swirl = new THREE.Mesh(
+        new THREE.CircleGeometry(0.48, 36),
+        new THREE.MeshStandardMaterial({
+          color: new THREE.Color(c),
+          emissive: new THREE.Color(c),
+          emissiveIntensity: 0.85,
+          transparent: true,
+          opacity: 0.55,
+          side: THREE.DoubleSide,
+        }),
+      );
+      swirl.position.y = 1.42;
+      root.add(swirl);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + 0.7;
+        const spark = sphere(0.04, '#fde047', 6);
+        spark.position.set(Math.cos(a) * 0.72, 1.42 + Math.sin(a) * 0.72, 0);
+        emissiveMesh(spark, '#fde047', 1.4);
+        root.add(spark);
+      }
+      break;
+    }
+    case 'chapeau': {
+      const brim = cyl(0.52, 0.56, 0.07, c, 24);
+      brim.position.y = 0.06;
+      root.add(brim);
+      const coneM = cone(0.34, 0.85, c, 18);
+      coneM.position.y = 0.5;
+      coneM.rotation.z = 0.12;
+      root.add(coneM);
+      const band = cyl(0.3, 0.33, 0.12, '#1e1b2e', 16);
+      band.position.set(-0.03, 0.24, 0);
+      root.add(band);
+      const buckle = box(0.1, 0.08, 0.02, '#facc15');
+      buckle.position.set(-0.03, 0.24, 0.32);
+      root.add(buckle);
+      for (const [sx, sy] of [[-0.12, 0.55], [0.1, 0.75], [0, 0.95]] as const) {
+        const star = sphere(0.035, '#fde047', 6);
+        star.position.set(sx, sy, 0.16 + sy * 0.12);
+        emissiveMesh(star, '#fde047', 1.2);
+        root.add(star);
+      }
+      break;
+    }
+    case 'fusee': {
+      const bodyM = cyl(0.26, 0.3, 0.95, c, 18);
+      bodyM.position.y = 0.75;
+      root.add(bodyM);
+      const nose = cone(0.27, 0.55, '#f87171', 18);
+      nose.position.y = 1.5;
+      root.add(nose);
+      const ringM = cyl(0.31, 0.31, 0.08, '#f87171', 18);
+      ringM.position.y = 1.18;
+      root.add(ringM);
+      const windowFrame = new THREE.Mesh(
+        new THREE.TorusGeometry(0.11, 0.035, 10, 20),
+        mat('#334155'),
+      );
+      windowFrame.position.set(0, 0.95, 0.27);
+      root.add(windowFrame);
+      const glass = sphere(0.1, '#9be8ff', 12);
+      glass.scale.set(1, 1, 0.3);
+      glass.position.set(0, 0.95, 0.28);
+      emissiveMesh(glass, '#9be8ff', 0.5);
+      root.add(glass);
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2;
+        const fin = box(0.07, 0.4, 0.28, '#f87171');
+        fin.position.set(Math.cos(a) * 0.3, 0.36, Math.sin(a) * 0.3);
+        fin.rotation.y = -a;
+        root.add(fin);
+      }
+      const nozzle = cyl(0.14, 0.2, 0.14, '#334155', 12);
+      nozzle.position.y = 0.24;
+      root.add(nozzle);
+      const flame = cone(0.14, 0.4, '#fb923c', 12);
+      flame.position.y = 0.0;
+      flame.rotation.x = Math.PI;
+      emissiveMesh(flame, '#fb923c', 1.3);
+      root.add(flame);
+      break;
+    }
+    case 'ovni': {
+      const saucer = sphere(0.5, c, 24);
+      saucer.scale.set(1, 0.26, 1);
+      saucer.position.y = 0.52;
+      root.add(saucer);
+      const dome = sphere(0.24, '#9be8ff', 18);
+      dome.scale.set(1, 0.85, 1);
+      dome.position.y = 0.62;
+      const domeMat = dome.material as THREE.MeshStandardMaterial;
+      domeMat.transparent = true;
+      domeMat.opacity = 0.75;
+      emissiveMesh(dome, '#9be8ff', 0.5);
+      root.add(dome);
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const lightM = sphere(0.045, '#facc15', 8);
+        lightM.position.set(Math.cos(a) * 0.38, 0.47, Math.sin(a) * 0.38);
+        emissiveMesh(lightM, '#facc15', 1.4);
+        root.add(lightM);
+      }
+      const beam = cyl(0.08, 0.42, 0.5, '#9be8ff', 14);
+      beam.position.y = 0.26;
+      const beamMat = beam.material as THREE.MeshStandardMaterial;
+      beamMat.transparent = true;
+      beamMat.opacity = 0.3;
+      emissiveMesh(beam, '#9be8ff', 0.4);
+      root.add(beam);
+      break;
+    }
     default: {
       // Objets inconnus : sphère générique (ne doit jamais arriver après validation).
       const fallback = sphere(0.3, c, 12);
