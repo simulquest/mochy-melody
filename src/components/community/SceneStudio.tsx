@@ -12,8 +12,8 @@ import { apiGet } from '@/lib/market-client';
 import SceneBuilder from './SceneBuilder';
 
 // ---------------------------------------------------------------------------
-// SceneStudio — page « Mon studio » : charge le Mochy équipé + la scène
-// enregistrée du joueur, puis rend l'éditeur.
+// SceneStudio — page « Mon studio » : charge TOUS les Mochies possédés (pour
+// le sélecteur) + la scène enregistrée du joueur, puis rend l'éditeur.
 // ---------------------------------------------------------------------------
 
 function plushFromOwned(o: OwnedPlush | null): ScenePlush {
@@ -40,7 +40,12 @@ export default function SceneStudio() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [scene, setScene] = useState<SceneRow | null>(null);
+  /** Tous les Mochies possédés — le sélecteur du studio liste ces choix. */
+  const [plushes, setPlushes] = useState<ScenePlush[]>([]);
+  /** Mochy sélectionné au chargement du builder. */
   const [plush, setPlush] = useState<ScenePlush>(() => plushFromOwned(null));
+  /** Incrémenté quand la scène est supprimée pour remonter un builder neuf. */
+  const [builderKey, setBuilderKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,9 +59,27 @@ export default function SceneStudio() {
         ]);
         if (cancelled) return;
 
-        // Le Mochy équipé en mémoire (visite de /play) sinon le plus récent.
+        // Liste complète des Mochies possédés (fallback : Mochi par défaut).
+        const list = owned.map(plushFromOwned);
+        if (list.length === 0) list.push(plushFromOwned(null));
+
+        // Mochy initial : l'équipé (visite de /play) sinon le plus récent.
+        // Si la scène enregistrée utilise un Mochy précis, on le resélectionne ;
+        // s'il ne correspond plus à l'inventaire, on garde son instantané.
         const equipped = getEquippedPreset() ?? owned[0] ?? null;
-        setPlush(plushFromOwned(equipped));
+        let initial = equipped ? plushFromOwned(equipped) : list[0];
+        const savedPresetId = mine.scene?.plush?.preset?.id;
+        if (savedPresetId) {
+          const match = list.find((p) => p.preset?.id === savedPresetId);
+          if (match) {
+            initial = match;
+          } else if (mine.scene) {
+            list.unshift(mine.scene.plush);
+            initial = mine.scene.plush;
+          }
+        }
+        setPlushes(list);
+        setPlush(initial);
         setScene(mine.scene);
         setState('ready');
       } catch (err) {
@@ -113,7 +136,19 @@ export default function SceneStudio() {
           </button>
         </div>
       )}
-      {state === 'ready' && <SceneBuilder initialScene={scene} plush={plush} />}
+      {state === 'ready' && (
+        <SceneBuilder
+          key={builderKey}
+          initialScene={scene}
+          plushes={plushes}
+          initialPlush={plush}
+          onPublishedChange={(pub) => setScene((s) => (s ? { ...s, published: pub } : s))}
+          onDeleted={() => {
+            setScene(null);
+            setBuilderKey((k) => k + 1);
+          }}
+        />
+      )}
 
       <BottomNav active="community" />
     </main>

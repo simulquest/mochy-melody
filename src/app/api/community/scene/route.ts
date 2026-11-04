@@ -69,3 +69,52 @@ export async function PUT(req: NextRequest) {
     return handleApiError(err);
   }
 }
+
+/**
+ * PATCH /api/community/scene — dépublie la scène du joueur (retour en
+ * brouillon) sans toucher à son contenu. La galerie ne montre que les
+ * scènes `published`, la scène disparaît donc de la liste.
+ */
+export async function PATCH() {
+  try {
+    const { user } = await requireUser();
+    const supabase = getSupabaseAdmin();
+
+    const { data, error } = await supabase
+      .from('community_scenes')
+      .update({ published: false, updated_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .select('*')
+      .maybeSingle();
+    if (error) throw new Error(`dépublication: ${error.message}`);
+    if (!data) throw new Error('Aucune scène à dépublier');
+
+    return Response.json({ scene: data as SceneRow });
+  } catch (err) {
+    return handleApiError(err);
+  }
+}
+
+/**
+ * DELETE /api/community/scene — supprime définitivement la scène du joueur.
+ * Les votes et commentaires liés disparaissent en cascade (ON DELETE CASCADE).
+ */
+export async function DELETE() {
+  try {
+    const { user } = await requireUser();
+    const supabase = getSupabaseAdmin();
+
+    const { data, error } = await supabase
+      .from('community_scenes')
+      .delete()
+      .eq('user_id', user.id)
+      .select('id')
+      .maybeSingle();
+    if (error) throw new Error(`suppression: ${error.message}`);
+    if (!data) throw new Error('Aucune scène à supprimer');
+
+    return Response.json({ ok: true });
+  } catch (err) {
+    return handleApiError(err);
+  }
+}

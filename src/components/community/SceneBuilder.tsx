@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -29,6 +29,7 @@ import {
   PLUSH_MAX_SCALE,
   PLUSH_MAX_Y,
   PLUSH_MIN_SCALE,
+  SCENE_DRAFT_KEY,
   SCENE_RADIUS,
   type SceneObjectData,
   type ScenePlush,
@@ -48,7 +49,6 @@ import { useSiteTheme } from '@/components/theme/ThemeProvider';
 // structurels (ajout, suppression, couleur, thème, chargement).
 // ---------------------------------------------------------------------------
 
-const DRAFT_KEY = 'mochy-scene-draft';
 const THUMB_W = 480;
 const THUMB_H = 300;
 
@@ -63,10 +63,20 @@ interface BuyTarget {
 
 export default function SceneBuilder({
   initialScene,
-  plush,
+  plushes,
+  initialPlush,
+  onPublishedChange,
+  onDeleted,
 }: {
   initialScene: SceneRow | null;
-  plush: ScenePlush;
+  /** Tous les Mochies possédés — proposés dans le sélecteur du studio. */
+  plushes: ScenePlush[];
+  /** Mochy affiché au chargement (équipé, ou instantané de la scène enregistrée). */
+  initialPlush: ScenePlush;
+  /** Prévient le studio que l'état publié a changé (dépublication). */
+  onPublishedChange?: (published: boolean) => void;
+  /** Prévient le studio que la scène a été supprimée définitivement. */
+  onDeleted?: () => void;
 }) {
   const router = useRouter();
   const siteTheme = useSiteTheme();
@@ -78,10 +88,14 @@ export default function SceneBuilder({
   );
   const [plushY, setPlushY] = useState<number>(initialScene?.data?.plushY ?? 0);
   const [plushScale, setPlushScale] = useState<number>(initialScene?.data?.plushScale ?? 1);
+  // Mochy affiché au centre : au chargement c'est `initialPlush` (équipé ou
+  // snapshot de la scène), puis l'utilisateur peut le changer via le sélecteur.
+  const [plushSel, setPlushSel] = useState<ScenePlush>(initialPlush);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [published, setPublished] = useState(initialScene?.published ?? false);
   const [dirty, setDirty] = useState(false);
-  const [busy, setBusy] = useState<'save' | 'publish' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'publish' | 'unpublish' | 'delete' | null>(null);
+  const [confirm, setConfirm] = useState<'unpublish' | 'delete' | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   // ----- Boutique MochyHearts : articles possédés + solde + achat en cours
@@ -105,7 +119,22 @@ export default function SceneBuilder({
   const orbitRef = useRef({ ...ORBIT_DEFAULT });
   const resizeRef = useRef<() => void>(() => {});
 
-  const plushKey = JSON.stringify(plush);
+  const plushKey = JSON.stringify(plushSel);
+
+  /** Choix du sélecteur : tous les Mochies possédés + le Mochy courant s'il
+   * provient d'un ancien instantané de scène absent de l'inventaire. */
+  const plushChoices = useMemo(() => {
+    const list = [...plushes];
+    const key = (p: ScenePlush) => `${p.species_id}|${p.preset?.id ?? ''}`;
+    if (!list.some((p) => key(p) === key(plushSel))) list.unshift(plushSel);
+    return list;
+  }, [plushes, plushSel]);
+
+  /** Change le Mochy au centre (le monde se reconstruit via `plushKey`). */
+  const selectPlush = useCallback((p: ScenePlush) => {
+    setPlushSel((cur) => (JSON.stringify(cur) === JSON.stringify(p) ? cur : p));
+    setDirty(true);
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -504,7 +533,7 @@ export default function SceneBuilder({
   useEffect(() => {
     if (initialScene) return;
     try {
-      const raw = localStorage.getItem(DRAFT_KEY);
+      const raw = localStorage.getItem(SCENE_DRAFT_KEY);
       if (!raw) return;
       const d = JSON.parse(raw) as {
         title?: string;
@@ -531,7 +560,7 @@ export default function SceneBuilder({
     const id = window.setTimeout(() => {
       try {
         localStorage.setItem(
-          DRAFT_KEY,
+          SCENE_DRAFT_KEY,
           JSON.stringify({
             title,
             themeId,
@@ -686,6 +715,51 @@ export default function SceneBuilder({
     [busy, captureThumbnail, plushKey, router, showToast, themeId, title],
   );
 
+  /** Dépublie la scène (retour en brouillon — la galerie ne l'affiche plus). */
+  const unpublish = useCallback(async () => {
+    if (busy) return;
+    setBusy('unpublish');
+    try {
+      const res = await fetch('/api/community/scene', { method: 'PATCH', cache: 'no-store' });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error || 'Dépublication impossible');
+      setPublished(false);
+      setDirty(false);
+      setConfirm(null);
+      onPublishedChange?.(false);
+      showToast('Scène dépubliée — retour en brouillon');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Dépublication impossible');
+    } finally {
+      setBusy(null);
+    }
+  }, [busy, onPublishedChange, showToast]);
+
+  /** Supprime définitivement la scène (votes et commentaires perdus). */
+  const destroy = useCallback(async () => {
+    if (busy) return;
+    setBusy('delete');
+    try {
+      const res = await fetch('/api/community/scene', { method: 'DELETE', cache: 'no-store' });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error || 'Suppression impossible');
+      try {
+        localStorage.removeItem(SCENE_DRAFT_KEY);
+      } catch {
+        // stockage indisponible : on ignore
+      }
+      setPublished(false);
+      setDirty(false);
+      setConfirm(null);
+      showToast('Scène supprimée');
+      onDeleted?.();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Suppression impossible');
+    } finally {
+      setBusy(null);
+    }
+  }, [busy, onDeleted, showToast]);
+
   // ------------------------------------------------------------------ Rendu
   const selDef = selectedObj ? getObjectDef(selectedObj.type) : null;
 
@@ -801,16 +875,55 @@ export default function SceneBuilder({
         )}
       </div>
 
-      {/* Contrôles du Mochy : hauteur + taille */}
+      {/* Contrôles du Mochy : choix du Mochy + hauteur + taille */}
       <div className="mt-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
             <i className="fa-solid fa-paw text-fuchsia-300" aria-hidden />
             Mochy
           </span>
-          <span className="text-[10px] font-medium text-white/30">glisse pour ajuster</span>
+          <span className="text-[10px] font-medium text-white/30">touche pour changer</span>
         </div>
-        <label className="mt-2 flex items-center gap-2.5">
+
+        {/* Sélecteur du Mochy au centre — parmi ceux que l'on possède */}
+        <div
+          className="mt-2 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          role="listbox"
+          aria-label="Choisir le Mochy au centre de la scène"
+        >
+          {plushChoices.map((p) => {
+            const active = JSON.stringify(p) === plushKey;
+            return (
+              <button
+                key={`${p.species_id}-${p.preset?.id ?? 'none'}`}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => selectPlush(p)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full border py-1.5 pl-2 pr-3 text-xs font-semibold transition-all active:scale-95 ${
+                  active
+                    ? 'border-fuchsia-300/40 bg-fuchsia-500/20 text-fuchsia-100'
+                    : 'border-white/10 bg-white/[0.04] text-white/55 hover:bg-white/10'
+                }`}
+              >
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full border border-white/25"
+                  style={{ background: p.preset?.root ?? '#c9b6a8' }}
+                  aria-hidden
+                />
+                <span className="max-w-28 truncate">{p.preset?.name ?? 'Mochi'}</span>
+                {p.mutation ? (
+                  <i
+                    className="fa-solid fa-wand-magic-sparkles text-[9px] text-amber-300"
+                    aria-label="Mutation"
+                  />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        <label className="mt-1.5 flex items-center gap-2.5">
           <span className="w-14 shrink-0 text-[10px] font-bold text-white/55">Hauteur</span>
           <input
             type="range"
@@ -960,6 +1073,37 @@ export default function SceneBuilder({
         {dirty ? ' • modifications non enregistrées' : ''}
       </p>
 
+      {/* Gérer le post : dépublier / supprimer (uniquement si déjà enregistrée) */}
+      {initialScene && (
+        <div className="mt-2.5 flex items-center justify-between gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-2.5">
+          <span className="text-[11px] font-medium leading-snug text-white/40">
+            Gérer ta publication
+          </span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {published && (
+              <button
+                type="button"
+                onClick={() => setConfirm('unpublish')}
+                disabled={busy !== null}
+                className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 active:scale-95 disabled:opacity-50"
+              >
+                <i className="fa-solid fa-eye-slash text-[11px]" aria-hidden />
+                Dépublier
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setConfirm('delete')}
+              disabled={busy !== null}
+              className="flex items-center gap-1.5 rounded-full border border-rose-300/25 bg-rose-500/15 px-3 py-1.5 text-xs font-bold text-rose-200 transition-all hover:bg-rose-500/25 active:scale-95 disabled:opacity-50"
+            >
+              <i className="fa-solid fa-trash text-[11px]" aria-hidden />
+              Supprimer
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
         <div
@@ -1050,6 +1194,93 @@ export default function SceneBuilder({
                     <>
                       <i className="fa-solid fa-heart text-xs" aria-hidden />
                       Acheter
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Modale de confirmation dépublier / supprimer */}
+      <AnimatePresence>
+        {confirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => {
+              if (busy === null) setConfirm(null);
+            }}
+            className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label={confirm === 'delete' ? 'Supprimer ta scène' : 'Dépublier ta scène'}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 18, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.94, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xs rounded-3xl border border-white/12 bg-[#17121f] p-5 shadow-2xl shadow-black/60"
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                    confirm === 'delete'
+                      ? 'border border-rose-300/25 bg-rose-500/15'
+                      : 'border border-white/15 bg-white/[0.06]'
+                  }`}
+                >
+                  <i
+                    className={`${confirm === 'delete' ? 'fa-solid fa-trash text-rose-200' : 'fa-solid fa-eye-slash text-white/75'} text-lg`}
+                    aria-hidden
+                  />
+                </span>
+                <p className="text-sm font-black text-white">
+                  {confirm === 'delete' ? 'Supprimer ta scène ?' : 'Dépublier ta scène ?'}
+                </p>
+              </div>
+              <p className="mt-3 text-[12px] leading-relaxed text-white/55">
+                {confirm === 'delete'
+                  ? 'Elle disparaît de la galerie communautaire avec ses votes et ses commentaires. Action définitive.'
+                  : 'Elle sort de la galerie mais reste dans ton studio en brouillon — tu pourras la republier quand tu veux.'}
+              </p>
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirm(null)}
+                  disabled={busy !== null}
+                  className="flex-1 rounded-full border border-white/15 bg-white/[0.06] py-2.5 text-sm font-bold text-white/75 transition-all hover:bg-white/10 active:scale-95 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void (confirm === 'delete' ? destroy() : unpublish())}
+                  disabled={busy !== null}
+                  className={`flex flex-[1.4] items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-black text-white shadow-lg transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 ${
+                    confirm === 'delete'
+                      ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-rose-500/25'
+                      : 'bg-gradient-to-r from-fuchsia-500 to-pink-500 shadow-fuchsia-500/25'
+                  }`}
+                >
+                  {busy === 'delete' || busy === 'unpublish' ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin text-xs" aria-hidden />
+                      …
+                    </>
+                  ) : confirm === 'delete' ? (
+                    <>
+                      <i className="fa-solid fa-trash text-xs" aria-hidden />
+                      Supprimer
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-eye-slash text-xs" aria-hidden />
+                      Dépublier
                     </>
                   )}
                 </button>

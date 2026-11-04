@@ -35,6 +35,8 @@ export default function CommunityGallery() {
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
   const [detail, setDetail] = useState<CommunitySceneView | null>(null);
+  const [confirmDel, setConfirmDel] = useState<CommunitySceneView | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -67,6 +69,25 @@ export default function CommunityGallery() {
     const id = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
+
+  /** Supprime sa propre scène (définitif : votes + commentaires perdus). */
+  const doDelete = useCallback(async () => {
+    if (!confirmDel || deleting) return;
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/community/scene', { method: 'DELETE', cache: 'no-store' });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error || 'Suppression impossible');
+      setDetail(null);
+      setConfirmDel(null);
+      showToast('Scène supprimée');
+      void load(sort);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Suppression impossible');
+    } finally {
+      setDeleting(false);
+    }
+  }, [confirmDel, deleting, load, showToast, sort]);
 
   const weekLeft = useMemo(
     () => (data ? new Date(data.week_end).getTime() - now : 0),
@@ -251,6 +272,7 @@ export default function CommunityGallery() {
                   scene={s}
                   onOpen={() => setDetail(s)}
                   onVote={() => void toggleVote(s)}
+                  onAskDelete={setConfirmDel}
                 />
               ))}
             </div>
@@ -265,8 +287,78 @@ export default function CommunityGallery() {
             scene={detail}
             onClose={() => setDetail(null)}
             onVote={() => void toggleVote(detail)}
+            onAskDelete={setConfirmDel}
             onToast={showToast}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Confirmation de suppression de sa propre scène */}
+      <AnimatePresence>
+        {confirmDel && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => {
+              if (!deleting) setConfirmDel(null);
+            }}
+            className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Supprimer ta scène"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 18, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.94, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xs rounded-3xl border border-white/12 bg-[#17121f] p-5 shadow-2xl shadow-black/60"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-rose-300/25 bg-rose-500/15">
+                  <i className="fa-solid fa-trash text-lg text-rose-200" aria-hidden />
+                </span>
+                <p className="min-w-0 text-sm font-black text-white">
+                  Supprimer « {confirmDel.title} » ?
+                </p>
+              </div>
+              <p className="mt-3 text-[12px] leading-relaxed text-white/55">
+                Ta scène sort de la galerie avec ses votes et ses commentaires.
+                Action définitive — tu pourras en recréer une au studio.
+              </p>
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDel(null)}
+                  disabled={deleting}
+                  className="flex-1 rounded-full border border-white/15 bg-white/[0.06] py-2.5 text-sm font-bold text-white/75 transition-all hover:bg-white/10 active:scale-95 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void doDelete()}
+                  disabled={deleting}
+                  className="flex flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-rose-500 to-red-500 py-2.5 text-sm font-black text-white shadow-lg shadow-rose-500/25 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin text-xs" aria-hidden />
+                      Suppression…
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-trash text-xs" aria-hidden />
+                      Supprimer
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -293,10 +385,12 @@ function SceneCard({
   scene,
   onOpen,
   onVote,
+  onAskDelete,
 }: {
   scene: CommunitySceneView;
   onOpen: () => void;
   onVote: () => void;
+  onAskDelete: (scene: CommunitySceneView) => void;
 }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-lg shadow-black/30 transition-colors hover:border-white/20">
@@ -340,6 +434,33 @@ function SceneCard({
           {scene.votes_total}
         </button>
       </div>
+      {/* Gestion de sa propre scène : modifier au studio / supprimer */}
+      {scene.mine && (
+        <div className="flex items-center justify-between border-t border-white/[0.05] px-3 py-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/30">
+            Ta scène
+          </span>
+          <div className="flex items-center gap-1">
+            <Link
+              href="/community/studio"
+              aria-label="Modifier ta scène au studio"
+              title="Modifier au studio"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/60 transition-all hover:bg-white/15 hover:text-white active:scale-90"
+            >
+              <i className="fa-solid fa-pen text-[10px]" aria-hidden />
+            </Link>
+            <button
+              type="button"
+              onClick={() => onAskDelete(scene)}
+              aria-label="Supprimer ta scène"
+              title="Supprimer"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-rose-300/20 bg-rose-500/10 text-rose-300/90 transition-all hover:bg-rose-500/25 active:scale-90"
+            >
+              <i className="fa-solid fa-trash text-[10px]" aria-hidden />
+            </button>
+          </div>
+        </div>
+      )}
     </article>
   );
 }
@@ -352,11 +473,13 @@ function SceneDetail({
   scene,
   onClose,
   onVote,
+  onAskDelete,
   onToast,
 }: {
   scene: CommunitySceneView;
   onClose: () => void;
   onVote: () => void;
+  onAskDelete: (scene: CommunitySceneView) => void;
   onToast: (msg: string) => void;
 }) {
   const [comments, setComments] = useState<CommentItem[] | null>(null);
@@ -451,6 +574,30 @@ function SceneDetail({
           <i className="fa-solid fa-arrow-up" aria-hidden />
           {scene.my_vote ? 'Voté !' : 'Voter pour cette scène'} · {scene.votes_total}
         </button>
+
+        {/* Gestion de sa propre scène */}
+        {scene.mine && (
+          <div className="mt-2 flex items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <span className="text-[11px] font-semibold text-white/45">C’est ta scène</span>
+            <div className="flex items-center gap-1.5">
+              <Link
+                href="/community/studio"
+                className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 active:scale-95"
+              >
+                <i className="fa-solid fa-pen text-[10px]" aria-hidden />
+                Modifier
+              </Link>
+              <button
+                type="button"
+                onClick={() => onAskDelete(scene)}
+                className="flex items-center gap-1.5 rounded-full border border-rose-300/25 bg-rose-500/15 px-3 py-1.5 text-xs font-bold text-rose-200 transition-all hover:bg-rose-500/25 active:scale-95"
+              >
+                <i className="fa-solid fa-trash text-[10px]" aria-hidden />
+                Supprimer
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Commentaires */}
         <h3 className="mt-5 text-[11px] font-bold uppercase tracking-[0.18em] text-white/40">

@@ -71,6 +71,8 @@ export interface CommunitySceneView extends SceneRow {
   author: { user_id: string; display_name: string; avatar_url: string | null };
   /** Vrai si l'utilisateur courant a voté pour cette scène. */
   my_vote: boolean;
+  /** Vrai si la scène appartient à l'utilisateur courant (peut la modifier/supprimer). */
+  mine?: boolean;
 }
 
 export interface WeeklyWinner {
@@ -110,6 +112,8 @@ export const MAX_OBJECTS = 60;
 export const MAX_TITLE = 60;
 export const MAX_COMMENT = 300;
 export const MAX_THUMBNAIL_CHARS = 240_000;
+/** Clé localStorage du brouillon du studio (partagée builder ↔ studio). */
+export const SCENE_DRAFT_KEY = 'mochy-scene-draft';
 export const SCENE_RADIUS = 7.2;      // rayon utile du sol
 export const MIN_CENTER_DIST = 1.15;  // zone réservée au Mochy central
 export const PLUSH_MAX_Y = 2.4;       // élévation max du Mochy

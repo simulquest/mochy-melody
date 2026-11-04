@@ -105,6 +105,7 @@ export async function GET(req: NextRequest) {
         avatar_url: null,
       },
       my_vote: votedIds.has(s.id),
+      mine: user?.id === s.user_id,
     }));
 
     // ----- Palmarès de la semaine passée (le plus récent archivé)

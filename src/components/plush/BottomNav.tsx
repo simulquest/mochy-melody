@@ -13,7 +13,7 @@ const ITEMS: {
 }[] = [
   { id: 'lootbox', href: '/play?view=lootbox', icon: 'fa-solid fa-gift', label: 'Lootbox' },
   { id: 'collection', href: '/play?view=collection', icon: 'fa-solid fa-paw', label: 'Ma collection' },
-  { id: 'community', href: '/community', icon: 'fa-solid fa-planet-moon', label: 'Communauté' },
+  { id: 'community', href: '/community', icon: 'fa-solid fa-users', label: 'Communauté' },
   { id: 'market', href: '/market', icon: 'fa-solid fa-store', label: 'Marché' },
   { id: 'shop', href: '/shop', icon: 'fa-solid fa-cart-shopping', label: 'Boutique' },
 ];
