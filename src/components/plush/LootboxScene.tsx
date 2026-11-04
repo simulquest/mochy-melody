@@ -626,7 +626,7 @@ export default function LootboxScene({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.28 }}
-      className="fixed inset-0 z-[120]"
+      className={pageMode ? 'fixed inset-0 z-30' : 'fixed inset-0 z-[120]'}
       role="dialog"
       aria-modal="true"
       aria-label={
@@ -675,8 +675,9 @@ export default function LootboxScene({
         )}
       </AnimatePresence>
 
-      {/* barre supérieure : rareté + paliers + fermer */}
+      {/* barre supérieure : rareté + paliers + compteur de coffres + fermer */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-6">
+        <div className="flex items-stretch gap-2 sm:gap-3">
         <div className="pointer-events-none rounded-2xl border border-white/10 bg-black/40 px-4 py-3 backdrop-blur-xl">
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">Lootbox</p>
           <div className="mt-1 flex items-baseline gap-2">
@@ -704,6 +705,23 @@ export default function LootboxScene({
           )}
         </div>
 
+        {/* compteur de coffres — à côté du panneau de rareté */}
+        <div
+          className="pointer-events-none flex items-center gap-2 rounded-2xl border border-white/10 bg-black/40 px-3 py-3 backdrop-blur-xl sm:px-4"
+          aria-live="polite"
+          aria-label={`${chestsAvailable} coffres disponibles sur ${MAX_CHESTS}`}
+        >
+          <Gift className="h-5 w-5 shrink-0 text-amber-300" aria-hidden />
+          <span className="flex items-baseline gap-1">
+            <b className="text-2xl font-black leading-none tabular-nums text-white">{chestsAvailable}</b>
+            <span className="text-sm font-bold text-white/40">/ {MAX_CHESTS}</span>
+          </span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/50">
+            coffres
+          </span>
+        </div>
+        </div>
+
         <div className="pointer-events-auto flex items-center gap-2">
           {!pageMode && (
             <button
@@ -717,7 +735,7 @@ export default function LootboxScene({
         </div>
       </div>
 
-      {/* barre inférieure : nombre de coffres + recharge
+      {/* barre inférieure : recharge / état des coffres
           (relevée en mode page pour laisser place à la navigation basse) */}
       <div
         className={`pointer-events-none absolute inset-x-0 z-10 flex flex-col items-center gap-3 p-4 sm:gap-4 sm:p-6 ${
@@ -726,23 +744,6 @@ export default function LootboxScene({
             : 'bottom-0 pb-[max(1.1rem,env(safe-area-inset-bottom))]'
         }`}
       >
-        <div
-          className="flex items-end gap-3 rounded-3xl border border-white/10 bg-black/50 px-6 py-4 backdrop-blur-xl"
-          aria-live="polite"
-          aria-label={`${chestsAvailable} coffres disponibles sur ${MAX_CHESTS}`}
-        >
-          <Gift className="mb-1 h-9 w-9 shrink-0 text-amber-300" aria-hidden />
-          <span className="flex items-baseline gap-1.5">
-            <b className="text-5xl font-black leading-none tabular-nums text-white sm:text-6xl">
-              {chestsAvailable}
-            </b>
-            <span className="text-lg font-bold text-white/40">/ {MAX_CHESTS}</span>
-          </span>
-          <span className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">
-            coffres
-          </span>
-        </div>
-
         {refillActive ? (
           <div
             className="flex items-center gap-3 rounded-full border border-amber-300/40 bg-black/60 px-5 py-2.5 shadow-[0_0_28px_rgba(251,191,36,0.28)] backdrop-blur-xl sm:px-6"
