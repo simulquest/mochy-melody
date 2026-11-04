@@ -40,7 +40,12 @@ export function playGameSound(sound: GameSound) {
   });
 }
 
+/** Musique de fond désactivée pour le moment (demandée le 05/11/2026).
+ * Remettre à true pour la réactiver d'un seul coup. */
+const BACKGROUND_MUSIC_ENABLED = false;
+
 export function startBackgroundMusic() {
+  if (!BACKGROUND_MUSIC_ENABLED) return;
   if (typeof window === 'undefined') return;
 
   backgroundMusic ??= new Audio('/api/sound/background-music.mp3');

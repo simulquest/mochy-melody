@@ -34,10 +34,6 @@ import {
   fetchRemoteOwned,
   ownedStackKey,
 } from '@/lib/plush/lootbox-remote';
-import {
-  playGameSound,
-  preloadGameSounds,
-} from '@/lib/plush/game-audio';
 
 type View =
   | { type: 'lootbox' }
@@ -69,21 +65,8 @@ export default function PlushWorld() {
     }
   }, [viewParam]);
 
-  useEffect(() => {
-    preloadGameSounds();
-    const playButtonSound = (event: MouseEvent) => {
-      const target = event.target;
-      if (target instanceof Element && target.closest('button:not(:disabled)')) {
-        playGameSound('button');
-      }
-    };
-    document.addEventListener('click', playButtonSound, true);
-    return () => {
-      document.removeEventListener('click', playButtonSound, true);
-      // La musique est gérée par AudioProvider (layout) : elle ne doit pas
-      // s'arrêter quand on quitte la page /play.
-    };
-  }, []);
+  // Le son de clic des boutons/onglets et le précharge des sons sont gérés
+  // globalement par AudioProvider (layout) — voir src/components/audio.
 
   useEffect(() => {
     try {
