@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, Backpack, Sparkles, X, Check, Clock, ChevronDown } from 'lucide-react';
 import { PlushPreset } from '@/lib/plush/plush-shape';
@@ -97,8 +98,6 @@ interface LootboxProps {
   embedded?: boolean;
   /** La lootbox est la page principale du jeu (plein écran dès le chargement). */
   pageMode?: boolean;
-  /** Depuis la page lootbox, ouvre la collection. */
-  onNavigateCollection?: () => void;
 }
 
 export default function Lootbox({
@@ -110,8 +109,8 @@ export default function Lootbox({
   onInventoryChanged,
   embedded = false,
   pageMode = false,
-  onNavigateCollection,
 }: LootboxProps) {
+  const router = useRouter();
   const [persist, setPersist] = useState<LootboxPersist | null>(null);
   const [mounted, setMounted] = useState(false);
   const [reveal, setReveal] = useState<OwnedPlush | null>(null);
@@ -608,7 +607,6 @@ export default function Lootbox({
             onClick={handleBoxClick}
             onOpenComplete={handleOpenComplete}
             onClose={closeScene}
-            onCollection={pageMode ? onNavigateCollection : undefined}
             pageMode={pageMode}
           />,
           document.body,
@@ -729,7 +727,9 @@ export default function Lootbox({
                         onClick={(e) => {
                           e.stopPropagation();
                           if (pageMode) {
-                            onNavigateCollection?.();
+                            // La navigation basse est couverte par la récompense :
+                            // on va directement à la collection.
+                            router.push('/play?view=collection');
                           } else {
                             setReveal(null);
                             setScenePhase('idle');

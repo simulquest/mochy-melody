@@ -1,10 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft,
   Coins,
   Gavel,
   Backpack,
@@ -15,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import ListingCard from '@/components/market/ListingCard';
+import BottomNav from '@/components/plush/BottomNav';
 import SellDialog from '@/components/market/SellDialog';
 import BidDialog from '@/components/market/BidDialog';
 import CardPriceChart from '@/components/market/CardPriceChart';
@@ -127,13 +126,6 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
       {/* En-tête */}
       <header className="sticky top-0 z-40 border-b border-white/10 bg-theme-bg/85 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-4xl items-center gap-3 px-5 py-3">
-          <Link
-            href="/play"
-            aria-label="Retour au jeu"
-            className="shrink-0 rounded-full border border-white/10 bg-white/5 p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-          </Link>
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-black tracking-tight text-white sm:text-xl">
               Marché
@@ -188,7 +180,7 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-4xl px-5 py-6">
+      <main className="mx-auto w-full max-w-4xl px-5 pb-28 py-6">
         {tab === 'sales' && (
           <SalesTab currentUserId={me.profile.user_id} onBid={setBidTarget} refreshKey={tick} />
         )}
@@ -293,11 +285,14 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
           setSellPreselect(null);
           setSellOpen(true);
         }}
-        className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 px-5 py-3 text-sm font-bold text-white shadow-2xl shadow-fuchsia-900/40 transition-transform hover:scale-105 active:scale-95"
+        className="fixed bottom-24 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 px-5 py-3 text-sm font-bold text-white shadow-2xl shadow-fuchsia-900/40 transition-transform hover:scale-105 active:scale-95"
       >
         <Tag className="h-4 w-4" aria-hidden />
         Vendre
       </button>
+
+      {/* Navigation basse commune */}
+      <BottomNav active="market" />
     </div>
   );
 }

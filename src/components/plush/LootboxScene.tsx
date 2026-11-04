@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MousePointerClick, Clock, Gift, Backpack } from 'lucide-react';
+import { X, MousePointerClick, Clock, Gift } from 'lucide-react';
 import {
   RARITIES,
   OwnedPlush,
@@ -94,8 +94,6 @@ interface LootboxSceneProps {
   onClick: () => void;
   onOpenComplete: () => void;
   onClose: () => void;
-  /** Ouvre la collection depuis l'écran principal (mode page). */
-  onCollection?: () => void;
   /** Plein écran permanent : la lootbox est la page principale du jeu. */
   pageMode?: boolean;
 }
@@ -121,7 +119,6 @@ export default function LootboxScene({
   onClick,
   onOpenComplete,
   onClose,
-  onCollection,
   pageMode = false,
 }: LootboxSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -708,16 +705,6 @@ export default function LootboxScene({
         </div>
 
         <div className="pointer-events-auto flex items-center gap-2">
-          {onCollection && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onCollection(); }}
-              aria-label="Voir ma collection"
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-4 py-2.5 text-xs font-semibold text-white/75 backdrop-blur-xl transition-colors hover:bg-white/15 hover:text-white"
-            >
-              <Backpack className="h-4 w-4 text-fuchsia-200" aria-hidden />
-              Ma collection
-            </button>
-          )}
           {!pageMode && (
             <button
               onClick={(e) => { e.stopPropagation(); onClose(); }}
@@ -730,8 +717,15 @@ export default function LootboxScene({
         </div>
       </div>
 
-      {/* barre inférieure : nombre de coffres + recharge */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-3 p-4 pb-[max(1.1rem,env(safe-area-inset-bottom))] sm:gap-4 sm:p-6">
+      {/* barre inférieure : nombre de coffres + recharge
+          (relevée en mode page pour laisser place à la navigation basse) */}
+      <div
+        className={`pointer-events-none absolute inset-x-0 z-10 flex flex-col items-center gap-3 p-4 sm:gap-4 sm:p-6 ${
+          pageMode
+            ? 'bottom-[4.6rem]'
+            : 'bottom-0 pb-[max(1.1rem,env(safe-area-inset-bottom))]'
+        }`}
+      >
         <div
           className="flex items-end gap-3 rounded-3xl border border-white/10 bg-black/50 px-6 py-4 backdrop-blur-xl"
           aria-live="polite"

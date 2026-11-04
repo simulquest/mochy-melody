@@ -1,3 +1,5 @@
+'use client';
+
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import { getSpecies } from '@/lib/plush/species';
 

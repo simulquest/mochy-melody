@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronDown, Gift, Store } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Gift } from 'lucide-react';
+import BottomNav from '@/components/plush/BottomNav';
 import PlushExperience from '@/components/plush/PlushExperience';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import CoinBalance from '@/components/plush/CoinBalance';
@@ -45,6 +46,9 @@ type View =
 
 export default function PlushWorld() {
   const router = useRouter();
+  // Navigation basse : ?view=lootbox|collection pilote la vue interne de /play.
+  const searchParams = useSearchParams();
+  const viewParam = searchParams.get('view');
   const [view, setView] = useState<View>({ type: 'lootbox' });
   const [unlocked, setUnlocked] = useState<string[]>([]);
   const [ownedCards, setOwnedCards] = useState<OwnedPlush[]>([]);
@@ -55,6 +59,15 @@ export default function PlushWorld() {
   const [selectedByShape, setSelectedByShape] = useState<Record<string, string>>({});
   const prevEquippedRef = useRef<string | null>(null);
   const unlockedRef = useRef<string[]>([]);
+
+  // Synchronise la vue interne avec le paramètre d'URL (liens de la barre basse).
+  useEffect(() => {
+    if (viewParam === 'collection') {
+      setView((prev) => (prev.type === 'collection' ? prev : { type: 'collection' }));
+    } else if (viewParam === 'lootbox') {
+      setView((prev) => (prev.type === 'lootbox' ? prev : { type: 'lootbox' }));
+    }
+  }, [viewParam]);
 
   useEffect(() => {
     preloadGameSounds();
@@ -213,7 +226,6 @@ export default function PlushWorld() {
             onEquip={equipFromLootbox}
             onCelebrate={() => {}}
             onInventoryChanged={updateOwnedCards}
-            onNavigateCollection={openCollection}
           />
         )}
         {view.type === 'collection' && (
@@ -258,6 +270,11 @@ export default function PlushWorld() {
         onOpenCollection={openCollection}
         onNavigateToMarket={navigateToMarket}
         onStepChange={handleTutorialStep}
+      />
+      {/* Navigation basse commune — la vue espèce reste rattachée à la collection */}
+      <BottomNav
+        active={view.type === 'lootbox' ? 'lootbox' : 'collection'}
+        tutorialMarket
       />
     </>
   );
@@ -403,7 +420,7 @@ function CollectionView({
 
   return (
     <div className="h-full overflow-y-auto overscroll-contain bg-theme-bg">
-      <div className="mx-auto w-full max-w-4xl px-5 pb-16 pt-8 sm:pt-12">
+      <div className="mx-auto w-full max-w-4xl px-5 pb-32 pt-8 sm:pt-12">
         <header>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
@@ -414,22 +431,6 @@ function CollectionView({
                 <CoinBalance />
                 <MochyWallet />
               </span>
-              <button
-                type="button"
-                onClick={onOpenLootbox}
-                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-fuchsia-300/25 bg-fuchsia-400/[0.08] px-4 py-2 text-xs font-semibold text-fuchsia-100/90 transition-all hover:bg-fuchsia-400/[0.15] hover:text-white active:scale-95"
-              >
-                <Gift className="h-3.5 w-3.5 text-amber-300" aria-hidden />
-                Lootbox
-              </button>
-              <Link
-                href="/market"
-                data-tutorial="market"
-                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80 transition-all hover:bg-white/10 hover:text-white active:scale-95"
-              >
-                <Store className="h-3.5 w-3.5 text-amber-300" aria-hidden />
-                Marché
-              </Link>
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/50">

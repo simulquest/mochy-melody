@@ -8,7 +8,6 @@ import {
   Sparkles,
   ArrowLeft,
   Dna,
-  Store,
   Tag,
 } from 'lucide-react';
 import { PlushEngine } from '@/lib/plush/plush-engine';
@@ -293,19 +292,6 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
             />
           </motion.div>
 
-          <motion.button
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1, ease: 'easeOut' }}
-            onClick={() => router.push('/market')}
-            data-tutorial="market"
-            className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-white/80 backdrop-blur-md transition-colors hover:bg-white/10 hover:text-white"
-            aria-label="Ouvrir le marché des cartes"
-          >
-            <Store className="h-4 w-4 text-amber-300" aria-hidden />
-            <span className="hidden text-xs font-medium sm:inline">Marché</span>
-          </motion.button>
-
           {/* Vendre cette peluche — ouvre la modale de vente pré-sélectionnée */}
           <motion.button
             initial={{ opacity: 0, y: -12 }}
@@ -337,7 +323,7 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' }}
-        className="pointer-events-none absolute bottom-6 left-5 z-10 flex max-w-[min(20rem,calc(100vw-8rem))] items-start gap-1.5 text-xs leading-relaxed text-white/55 sm:bottom-8 sm:left-7 sm:text-sm"
+        className="pointer-events-none absolute bottom-24 left-5 z-10 flex max-w-[min(20rem,calc(100vw-8rem))] items-start gap-1.5 text-xs leading-relaxed text-white/55 sm:bottom-24 sm:left-7 sm:text-sm"
       >
         <Hand className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/40" aria-hidden />
         <span>{species.tagline}</span>
