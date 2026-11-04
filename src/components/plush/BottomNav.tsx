@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-export type BottomNavSection = 'lootbox' | 'collection' | 'market' | 'shop';
+export type BottomNavSection = 'lootbox' | 'collection' | 'community' | 'market' | 'shop';
 
 const ITEMS: {
   id: BottomNavSection;
@@ -13,6 +13,7 @@ const ITEMS: {
 }[] = [
   { id: 'lootbox', href: '/play?view=lootbox', icon: 'fa-solid fa-gift', label: 'Lootbox' },
   { id: 'collection', href: '/play?view=collection', icon: 'fa-solid fa-paw', label: 'Ma collection' },
+  { id: 'community', href: '/community', icon: 'fa-solid fa-planet-moon', label: 'Communauté' },
   { id: 'market', href: '/market', icon: 'fa-solid fa-store', label: 'Marché' },
   { id: 'shop', href: '/shop', icon: 'fa-solid fa-cart-shopping', label: 'Boutique' },
 ];
@@ -47,7 +48,7 @@ export default function BottomNav({
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
               data-tutorial={item.id === 'market' && tutorialMarket ? 'market' : undefined}
-              className={`flex h-11 w-14 items-center justify-center rounded-full text-[17px] leading-none transition-all active:scale-90 ${
+              className={`flex h-11 w-[3.05rem] items-center justify-center rounded-full text-[16.5px] leading-none transition-all active:scale-90 ${
                 isActive
                   ? 'bg-gradient-to-br from-fuchsia-500/35 to-pink-500/20 text-fuchsia-100 shadow-[inset_0_0_0_1px_rgba(232,121,249,0.35)]'
                   : 'text-white/45 hover:bg-white/5 hover:text-white/85'
