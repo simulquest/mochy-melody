@@ -35,6 +35,14 @@ import {
   type ScenePlush,
   type SceneRow,
 } from '@/lib/community/scenes';
+import PlushPreview3D from '@/components/plush/PlushPreview3D';
+import { getSpecies, type PlushSpecies } from '@/lib/plush/species';
+import {
+  isDefaultMutation,
+  mutationRarity,
+  rarityColor,
+  type PlushMutation,
+} from '@/lib/plush/mutations';
 import { buildPlushForScene } from './SceneViewer3D';
 import { useSiteTheme } from '@/components/theme/ThemeProvider';
 
@@ -97,6 +105,8 @@ export default function SceneBuilder({
   const [busy, setBusy] = useState<'save' | 'publish' | 'unpublish' | 'delete' | null>(null);
   const [confirm, setConfirm] = useState<'unpublish' | 'delete' | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  /** Modale de choix du Mochy (previews 3D des Mochies possédés). */
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // ----- Boutique MochyHearts : articles possédés + solde + achat en cours
   const [owned, setOwned] = useState<ReadonlySet<string>>(new Set());
@@ -885,43 +895,33 @@ export default function SceneBuilder({
           <span className="text-[10px] font-medium text-white/30">touche pour changer</span>
         </div>
 
-        {/* Sélecteur du Mochy au centre — parmi ceux que l'on possède */}
-        <div
-          className="mt-2 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          role="listbox"
-          aria-label="Choisir le Mochy au centre de la scène"
+        {/* Bouton Mochy — ouvre la modale de choix (previews 3D des possédés) */}
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          aria-haspopup="dialog"
+          className="mt-2 flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-left transition-all hover:border-fuchsia-300/25 hover:bg-white/[0.08] active:scale-[0.99]"
         >
-          {plushChoices.map((p) => {
-            const active = JSON.stringify(p) === plushKey;
-            return (
-              <button
-                key={`${p.species_id}-${p.preset?.id ?? 'none'}`}
-                type="button"
-                role="option"
-                aria-selected={active}
-                onClick={() => selectPlush(p)}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full border py-1.5 pl-2 pr-3 text-xs font-semibold transition-all active:scale-95 ${
-                  active
-                    ? 'border-fuchsia-300/40 bg-fuchsia-500/20 text-fuchsia-100'
-                    : 'border-white/10 bg-white/[0.04] text-white/55 hover:bg-white/10'
-                }`}
-              >
-                <span
-                  className="h-3 w-3 shrink-0 rounded-full border border-white/25"
-                  style={{ background: p.preset?.root ?? '#c9b6a8' }}
-                  aria-hidden
-                />
-                <span className="max-w-28 truncate">{p.preset?.name ?? 'Mochi'}</span>
-                {p.mutation ? (
-                  <i
-                    className="fa-solid fa-wand-magic-sparkles text-[9px] text-amber-300"
-                    aria-label="Mutation"
-                  />
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
+          <span className="flex min-w-0 items-center gap-2.5">
+            <span
+              className="h-8 w-8 shrink-0 rounded-full border border-white/20"
+              style={{
+                background: `radial-gradient(circle at 32% 30%, ${plushSel.preset?.tip ?? '#ffffff'} 0%, ${plushSel.preset?.body ?? '#a98f7d'} 55%, ${plushSel.preset?.root ?? '#c9b6a8'} 100%)`,
+              }}
+              aria-hidden
+            />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-bold text-white">
+                {plushSel.preset?.name ?? 'Mochi'}
+              </span>
+              <span className="block text-[10px] font-medium text-white/40">au centre de ta scène</span>
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500/20 to-pink-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-fuchsia-200">
+            Changer
+            <i className="fa-solid fa-chevron-down text-[9px]" aria-hidden />
+          </span>
+        </button>
 
         <label className="mt-1.5 flex items-center gap-2.5">
           <span className="w-14 shrink-0 text-[10px] font-bold text-white/55">Hauteur</span>
@@ -1202,6 +1202,132 @@ export default function SceneBuilder({
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Modale de choix du Mochy — previews 3D façon Ma collection */}
+      <AnimatePresence>
+        {pickerOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setPickerOpen(false)}
+            className="fixed inset-0 z-[150] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choisir le Mochy au centre de la scène"
+          >
+            <motion.div
+              initial={{ y: 44, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 44, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-3xl border border-white/12 bg-[#17121f] p-4 shadow-2xl shadow-black/60 sm:rounded-3xl sm:p-5"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="flex min-w-0 items-center gap-2.5 text-sm font-black text-white">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-fuchsia-300/25 bg-fuchsia-500/10">
+                    <i className="fa-solid fa-paw text-sm text-fuchsia-200" aria-hidden />
+                  </span>
+                  Choisis ton Mochy
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(false)}
+                  aria-label="Fermer"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/60 transition-colors hover:bg-white/15"
+                >
+                  <i className="fa-solid fa-xmark text-sm" aria-hidden />
+                </button>
+              </div>
+
+              {/* Grille des Mochies possédés — même rendu 3D que la collection */}
+              <div className="mt-3 grid max-h-[56dvh] grid-cols-2 gap-2 overflow-y-auto pr-0.5 sm:grid-cols-3">
+                {plushChoices.map((p) => {
+                  const sp = safeSpecies(p.species_id || 'mochi');
+                  const preset = p.preset ?? sp.preset;
+                  const mut = (p.mutation ?? null) as PlushMutation | null;
+                  const active = JSON.stringify(p) === plushKey;
+                  return (
+                    <button
+                      key={`${p.species_id}-${p.preset?.id ?? 'none'}`}
+                      type="button"
+                      onClick={() => {
+                        selectPlush(p);
+                        setPickerOpen(false);
+                      }}
+                      aria-pressed={active}
+                      aria-label={
+                        active
+                          ? `${preset.name} est déjà au centre de la scène`
+                          : `Mettre ${preset.name} au centre de la scène`
+                      }
+                      className={`flex flex-col gap-1.5 rounded-2xl border p-1.5 text-left transition-all active:scale-95 ${
+                        active
+                          ? 'border-fuchsia-300/40 bg-fuchsia-500/10'
+                          : 'border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.07]'
+                      }`}
+                    >
+                      <span
+                        className="relative flex h-24 w-full items-center justify-center overflow-hidden rounded-xl border border-white/10"
+                        style={{
+                          background: `radial-gradient(circle at 32% 28%, ${preset.tip} 0%, ${preset.body} 55%, ${preset.root} 100%)`,
+                        }}
+                      >
+                        <PlushPreview3D species={sp} preset={preset} mutation={mut} size={92} />
+                        <span
+                          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-white/10"
+                          aria-hidden
+                        />
+                        {active && (
+                          <span className="absolute left-1 top-1 rounded-full bg-fuchsia-400/90 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">
+                            Au centre
+                          </span>
+                        )}
+                      </span>
+                      <span className="flex items-center gap-1 px-0.5">
+                        <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-white">
+                          {preset.name}
+                        </span>
+                        {mut && !isDefaultMutation(mut) && (
+                          <i
+                            className="fa-solid fa-wand-magic-sparkles shrink-0 text-[10px]"
+                            style={{ color: rarityColor(mutationRarity(mut)) }}
+                            aria-label="Version mutée"
+                          />
+                        )}
+                      </span>
+                      <span
+                        className={`mx-0.5 rounded-full py-1 text-center text-[10px] font-black uppercase tracking-wide ${
+                          active
+                            ? 'bg-white/[0.06] text-white/40'
+                            : 'bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white'
+                        }`}
+                      >
+                        {active ? 'Affiché' : 'Utiliser'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+                <p className="text-[11px] leading-snug text-white/45">
+                  Un Mochy manquant ? Retrouve tous les tiens dans ta collection.
+                </p>
+                <Link
+                  href="/play?view=collection"
+                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-fuchsia-300/30 bg-fuchsia-500/15 px-3 py-1.5 text-xs font-bold text-fuchsia-100 transition-colors hover:bg-fuchsia-500/25"
+                >
+                  <i className="fa-solid fa-paw text-[11px]" aria-hidden />
+                  Ma collection
+                </Link>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Modale de confirmation dépublier / supprimer */}
       <AnimatePresence>
         {confirm && (
@@ -1319,4 +1445,14 @@ function ActionBtn({
       <i className={`${icon} text-[13px]`} aria-hidden />
     </button>
   );
+}
+
+/** Espèce sûre pour les previews : retombe sur le Mochi de base si l'id
+ * enregistré dans la scène ne correspond plus à aucune espèce connue. */
+function safeSpecies(id: string): PlushSpecies {
+  try {
+    return getSpecies(id);
+  } catch {
+    return getSpecies('mochi');
+  }
 }
