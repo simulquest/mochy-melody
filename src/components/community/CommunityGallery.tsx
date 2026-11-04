@@ -25,7 +25,8 @@ interface CommentItem {
 
 type ListResponse = CommunityListResponse & { needs_setup?: boolean };
 
-const MEDALS = ['🥇', '🥈', '🥉'];
+/** Couleurs des médailles top 3 (icône fa-medal, or / argent / bronze). */
+const MEDAL_COLORS = ['text-amber-300', 'text-slate-200', 'text-amber-600'];
 
 export default function CommunityGallery() {
   const [sort, setSort] = useState<'top' | 'new'>('top');
@@ -106,7 +107,7 @@ export default function CommunityGallery() {
     return (
       <main className="flex min-h-[100dvh] w-full flex-col items-center justify-center bg-theme-bg px-6 pb-24 text-center">
         <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl backdrop-blur-xl">
-          <div className="text-4xl" aria-hidden>🏗️</div>
+          <i className="fa-solid fa-helmet-safety text-4xl text-white/30" aria-hidden />
           <h1 className="mt-3 text-xl font-black tracking-tight text-white">
             La communauté arrive !
           </h1>
@@ -127,7 +128,7 @@ export default function CommunityGallery() {
         <header className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-white">
-              <i className="fa-solid fa-planet-moon mr-2 text-fuchsia-300" aria-hidden />
+              <i className="fa-solid fa-earth-americas mr-2 text-fuchsia-300" aria-hidden />
               Communauté
             </h1>
             <p className="mt-1 text-xs leading-relaxed text-white/50">
@@ -167,14 +168,20 @@ export default function CommunityGallery() {
                   href={`/community?scene=${w.scene_id}`}
                   className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-2 pr-3.5 transition-colors hover:bg-white/10"
                 >
-                  <span className="text-base" aria-hidden>
-                    {MEDALS[w.rank - 1] ?? `${w.rank}ᵉ`}
-                  </span>
+                  {w.rank <= 3 ? (
+                    <i
+                      className={`fa-solid fa-medal text-base ${MEDAL_COLORS[w.rank - 1]}`}
+                      aria-hidden
+                    />
+                  ) : (
+                    <span className="text-[10px] font-black text-white/45">{w.rank}ᵉ</span>
+                  )}
                   <span className="max-w-36 truncate text-xs font-bold text-white/80">
                     {w.title}
                   </span>
-                  <span className="text-[10px] font-semibold text-amber-300/80">
-                    +{w.coins} 🪙
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-300/80">
+                    +{w.coins}
+                    <i className="fa-solid fa-coins text-[9px]" aria-hidden />
                   </span>
                 </Link>
               ))}
@@ -223,7 +230,7 @@ export default function CommunityGallery() {
           </div>
         ) : data && data.scenes.length === 0 ? (
           <div className="mt-10 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center">
-            <div className="text-4xl" aria-hidden>🎨</div>
+            <i className="fa-solid fa-palette text-4xl text-white/30" aria-hidden />
             <h2 className="mt-3 text-lg font-black text-white">Aucune scène publiée</h2>
             <p className="mt-1 text-sm text-white/55">
               Sois le premier à décorer ton monde et à décrocher la 1ʳᵉ place&nbsp;!

@@ -31,6 +31,10 @@ export interface SceneData {
   /** Identifiant de thème de sol. */
   theme: string;
   objects: SceneObjectData[];
+  /** Élévation du Mochy central (0 → 2.4). */
+  plushY?: number;
+  /** Taille du Mochy central (0.6 → 1.6). */
+  plushScale?: number;
 }
 
 /** Instantané du Mochy affiché au centre de la scène. */
@@ -108,6 +112,9 @@ export const MAX_COMMENT = 300;
 export const MAX_THUMBNAIL_CHARS = 240_000;
 export const SCENE_RADIUS = 7.2;      // rayon utile du sol
 export const MIN_CENTER_DIST = 1.15;  // zone réservée au Mochy central
+export const PLUSH_MAX_Y = 2.4;       // élévation max du Mochy
+export const PLUSH_MIN_SCALE = 0.6;   // taille min du Mochy
+export const PLUSH_MAX_SCALE = 1.6;   // taille max du Mochy
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -171,6 +178,14 @@ export function validateScenePayload(input: unknown): ScenePayload {
     .map((o, i) => sanitizeObject(o, i))
     .filter((o): o is SceneObjectData => o !== null);
 
+  // --- Mochy central : hauteur (élévation) et taille
+  const plushY = isFiniteNumber(d.plushY)
+    ? Math.max(0, Math.min(PLUSH_MAX_Y, d.plushY))
+    : 0;
+  const plushScale = isFiniteNumber(d.plushScale)
+    ? Math.max(PLUSH_MIN_SCALE, Math.min(PLUSH_MAX_SCALE, d.plushScale))
+    : 1;
+
   // --- Instantané du Mochy
   const pl = (typeof p.plush === 'object' && p.plush !== null ? p.plush : {}) as Record<string, unknown>;
   const speciesId =
@@ -218,7 +233,7 @@ export function validateScenePayload(input: unknown): ScenePayload {
 
   return {
     title,
-    data: { theme, objects },
+    data: { theme, objects, plushY, plushScale },
     plush: { species_id: speciesId, preset, mutation },
     thumbnail,
     publish,

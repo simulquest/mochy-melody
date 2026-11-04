@@ -485,7 +485,11 @@ export function buildSceneWorld(
 
   if (plushGroup) {
     // Le Mochy est assis au centre, légèrement tourné vers la caméra.
+    // Sa hauteur (élévation) et sa taille sont personnalisables.
     plushGroup.rotation.y = 0.35;
+    plushGroup.position.y = data.plushY ?? 0;
+    plushGroup.scale.setScalar(data.plushScale ?? 1);
+    plushGroup.userData.isPlush = true;
     group.add(plushGroup);
   }
 
@@ -495,6 +499,14 @@ export function buildSceneWorld(
   const world: SceneWorld = { group, objectsRoot, theme };
   applyObjects(world, data.objects);
   return world;
+}
+
+/** Applique la hauteur / taille du Mochy central sans reconstruire le monde. */
+export function applyPlushTransform(world: SceneWorld, y: number, scale: number) {
+  const plush = world.group.children.find((c) => c.userData.isPlush);
+  if (!plush) return;
+  plush.position.y = y;
+  plush.scale.setScalar(scale);
 }
 
 /** (Re)construit tous les objets posés depuis les données. */
@@ -559,16 +571,29 @@ export function applyOrbit(camera: THREE.PerspectiveCamera, o: OrbitState) {
 }
 
 export function sceneLights(scene: THREE.Scene, theme: GroundTheme) {
-  scene.add(new THREE.HemisphereLight(0xffffff, new THREE.Color(theme.hemiGround), 1.15));
+  // Retire d'abord les lumières d'un rendu précédent : sans ce nettoyage,
+  // chaque changement de thème / reconstruction empilait 4 lumières
+  // supplémentaires et la scène devenait de plus en plus lumineuse.
+  for (let i = scene.children.length - 1; i >= 0; i--) {
+    const c = scene.children[i];
+    if (c.userData?.isSceneLight) {
+      scene.remove(c);
+      (c as THREE.Light).dispose();
+    }
+  }
+
+  const hemi = new THREE.HemisphereLight(0xffffff, new THREE.Color(theme.hemiGround), 1.15);
   const key = new THREE.DirectionalLight(0xffffff, 1.15);
-  key.position.set(4, 7, 5);
-  scene.add(key);
   const fill = new THREE.DirectionalLight(0xffe6ff, 0.4);
-  fill.position.set(-4, 3, -3);
-  scene.add(fill);
   const front = new THREE.PointLight(0xfff2dc, 0.9, 18);
+  const lights = [hemi, key, fill, front];
+  for (const l of lights) {
+    l.userData.isSceneLight = true;
+    scene.add(l);
+  }
+  key.position.set(4, 7, 5);
+  fill.position.set(-4, 3, -3);
   front.position.set(0, 2.4, 7);
-  scene.add(front);
 }
 
 export { UP };

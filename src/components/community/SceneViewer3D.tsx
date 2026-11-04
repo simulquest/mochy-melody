@@ -169,12 +169,17 @@ export default function SceneViewer3D({
     // ----- Boucle de rendu
     const clock = new THREE.Clock();
     const autoRotateRef = { current: autoRotate };
+    // Caméra lissée : l'orbite / le zoom rattrapent la cible en douceur.
+    const smooth = { ...orbit };
     const loop = () => {
       if (disposed) return;
       const t = clock.getElapsedTime();
       animateSceneWorld(world, t);
       if (autoRotateRef.current) orbit.theta += 0.0022;
-      applyOrbit(camera, orbit);
+      smooth.theta += (orbit.theta - smooth.theta) * 0.18;
+      smooth.phi += (orbit.phi - smooth.phi) * 0.18;
+      smooth.radius += (orbit.radius - smooth.radius) * 0.18;
+      applyOrbit(camera, smooth);
       renderer.render(scene, camera);
       rafId = requestAnimationFrame(loop);
     };

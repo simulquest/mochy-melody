@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 import * as THREE from 'three';
 import {
   animateSceneWorld,
   applyObjects,
   applyOrbit,
+  applyPlushTransform,
   buildObjectGroup,
   buildSceneWorld,
   ORBIT_DEFAULT,
@@ -18,11 +20,13 @@ import {
   GROUND_THEMES,
   OBJECT_CATALOG as OBJECT_PALETTE,
   getObjectDef,
-  SCENE_COLORS,
 } from '@/lib/community/scene-objects';
 import {
   MAX_OBJECTS,
   MIN_CENTER_DIST,
+  PLUSH_MAX_SCALE,
+  PLUSH_MAX_Y,
+  PLUSH_MIN_SCALE,
   SCENE_RADIUS,
   type SceneObjectData,
   type ScenePlush,
@@ -61,6 +65,8 @@ export default function SceneBuilder({
   const [objects, setObjects] = useState<SceneObjectData[]>(
     initialScene?.data?.objects ?? [],
   );
+  const [plushY, setPlushY] = useState<number>(initialScene?.data?.plushY ?? 0);
+  const [plushScale, setPlushScale] = useState<number>(initialScene?.data?.plushScale ?? 1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [published, setPublished] = useState(initialScene?.published ?? false);
   const [dirty, setDirty] = useState(false);
@@ -75,6 +81,8 @@ export default function SceneBuilder({
   const worldRef = useRef<SceneWorld | null>(null);
   const ringRef = useRef<THREE.Mesh | null>(null);
   const objectsRef = useRef<SceneObjectData[]>(objects);
+  const plushYRef = useRef(plushY);
+  const plushScaleRef = useRef(plushScale);
   const selectedRef = useRef<string | null>(null);
   const orbitRef = useRef({ ...ORBIT_DEFAULT });
   const resizeRef = useRef<() => void>(() => {});
@@ -91,6 +99,24 @@ export default function SceneBuilder({
     objectsRef.current = next;
     setObjects(next);
     setDirty(true);
+  }, []);
+
+  /** Change la hauteur du Mochy en direct (sans rebuild du monde). */
+  const changePlushY = useCallback((y: number) => {
+    const v = Math.max(0, Math.min(PLUSH_MAX_Y, y));
+    plushYRef.current = v;
+    setPlushY(v);
+    setDirty(true);
+    if (worldRef.current) applyPlushTransform(worldRef.current, v, plushScaleRef.current);
+  }, []);
+
+  /** Change la taille du Mochy en direct (sans rebuild du monde). */
+  const changePlushScale = useCallback((s: number) => {
+    const v = Math.max(PLUSH_MIN_SCALE, Math.min(PLUSH_MAX_SCALE, s));
+    plushScaleRef.current = v;
+    setPlushScale(v);
+    setDirty(true);
+    if (worldRef.current) applyPlushTransform(worldRef.current, plushYRef.current, v);
   }, []);
 
   // ------------------------------------------------------------------ Montage
@@ -298,6 +324,9 @@ export default function SceneBuilder({
 
     // ----- Boucle de rendu
     const clock = new THREE.Clock();
+    // Caméra lissée : la position réelle rattrape la cible orbitale à chaque
+    // frame (zoom / rotation / pincement bien plus fluides).
+    const smooth = { ...orbitRef.current };
     const loop = () => {
       if (disposed) return;
       const t = clock.getElapsedTime();
@@ -314,7 +343,10 @@ export default function SceneBuilder({
           }
         }
       }
-      applyOrbit(camera, orbitRef.current);
+      smooth.theta += (orbitRef.current.theta - smooth.theta) * 0.22;
+      smooth.phi += (orbitRef.current.phi - smooth.phi) * 0.22;
+      smooth.radius += (orbitRef.current.radius - smooth.radius) * 0.22;
+      applyOrbit(camera, smooth);
       renderer.render(scene, camera);
       rafId = requestAnimationFrame(loop);
     };
@@ -364,7 +396,12 @@ export default function SceneBuilder({
     }
     const parsedPlush = JSON.parse(plushKey) as ScenePlush;
     const world = buildSceneWorld(
-      { theme: themeId, objects: objectsRef.current },
+      {
+        theme: themeId,
+        objects: objectsRef.current,
+        plushY: plushYRef.current,
+        plushScale: plushScaleRef.current,
+      },
       buildPlushForScene(parsedPlush, siteTheme),
     );
     scene.add(world.group);
@@ -391,6 +428,8 @@ export default function SceneBuilder({
         title?: string;
         themeId?: string;
         objects?: SceneObjectData[];
+        plushY?: number;
+        plushScale?: number;
       };
       if (d.title) setTitle(d.title);
       if (d.themeId && GROUND_THEMES.some((t) => t.id === d.themeId)) setThemeId(d.themeId);
@@ -398,6 +437,8 @@ export default function SceneBuilder({
         objectsRef.current = d.objects;
         setObjects(d.objects);
       }
+      if (typeof d.plushY === 'number') changePlushY(d.plushY);
+      if (typeof d.plushScale === 'number') changePlushScale(d.plushScale);
     } catch {
       // brouillon corrompu : on ignore
     }
@@ -409,14 +450,20 @@ export default function SceneBuilder({
       try {
         localStorage.setItem(
           DRAFT_KEY,
-          JSON.stringify({ title, themeId, objects: objectsRef.current }),
+          JSON.stringify({
+            title,
+            themeId,
+            objects: objectsRef.current,
+            plushY: plushYRef.current,
+            plushScale: plushScaleRef.current,
+          }),
         );
       } catch {
         // stockage plein : on ignore
       }
     }, 700);
     return () => clearTimeout(id);
-  }, [title, themeId, objects]);
+  }, [title, themeId, objects, plushY, plushScale]);
 
   // ------------------------------------------------------- Actions objets
   const addObject = useCallback(
@@ -507,7 +554,12 @@ export default function SceneBuilder({
       try {
         const payload = {
           title,
-          data: { theme: themeId, objects: objectsRef.current },
+          data: {
+            theme: themeId,
+            objects: objectsRef.current,
+            plushY: plushYRef.current,
+            plushScale: plushScaleRef.current,
+          },
           plush: JSON.parse(plushKey) as ScenePlush,
           ...(publish ? { thumbnail: captureThumbnail() ?? undefined } : {}),
           publish,
@@ -534,12 +586,14 @@ export default function SceneBuilder({
   );
 
   // ------------------------------------------------------------------ Rendu
+  const selDef = selectedObj ? getObjectDef(selectedObj.type) : null;
+
   return (
     <div className="mx-auto w-full max-w-xl px-3 pb-44 pt-3">
       {/* Canvas d'édition */}
       <div
-        className="relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/40"
-        style={{ height: '44dvh' }}
+        className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl shadow-black/40"
+        style={{ height: '50dvh' }}
       >
         <canvas
           ref={canvasRef}
@@ -547,8 +601,16 @@ export default function SceneBuilder({
           aria-label="Éditeur 3D de ta scène"
         />
 
+        {/* Indicateur Mochy (hauteur / taille) */}
+        <div className="pointer-events-none absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-2.5 py-1.5 backdrop-blur-md">
+          <i className="fa-solid fa-paw text-[10px] text-fuchsia-300" aria-hidden />
+          <span className="text-[10px] font-bold tabular-nums text-white/75">
+            h&nbsp;{plushY.toFixed(1)} · {Math.round(plushScale * 100)}%
+          </span>
+        </div>
+
         {/* Zoom */}
-        <div className="absolute right-2 top-2 flex flex-col gap-1">
+        <div className="absolute right-2.5 top-2.5 flex flex-col gap-1.5">
           <button
             type="button"
             onClick={() => {
@@ -571,26 +633,131 @@ export default function SceneBuilder({
           </button>
         </div>
 
-        <p className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-[10px] font-medium text-white/60 backdrop-blur-md">
-          Glisse un objet pour le déplacer • tourne le monde avec le doigt
-        </p>
+        {/* Barre d'outils de l'objet sélectionné (flottante sur le canvas) */}
+        <AnimatePresence>
+          {selectedObj && selDef && (
+            <motion.div
+              initial={{ y: 28, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 28, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 30 }}
+              className="absolute inset-x-2.5 bottom-2.5 flex items-center justify-between gap-2 rounded-2xl border border-fuchsia-300/25 bg-black/70 px-2.5 py-2 shadow-xl backdrop-blur-xl"
+            >
+              <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-fuchsia-100">
+                <i className={`${selDef.icon} shrink-0 text-sm text-fuchsia-200`} aria-hidden />
+                <span className="truncate">{selDef.label}</span>
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full border border-white/30"
+                  style={{ background: selDef.colors[selectedObj.color] ?? '#e2e8f0' }}
+                  aria-label="Couleur actuelle de l'objet"
+                />
+              </span>
+              <div className="flex items-center gap-1">
+                <ActionBtn
+                  icon="fa-solid fa-rotate-right"
+                  label="Tourner l'objet"
+                  onClick={() => mutateSelected((o) => (o.rotY += Math.PI / 4), false)}
+                />
+                <ActionBtn
+                  icon="fa-solid fa-magnifying-glass-plus"
+                  label="Grandir l'objet"
+                  onClick={() =>
+                    mutateSelected((o) => {
+                      o.scale = Math.min(1.5, o.scale + 0.15);
+                    }, false)
+                  }
+                />
+                <ActionBtn
+                  icon="fa-solid fa-magnifying-glass-minus"
+                  label="Rétrécir l'objet"
+                  onClick={() =>
+                    mutateSelected((o) => {
+                      o.scale = Math.max(0.6, o.scale - 0.15);
+                    }, false)
+                  }
+                />
+                <ActionBtn
+                  icon="fa-solid fa-palette"
+                  label="Changer la couleur"
+                  onClick={cycleColor}
+                />
+                <ActionBtn
+                  icon="fa-solid fa-trash"
+                  label="Supprimer l'objet"
+                  danger
+                  onClick={deleteSelected}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Aide (uniquement quand rien n'est sélectionné) */}
+        {!selectedObj && (
+          <p className="pointer-events-none absolute inset-x-6 bottom-3 text-center text-[10px] font-medium text-white/55">
+            Glisse un objet pour le déplacer • tourne le monde avec le doigt
+          </p>
+        )}
+      </div>
+
+      {/* Contrôles du Mochy : hauteur + taille */}
+      <div className="mt-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
+            <i className="fa-solid fa-paw text-fuchsia-300" aria-hidden />
+            Mochy
+          </span>
+          <span className="text-[10px] font-medium text-white/30">glisse pour ajuster</span>
+        </div>
+        <label className="mt-2 flex items-center gap-2.5">
+          <span className="w-14 shrink-0 text-[10px] font-bold text-white/55">Hauteur</span>
+          <input
+            type="range"
+            min={0}
+            max={PLUSH_MAX_Y}
+            step={0.05}
+            value={plushY}
+            onChange={(e) => changePlushY(Number(e.target.value))}
+            className="h-1 min-w-0 flex-1 cursor-pointer accent-fuchsia-400"
+            aria-label="Hauteur du Mochy"
+          />
+          <span className="w-7 shrink-0 text-right text-[11px] font-bold tabular-nums text-white/70">
+            {plushY.toFixed(1)}
+          </span>
+        </label>
+        <label className="mt-1.5 flex items-center gap-2.5">
+          <span className="w-14 shrink-0 text-[10px] font-bold text-white/55">Taille</span>
+          <input
+            type="range"
+            min={PLUSH_MIN_SCALE}
+            max={PLUSH_MAX_SCALE}
+            step={0.05}
+            value={plushScale}
+            onChange={(e) => changePlushScale(Number(e.target.value))}
+            className="h-1 min-w-0 flex-1 cursor-pointer accent-fuchsia-400"
+            aria-label="Taille du Mochy"
+          />
+          <span className="w-7 shrink-0 text-right text-[11px] font-bold tabular-nums text-white/70">
+            {Math.round(plushScale * 100)}
+          </span>
+        </label>
       </div>
 
       {/* Thèmes de sol */}
-      <div className="mt-3 flex gap-1.5">
+      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {GROUND_THEMES.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setThemeId(t.id)}
             aria-pressed={themeId === t.id}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 ${
               themeId === t.id
                 ? 'border-fuchsia-300/40 bg-fuchsia-500/20 text-fuchsia-100'
                 : 'border-white/10 bg-white/[0.04] text-white/55 hover:bg-white/10'
             }`}
           >
-            <span aria-hidden>{t.emoji}</span>
+            <i className={`${t.icon} text-[11px]`} aria-hidden />
             {t.label}
           </button>
         ))}
@@ -602,102 +769,37 @@ export default function SceneBuilder({
       </p>
       <div className="mt-2 flex gap-1.5 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {OBJECT_PALETTE.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => addObject(o.id)}
-              className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/10 bg-white/[0.04] transition-all hover:border-fuchsia-300/30 hover:bg-fuchsia-500/10 active:scale-90"
-              aria-label={`Poser : ${o.label}`}
-            >
-              <span className="text-xl leading-none" aria-hidden>
-                {o.emoji}
-              </span>
-              <span className="text-[9px] font-medium text-white/45">{o.label}</span>
-            </button>
-          ))}
-      </div>
-
-      {/* Actions sur l'objet sélectionné */}
-      {selectedObj ? (
-        <div className="mt-3 flex items-center justify-between rounded-2xl border border-fuchsia-300/25 bg-fuchsia-500/[0.08] px-3 py-2.5 backdrop-blur-md">
-          <span className="flex items-center gap-2 text-xs font-bold text-fuchsia-100">
-            <span className="text-base" aria-hidden>
-              {getObjectDef(selectedObj.type)?.emoji}
-            </span>
-            {getObjectDef(selectedObj.type)?.label}
-          </span>
-          <div className="flex items-center gap-1">
-            <ActionBtn
-              icon="fa-solid fa-rotate-right"
-              label="Tourner l'objet"
-              onClick={() => mutateSelected((o) => (o.rotY += Math.PI / 4), false)}
-            />
-            <ActionBtn
-              icon="fa-solid fa-magnifying-glass-plus"
-              label="Grandir l'objet"
-              onClick={() =>
-                mutateSelected((o) => {
-                  o.scale = Math.min(1.5, o.scale + 0.15);
-                }, false)
-              }
-            />
-            <ActionBtn
-              icon="fa-solid fa-magnifying-glass-minus"
-              label="Rétrécir l'objet"
-              onClick={() =>
-                mutateSelected((o) => {
-                  o.scale = Math.max(0.6, o.scale - 0.15);
-                }, false)
-              }
-            />
-            <ActionBtn
-              icon="fa-solid fa-palette"
-              label="Changer la couleur"
-              onClick={cycleColor}
-            />
-            <ActionBtn
-              icon="fa-solid fa-trash"
-              label="Supprimer l'objet"
-              danger
-              onClick={deleteSelected}
-            />
-          </div>
-        </div>
-      ) : (
-        <p className="mt-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-center text-[11px] text-white/35">
-          Touche un objet posé dans la scène pour le sélectionner
-        </p>
-      )}
-
-      {/* Couleurs disponibles (indice visuel) */}
-      <div className="mt-3 flex items-center gap-1.5">
-        {SCENE_COLORS.slice(0, 8).map((c) => (
-          <span
-            key={c}
-            className="h-3.5 w-3.5 rounded-full border border-white/20"
-            style={{ background: c }}
-            aria-hidden
-          />
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => addObject(o.id)}
+            className="flex h-[4.25rem] w-[4.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border border-white/10 bg-white/[0.04] transition-all hover:border-fuchsia-300/30 hover:bg-fuchsia-500/10 active:scale-90"
+            aria-label={`Poser : ${o.label}`}
+          >
+            <i className={`${o.icon} text-lg text-white/85`} aria-hidden />
+            <span className="text-[9px] font-medium text-white/45">{o.label}</span>
+          </button>
         ))}
-        <span className="ml-1 text-[10px] text-white/30">couleurs : bouton palette</span>
       </div>
 
       {/* Enregistrement / publication */}
-      <div className="mt-5 flex gap-2">
+      <div className="mt-4 flex gap-2">
         <button
           type="button"
           onClick={() => persist(false)}
           disabled={busy !== null}
-          className="flex-1 rounded-full border border-white/15 bg-white/[0.06] py-3 text-sm font-bold text-white/80 transition-all hover:bg-white/10 active:scale-95 disabled:opacity-50"
+          className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.06] py-3 text-sm font-bold text-white/80 transition-all hover:bg-white/10 active:scale-95 disabled:opacity-50"
         >
+          <i className="fa-solid fa-floppy-disk text-xs" aria-hidden />
           {busy === 'save' ? 'Enregistrement…' : 'Enregistrer'}
         </button>
         <button
           type="button"
           onClick={() => persist(true)}
           disabled={busy !== null}
-          className="flex-1 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 py-3 text-sm font-black text-white shadow-lg shadow-fuchsia-500/25 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 py-3 text-sm font-black text-white shadow-lg shadow-fuchsia-500/25 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
         >
+          <i className="fa-solid fa-paper-plane text-xs" aria-hidden />
           {busy === 'publish' ? 'Publication…' : published ? 'Republier' : 'Publier'}
         </button>
       </div>
