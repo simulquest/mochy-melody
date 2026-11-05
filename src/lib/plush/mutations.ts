@@ -136,6 +136,25 @@ export function mutationRarity(mut: PlushMutation): MutRarityId {
   return best;
 }
 
+/**
+ * Rareté EFFECTIVE d'une carte possédée = le plus élevé entre la rareté du
+ * coffre d'origine (indice du pool de butin, `rarityIdx`) et celle portée par
+ * sa mutation.
+ *
+ * Un exemplaire gagné dans un coffre Commune avec des yeux Améthyste (épique)
+ * est donc bien ÉPIQUE — et un Mythique sans mutation reste MYTHIQUE.
+ * C'est la source unique de vérité pour TOUS les affichages (ma collection,
+ * panneau de variantes d'une peluche, carte de révélation, boutique de
+ * coffres, marché) : le même exemplaire doit afficher la même rareté partout.
+ */
+export function effectiveRarityIdx(
+  rarityIdx: number,
+  mut: PlushMutation | null | undefined,
+): number {
+  const mutIdx = mut ? RARITY_INDEX[mutationRarity(mut)] : 0;
+  return Math.max(rarityIdx, mutIdx);
+}
+
 export function isDefaultMutation(mut: PlushMutation): boolean {
   return (
     mut.eye.id === 'noisette' &&

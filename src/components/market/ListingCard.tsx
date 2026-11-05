@@ -4,7 +4,7 @@ import { Gavel, Clock, User } from 'lucide-react';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import { getSpecies } from '@/lib/plush/species';
 import { RARITIES } from '@/lib/plush/lootbox';
-import { mutationRarity, rarityColor, rarityName } from '@/lib/plush/mutations';
+import { effectiveRarityIdx } from '@/lib/plush/mutations';
 import { formatCoins, formatTimeLeft, type ListingView } from '@/lib/market-client';
 
 interface ListingCardProps {
@@ -23,7 +23,8 @@ export default function ListingCard({
   onCancel,
   now = Date.now(),
 }: ListingCardProps) {
-  const rarity = RARITIES[listing.rarity_idx] ?? RARITIES[0];
+  // Rareté effective : le plus élevé entre le coffre d'origine et la mutation.
+  const rarity = RARITIES[effectiveRarityIdx(listing.rarity_idx, listing.mutation)] ?? RARITIES[0];
   const isSeller = currentUserId === listing.seller_id;
   const timeLeft = Math.max(0, new Date(listing.ends_at).getTime() - now);
   const ended = timeLeft <= 0 || listing.status !== 'active';
@@ -31,7 +32,6 @@ export default function ListingCard({
 
   const mut = listing.mutation;
   const hasMut = !!mut;
-  const mutRarity = hasMut ? mutationRarity(mut!) : null;
 
   return (
     <div
@@ -61,14 +61,6 @@ export default function ListingCard({
             >
               {rarity.name}
             </span>
-            {hasMut && mutRarity && (
-              <span
-                className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                style={{ color: rarityColor(mutRarity), background: `${rarityColor(mutRarity)}1a` }}
-              >
-                {rarityName(mutRarity)}
-              </span>
-            )}
             {listing.status !== 'active' && (
               <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase text-white/60">
                 {listing.status === 'sold' ? 'Vendue' : listing.status === 'cancelled' ? 'Annulée' : 'Terminée'}

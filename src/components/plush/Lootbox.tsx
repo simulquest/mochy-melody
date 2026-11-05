@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, Backpack, Sparkles, X, Check, Clock, ChevronDown } from 'lucide-react';
 import { PlushPreset } from '@/lib/plush/plush-shape';
-import { PlushMutation } from '@/lib/plush/mutations';
+import { PlushMutation, effectiveRarityIdx } from '@/lib/plush/mutations';
 import {
   RARITIES,
   MAX_CHESTS,
@@ -655,8 +655,8 @@ export default function Lootbox({
               onClick={(e) => e.stopPropagation()}
               className="relative max-h-[86dvh] w-full max-w-sm overflow-x-hidden overflow-y-auto rounded-3xl border bg-[#14111c]/95 p-6 shadow-2xl"
               style={{
-                borderColor: reveal ? `${RARITIES[reveal.rarityIdx].color}55` : 'rgba(255,255,255,0.12)',
-                boxShadow: reveal ? `0 0 60px ${RARITIES[reveal.rarityIdx].color}33` : undefined,
+                borderColor: reveal ? `${RARITIES[effectiveRarityIdx(reveal.rarityIdx, reveal.mutation)].color}55` : 'rgba(255,255,255,0.12)',
+                boxShadow: reveal ? `0 0 60px ${RARITIES[effectiveRarityIdx(reveal.rarityIdx, reveal.mutation)].color}33` : undefined,
               }}
             >
               <button
@@ -670,12 +670,12 @@ export default function Lootbox({
               {/* ----- Révélation ----- */}
               {reveal && (
                 <div className="flex flex-col items-center pt-2 text-center">
-                  <Confetti color={RARITIES[reveal.rarityIdx].color} />
+                  <Confetti color={RARITIES[effectiveRarityIdx(reveal.rarityIdx, reveal.mutation)].color} />
                   {/* rayons rotatifs */}
                   <div
                     className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 animate-[spin_9s_linear_infinite] opacity-60"
                     style={{
-                      background: `repeating-conic-gradient(from 0deg, ${RARITIES[reveal.rarityIdx].color}26 0deg 12deg, transparent 12deg 30deg)`,
+                      background: `repeating-conic-gradient(from 0deg, ${RARITIES[effectiveRarityIdx(reveal.rarityIdx, reveal.mutation)].color}26 0deg 12deg, transparent 12deg 30deg)`,
                       maskImage: 'radial-gradient(circle, black 30%, transparent 68%)',
                       WebkitMaskImage: 'radial-gradient(circle, black 30%, transparent 68%)',
                     }}
@@ -695,7 +695,7 @@ export default function Lootbox({
                     transition={{ delay: 0.3 }}
                     className="flex flex-col items-center gap-2"
                   >
-                    <RarityChip idx={reveal.rarityIdx} />
+                    <RarityChip idx={effectiveRarityIdx(reveal.rarityIdx, reveal.mutation)} />
                     <h2 className="text-xl font-bold text-white">Peluche {reveal.name}</h2>
                     <p className="max-w-[26ch] text-xs leading-relaxed text-white/50">
                       Une nouvelle peluche a rejoint votre collection. Caressez-la autant que vous voulez !
@@ -764,12 +764,12 @@ export default function Lootbox({
                         aria-label={
                           ownedForShape.length > 1
                             ? `${showVariants ? 'Masquer' : 'Voir'} les ${ownedForShape.length} variantes de ${shapeLabel}`
-                            : `Équiper la peluche ${selectedOwned.name} (${RARITIES[selectedOwned.rarityIdx].name})`
+                            : `Équiper la peluche ${selectedOwned.name} (${RARITIES[effectiveRarityIdx(selectedOwned.rarityIdx, selectedOwned.mutation)].name})`
                         }
                         className="group relative flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition-all hover:bg-white/[0.06]"
                         style={{
-                          borderColor: `${RARITIES[selectedOwned.rarityIdx].color}55`,
-                          background: `linear-gradient(135deg, ${RARITIES[selectedOwned.rarityIdx].color}12, transparent)`,
+                          borderColor: `${RARITIES[effectiveRarityIdx(selectedOwned.rarityIdx, selectedOwned.mutation)].color}55`,
+                          background: `linear-gradient(135deg, ${RARITIES[effectiveRarityIdx(selectedOwned.rarityIdx, selectedOwned.mutation)].color}12, transparent)`,
                         }}
                       >
                         <PlushPreview3D
@@ -783,9 +783,9 @@ export default function Lootbox({
                             <span className="truncate text-sm font-bold text-white">{selectedOwned.name}</span>
                             <span
                               className="text-[9px] font-bold uppercase tracking-wider"
-                              style={{ color: RARITIES[selectedOwned.rarityIdx].color }}
+                              style={{ color: RARITIES[effectiveRarityIdx(selectedOwned.rarityIdx, selectedOwned.mutation)].color }}
                             >
-                              {RARITIES[selectedOwned.rarityIdx].name}
+                              {RARITIES[effectiveRarityIdx(selectedOwned.rarityIdx, selectedOwned.mutation)].name}
                             </span>
                           </div>
                           <p className="mt-1 text-[11px] text-white/45">
@@ -804,7 +804,7 @@ export default function Lootbox({
                         {equippedId === ownedStackKey(selectedOwned) && (
                           <span
                             className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                            style={{ background: RARITIES[selectedOwned.rarityIdx].color }}
+                            style={{ background: RARITIES[effectiveRarityIdx(selectedOwned.rarityIdx, selectedOwned.mutation)].color }}
                           >
                             <Check className="h-3.5 w-3.5 text-black" aria-hidden />
                           </span>
@@ -827,6 +827,7 @@ export default function Lootbox({
                                 .map((p) => {
                                   const key = ownedStackKey(p);
                                   const eq = equippedId === key;
+                                  const pEff = effectiveRarityIdx(p.rarityIdx, p.mutation);
                                   return (
                                     <button
                                       key={key}
@@ -834,11 +835,11 @@ export default function Lootbox({
                                         equip(p);
                                         setShowVariants(false);
                                       }}
-                                      aria-label={`Équiper la peluche ${p.name} (${RARITIES[p.rarityIdx].name})${eq ? ', actuellement équipée' : ''}`}
+                                      aria-label={`Équiper la peluche ${p.name} (${RARITIES[pEff].name})${eq ? ', actuellement équipée' : ''}`}
                                       className="group relative flex flex-col items-center gap-1.5 rounded-2xl border p-2.5 pt-4 transition-all hover:bg-white/[0.06]"
                                       style={{
-                                        borderColor: eq ? RARITIES[p.rarityIdx].color : `${RARITIES[p.rarityIdx].color}33`,
-                                        background: eq ? `${RARITIES[p.rarityIdx].color}12` : 'transparent',
+                                        borderColor: eq ? RARITIES[pEff].color : `${RARITIES[pEff].color}33`,
+                                        background: eq ? `${RARITIES[pEff].color}12` : 'transparent',
                                       }}
                                     >
                                       <PlushPreview3D species={getSpecies(p.speciesId ?? 'mochi')} preset={p} mutation={p.mutation ?? null} size={48} />
@@ -847,12 +848,12 @@ export default function Lootbox({
                                       </span>
                                       <span
                                         className="text-[8px] font-bold uppercase tracking-wider"
-                                        style={{ color: RARITIES[p.rarityIdx].color }}
+                                        style={{ color: RARITIES[pEff].color }}
                                       >
-                                        {RARITIES[p.rarityIdx].name}
+                                        {RARITIES[pEff].name}
                                       </span>
                                       {eq && (
-                                        <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full" style={{ background: RARITIES[p.rarityIdx].color }}>
+                                        <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full" style={{ background: RARITIES[pEff].color }}>
                                           <Check className="h-3 w-3 text-black" aria-hidden />
                                         </span>
                                       )}

@@ -12,6 +12,7 @@ import {
   OwnedPlush,
   RARITIES,
 } from '@/lib/plush/lootbox';
+import { effectiveRarityIdx } from '@/lib/plush/mutations';
 import { getSpecies } from '@/lib/plush/species';
 
 interface ShopPurchaseResponse {
@@ -175,8 +176,8 @@ export default function ChestShop() {
                     />
                   </div>
                   <p className="mt-2 truncate text-sm font-bold text-white">{card.name}</p>
-                  <p className="mt-1 text-[11px] font-semibold" style={{ color: RARITIES[card.rarityIdx].color }}>
-                    {RARITIES[card.rarityIdx].name}
+                  <p className="mt-1 text-[11px] font-semibold" style={{ color: RARITIES[effectiveRarityIdx(card.rarityIdx, card.mutation ?? null)].color }}>
+                    {RARITIES[effectiveRarityIdx(card.rarityIdx, card.mutation ?? null)].name}
                   </p>
                 </article>
               ))}

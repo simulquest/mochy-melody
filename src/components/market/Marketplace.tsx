@@ -22,6 +22,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import { getSpecies, SPECIES } from '@/lib/plush/species';
 import { RARITIES } from '@/lib/plush/lootbox';
+import { effectiveRarityIdx } from '@/lib/plush/mutations';
 import { useMe, useListings, useCards } from '@/hooks/use-market';
 import { apiPost, formatCoins, type ListingView, type InventoryItem } from '@/lib/market-client';
 
@@ -485,7 +486,7 @@ function MineTab({
 
 /** Tuile d'inventaire avec badge de quantité ×N. */
 function InventoryTile({ item, onSell }: { item: InventoryItem; onSell: (id: string) => void }) {
-  const rarity = RARITIES[item.rarity_idx] ?? RARITIES[0];
+  const rarity = RARITIES[effectiveRarityIdx(item.rarity_idx, item.mutation)] ?? RARITIES[0];
   return (
     <button
       onClick={() => onSell(item.id)}
@@ -574,7 +575,7 @@ function BidsTab({
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {won.map((sale) => {
-              const rarity = RARITIES[sale.rarity_idx] ?? RARITIES[0];
+              const rarity = RARITIES[effectiveRarityIdx(sale.rarity_idx, sale.mutation)] ?? RARITIES[0];
               return (
                 <button
                   key={sale.id}
@@ -615,7 +616,7 @@ function BidRow({
 }) {
   const listing = bid.listing!;
   const leading = listing.highest_bidder_id === me.profile.user_id;
-  const rarity = RARITIES[listing.rarity_idx] ?? RARITIES[0];
+  const rarity = RARITIES[effectiveRarityIdx(listing.rarity_idx, listing.mutation)] ?? RARITIES[0];
 
   return (
     <div

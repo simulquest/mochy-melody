@@ -17,16 +17,15 @@ import { SPECIES, PlushSpecies, getSpecies, getShapeLabel } from '@/lib/plush/sp
 import { PlushPreset } from '@/lib/plush/plush-shape';
 import {
   PlushMutation,
-  mutationRarity,
-  rarityColor,
-  rarityName,
   isDefaultMutation,
+  effectiveRarityIdx,
   MUTATION_VARIANT_COUNT,
 } from '@/lib/plush/mutations';
 import { isUnlocked } from '@/lib/plush/unlock';
 import {
   getEquippedPreset,
   PLUSH_POOL,
+  RARITIES,
   setEquippedPreset,
   type OwnedPlush,
 } from '@/lib/plush/lootbox';
@@ -265,19 +264,26 @@ export default function PlushWorld() {
 
 // ---------------------------------------------------------------------------
 
-function RarityBadge({ mut }: { mut: PlushMutation | undefined | null }) {
-  if (!mut || isDefaultMutation(mut)) return null;
-  const r = mutationRarity(mut);
+function RarityBadge({
+  mut,
+  rarityIdx,
+}: {
+  mut: PlushMutation | undefined | null;
+  /** Rare du coffre d'origine — combinée à la mutation pour la rareté effective. */
+  rarityIdx: number;
+}) {
+  const idx = effectiveRarityIdx(rarityIdx, mut);
+  const color = RARITIES[idx].color;
   return (
     <span
       className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
       style={{
-        color: rarityColor(r),
-        background: `${rarityColor(r)}1f`,
-        border: `1px solid ${rarityColor(r)}55`,
+        color,
+        background: `${color}1f`,
+        border: `1px solid ${color}55`,
       }}
     >
-      {rarityName(r)}
+      {RARITIES[idx].name}
     </span>
   );
 }
@@ -468,7 +474,7 @@ function CollectionView({
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-base font-bold text-white">{label}</span>
-                        <RarityBadge mut={m} />
+                        <RarityBadge mut={m} rarityIdx={selected.rarityIdx} />
                       </div>
                       <p className="mt-1.5 text-xs font-semibold text-white/65">
                         {selected.name}
@@ -547,7 +553,7 @@ function CollectionView({
                               <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <span className="text-sm font-semibold text-white">{card.name}</span>
-                                  <RarityBadge mut={vm} />
+                                  <RarityBadge mut={vm} rarityIdx={card.rarityIdx} />
                                 </div>
                                 {vHasMut ? (
                                   <p className="mt-1 text-[11px] leading-relaxed text-white/50">

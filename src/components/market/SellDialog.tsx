@@ -6,6 +6,7 @@ import { X, Tag, Coins, AlertCircle, Clock } from 'lucide-react';
 import PlushPreview3D from '@/components/plush/PlushPreview3D';
 import { getSpecies } from '@/lib/plush/species';
 import { RARITIES } from '@/lib/plush/lootbox';
+import { effectiveRarityIdx } from '@/lib/plush/mutations';
 import { formatCoins, type InventoryItem } from '@/lib/market-client';
 
 /** Durées proposées (secondes) — minimum 1 h. */
@@ -101,7 +102,7 @@ export default function SellDialog({ inventory, onClose, onSubmit, preselectId }
               <p className="mt-4 text-xs font-medium text-white/60">Carte à vendre</p>
               <div className="mt-2 grid max-h-[34dvh] grid-cols-3 gap-2 overflow-y-auto pr-1">
                 {sellable.map((item) => {
-                  const rarity = RARITIES[item.rarity_idx] ?? RARITIES[0];
+                  const rarity = RARITIES[effectiveRarityIdx(item.rarity_idx, item.mutation)] ?? RARITIES[0];
                   const isSel = item.id === selectedId;
                   return (
                     <button
