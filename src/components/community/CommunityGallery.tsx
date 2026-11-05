@@ -27,7 +27,9 @@ interface CommentItem {
 type ListResponse = CommunityListResponse & { needs_setup?: boolean };
 
 /** Durée d'affichage de la modale récompenses au démarrage (ms). */
-const REWARDS_MODAL_MS = 4000;
+const REWARDS_MODAL_MS = 10000;
+/** Intervalle de décompte de la modale (ms). */
+const REWARDS_TICK_MS = 100;
 
 export default function CommunityGallery() {
   const [sort, setSort] = useState<'top' | 'new'>('top');
@@ -39,7 +41,11 @@ export default function CommunityGallery() {
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   // Modale récompenses : visible au démarrage de la section, puis disparaît.
+  // Maintenir le doigt appuyé sur la modale met le décompte en pause ;
+  // le relâchement le relance. La croix ferme immédiatement.
   const [showRewards, setShowRewards] = useState(true);
+  const [rewardsPaused, setRewardsPaused] = useState(false);
+  const [rewardsLeft, setRewardsLeft] = useState(REWARDS_MODAL_MS);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -66,11 +72,18 @@ export default function CommunityGallery() {
     void load(sort);
   }, [load, sort]);
 
-  // Disparition automatique de la modale récompenses
+  // Décompte de la modale récompenses (en pause tant que le doigt est posé)
   useEffect(() => {
-    const id = window.setTimeout(() => setShowRewards(false), REWARDS_MODAL_MS);
-    return () => clearTimeout(id);
-  }, []);
+    if (!showRewards || rewardsPaused) return;
+    const id = window.setInterval(() => {
+      setRewardsLeft((left) => Math.max(0, left - REWARDS_TICK_MS));
+    }, REWARDS_TICK_MS);
+    return () => clearInterval(id);
+  }, [showRewards, rewardsPaused]);
+
+  useEffect(() => {
+    if (showRewards && rewardsLeft === 0) setShowRewards(false);
+  }, [showRewards, rewardsLeft]);
 
   /** Supprime sa propre scène (définitif : votes + commentaires perdus). */
   const doDelete = useCallback(async () => {
@@ -339,8 +352,22 @@ export default function CommunityGallery() {
               exit={{ scale: 0.92, y: 8, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 320, damping: 26 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-xs overflow-hidden rounded-3xl border border-amber-300/25 bg-[#1a1424]/95 px-6 pb-7 pt-6 text-center shadow-2xl shadow-black/60"
+              onPointerDown={() => setRewardsPaused(true)}
+              onPointerUp={() => setRewardsPaused(false)}
+              onPointerLeave={() => setRewardsPaused(false)}
+              onPointerCancel={() => setRewardsPaused(false)}
+              className="relative w-full max-w-xs select-none overflow-hidden rounded-3xl border border-amber-300/25 bg-[#1a1424]/95 px-6 pb-7 pt-6 text-center shadow-2xl shadow-black/60"
             >
+              {/* Croix : ferme la modale et skippe le décompte */}
+              <button
+                type="button"
+                onClick={() => setShowRewards(false)}
+                onPointerDown={(e) => e.stopPropagation()}
+                aria-label="Fermer"
+                className="absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.07] text-white/50 transition-all hover:bg-white/15 hover:text-white active:scale-90"
+              >
+                <i className="fa-solid fa-xmark text-xs" aria-hidden />
+              </button>
               <i className="fa-solid fa-trophy text-3xl text-amber-300" aria-hidden />
               <p className="mt-3 text-lg font-black leading-tight text-white">
                 Les 3 premiers gagnent des MochyCoins
@@ -351,11 +378,11 @@ export default function CommunityGallery() {
               <p className="mt-1.5 text-[11px] font-semibold text-white/45">
                 Top 10 : 100 MochyCoins chaque semaine
               </p>
-              {/* Barre de progression : indique la disparition automatique */}
+              {/* Barre de progression : suit le décompte réel (figée en pause) */}
               <motion.div
                 initial={{ scaleX: 1 }}
-                animate={{ scaleX: 0 }}
-                transition={{ duration: REWARDS_MODAL_MS / 1000, ease: 'linear' }}
+                animate={{ scaleX: rewardsLeft / REWARDS_MODAL_MS }}
+                transition={{ duration: REWARDS_TICK_MS / 1000, ease: 'linear' }}
                 className="absolute inset-x-0 bottom-0 h-1 origin-left bg-gradient-to-r from-amber-300 via-fuchsia-400 to-fuchsia-500"
               />
             </motion.div>
