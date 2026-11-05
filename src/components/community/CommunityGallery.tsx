@@ -1,19 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import SceneViewer3D from './SceneViewer3D';
 import SceneCardCanvas from './SceneCardCanvas';
 import BottomNav from '@/components/plush/BottomNav';
 import LoadingScreen from '@/components/LoadingScreen';
-import { apiGet, apiPost, formatTimeLeft } from '@/lib/market-client';
+import { apiGet, apiPost } from '@/lib/market-client';
 import type { CommunityListResponse, CommunitySceneView } from '@/lib/community/scenes';
 import { MAX_COMMENT } from '@/lib/community/scenes';
 
 // ---------------------------------------------------------------------------
 // CommunityGallery — galerie des scènes publiées : classement de la semaine
-// (votes), palmarès précédent, détail avec viewer 3D + commentaires.
+// (votes), détail avec viewer 3D + commentaires. Une modale éphémère annonce
+// les récompenses au démarrage puis disparaît (place maximale à la galerie).
 // ---------------------------------------------------------------------------
 
 interface CommentItem {
@@ -25,19 +26,20 @@ interface CommentItem {
 
 type ListResponse = CommunityListResponse & { needs_setup?: boolean };
 
-/** Couleurs des médailles top 3 (icône fa-medal, or / argent / bronze). */
-const MEDAL_COLORS = ['text-amber-300', 'text-slate-200', 'text-amber-600'];
+/** Durée d'affichage de la modale récompenses au démarrage (ms). */
+const REWARDS_MODAL_MS = 4000;
 
 export default function CommunityGallery() {
   const [sort, setSort] = useState<'top' | 'new'>('top');
   const [data, setData] = useState<ListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [now, setNow] = useState(() => Date.now());
   const [detail, setDetail] = useState<CommunitySceneView | null>(null);
   const [confirmDel, setConfirmDel] = useState<CommunitySceneView | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // Modale récompenses : visible au démarrage de la section, puis disparaît.
+  const [showRewards, setShowRewards] = useState(true);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -64,10 +66,10 @@ export default function CommunityGallery() {
     void load(sort);
   }, [load, sort]);
 
-  // Horloge du compte à rebours (30 s suffit)
+  // Disparition automatique de la modale récompenses
   useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(id);
+    const id = window.setTimeout(() => setShowRewards(false), REWARDS_MODAL_MS);
+    return () => clearTimeout(id);
   }, []);
 
   /** Supprime sa propre scène (définitif : votes + commentaires perdus). */
@@ -88,11 +90,6 @@ export default function CommunityGallery() {
       setDeleting(false);
     }
   }, [confirmDel, deleting, load, showToast, sort]);
-
-  const weekLeft = useMemo(
-    () => (data ? new Date(data.week_end).getTime() - now : 0),
-    [data, now],
-  );
 
   /** Vote optimiste. */
   const toggleVote = useCallback(
@@ -145,19 +142,12 @@ export default function CommunityGallery() {
   return (
     <main className="min-h-[100dvh] w-full bg-theme-bg pb-32">
       <div className="mx-auto w-full max-w-2xl px-4 pt-5">
-        {/* En-tête */}
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-white">
-              <i className="fa-solid fa-earth-americas mr-2 text-fuchsia-300" aria-hidden />
-              Communauté
-            </h1>
-            <p className="mt-1 text-xs leading-relaxed text-white/50">
-              Les mondes des joueurs, le Mochy au centre. Vote pour tes
-              scènes préférées&nbsp;: le top 10 gagne des MochyCoins chaque
-              semaine&nbsp;!
-            </p>
-          </div>
+        {/* En-tête compact — aucun texte, place maximale à la galerie */}
+        <header className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-black tracking-tight text-white">
+            <i className="fa-solid fa-earth-americas mr-2 text-fuchsia-300" aria-hidden />
+            Communauté
+          </h1>
           <Link
             href="/community/studio"
             className="shrink-0 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-fuchsia-500/25 transition-all hover:brightness-110 active:scale-95"
@@ -167,51 +157,8 @@ export default function CommunityGallery() {
           </Link>
         </header>
 
-        {/* Bandeau concours */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-300/20 bg-amber-400/[0.06] px-4 py-3">
-          <p className="text-xs font-bold text-amber-200/90">
-            <i className="fa-solid fa-trophy mr-1.5" aria-hidden />
-            Récompenses dans {formatTimeLeft(Math.max(0, weekLeft))}
-          </p>
-          <p className="text-[11px] text-amber-100/50">1ʳᵉ : 500 · 2ᵉ : 300 · 3ᵉ : 200 · top 10 : 100</p>
-        </div>
-
-        {/* Palmarès précédent */}
-        {data && data.winners.length > 0 && (
-          <section className="mt-3">
-            <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/35">
-              Gagnants de la semaine passée
-            </h2>
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {data.winners.map((w) => (
-                <Link
-                  key={`${w.rank}-${w.scene_id}`}
-                  href={`/community?scene=${w.scene_id}`}
-                  className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-2 pr-3.5 transition-colors hover:bg-white/10"
-                >
-                  {w.rank <= 3 ? (
-                    <i
-                      className={`fa-solid fa-medal text-base ${MEDAL_COLORS[w.rank - 1]}`}
-                      aria-hidden
-                    />
-                  ) : (
-                    <span className="text-[10px] font-black text-white/45">{w.rank}ᵉ</span>
-                  )}
-                  <span className="max-w-36 truncate text-xs font-bold text-white/80">
-                    {w.title}
-                  </span>
-                  <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-300/80">
-                    +{w.coins}
-                    <i className="fa-solid fa-coins text-[9px]" aria-hidden />
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Tri */}
-        <div className="mt-4 flex gap-1.5">
+        <div className="mt-3 flex gap-1.5">
           {(
             [
               { id: 'top', label: 'Top de la semaine', icon: 'fa-solid fa-fire' },
@@ -265,7 +212,7 @@ export default function CommunityGallery() {
           </div>
         ) : (
           data && (
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {data.scenes.map((s) => (
                 <SceneCard
                   key={s.id}
@@ -371,6 +318,50 @@ export default function CommunityGallery() {
           {toast}
         </div>
       )}
+
+      {/* Modale récompenses — au démarrage, disparaît automatiquement */}
+      <AnimatePresence>
+        {showRewards && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setShowRewards(false)}
+            className="fixed inset-0 z-[160] flex items-center justify-center bg-black/55 p-6 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Récompenses hebdomadaires"
+          >
+            <motion.div
+              initial={{ scale: 0.85, y: 18, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.92, y: 8, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-xs overflow-hidden rounded-3xl border border-amber-300/25 bg-[#1a1424]/95 px-6 pb-7 pt-6 text-center shadow-2xl shadow-black/60"
+            >
+              <i className="fa-solid fa-trophy text-3xl text-amber-300" aria-hidden />
+              <p className="mt-3 text-lg font-black leading-tight text-white">
+                Les 3 premiers gagnent des MochyCoins
+              </p>
+              <p className="mt-2 text-sm font-black text-amber-200/90">
+                1ᵉʳ : 500 · 2ᵉ : 300 · 3ᵉ : 200
+              </p>
+              <p className="mt-1.5 text-[11px] font-semibold text-white/45">
+                Top 10 : 100 MochyCoins chaque semaine
+              </p>
+              {/* Barre de progression : indique la disparition automatique */}
+              <motion.div
+                initial={{ scaleX: 1 }}
+                animate={{ scaleX: 0 }}
+                transition={{ duration: REWARDS_MODAL_MS / 1000, ease: 'linear' }}
+                className="absolute inset-x-0 bottom-0 h-1 origin-left bg-gradient-to-r from-amber-300 via-fuchsia-400 to-fuchsia-500"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BottomNav active="community" />
     </main>
