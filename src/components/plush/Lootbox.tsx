@@ -509,7 +509,7 @@ export default function Lootbox({
             )}
           </motion.button>}
 
-          {/* Caisse — ouvre la lootbox 3D */}
+          {/* Caisse — ouvre la page lootbox (même interface que la navbar) */}
           <div className={embedded ? 'flex w-full justify-center' : 'flex flex-col items-center gap-1.5'}>
             <motion.button
               initial={{ opacity: 0, scale: 0.6 }}
@@ -517,11 +517,7 @@ export default function Lootbox({
               transition={{ delay: 0.35, type: 'spring', stiffness: 260, damping: 16 }}
               whileHover={{ scale: 1.07 }}
               whileTap={{ scale: 0.88 }}
-              onClick={() => {
-                if (!persist) return;
-                setSceneBox({ ...persist.box });
-                setSceneOpen(true);
-              }}
+              onClick={() => router.push('/play?view=lootbox')}
               data-tutorial="lootbox"
               aria-label={
                 locked
