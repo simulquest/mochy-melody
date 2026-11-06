@@ -33,6 +33,7 @@ import {
   fetchRemoteOwned,
   ownedStackKey,
 } from '@/lib/plush/lootbox-remote';
+import { loadSavedSelection, saveSelection } from '@/lib/plush/selection-store';
 
 type View =
   | { type: 'lootbox' }
@@ -54,6 +55,8 @@ export default function PlushWorld() {
   const [selectedByShape, setSelectedByShape] = useState<Record<string, string>>({});
   const prevEquippedRef = useRef<string | null>(null);
   const unlockedRef = useRef<string[]>([]);
+  // Ne pas écraser la sauvegarde avant la restauration du démarrage
+  const skipSaveRef = useRef(true);
 
   // Synchronise la vue interne avec le paramètre d'URL (liens de la barre basse).
   useEffect(() => {
@@ -84,6 +87,34 @@ export default function PlushWorld() {
     }
   }, []);
 
+  // Restauration de la sélection sauvegardée (peluche équipée + choix par
+  // famille) — sinon chaque rechargement remet la peluche par défaut.
+  // Différé d'une frame (pattern du composant) pour éviter le rendu en cascade.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      const saved = loadSavedSelection();
+      if (saved.equipped) {
+        const key = ownedStackKey(saved.equipped);
+        setEquippedPreset(saved.equipped);
+        setEquippedStackId(key);
+        prevEquippedRef.current = key;
+      }
+      if (Object.keys(saved.byShape).length > 0) {
+        setSelectedByShape(saved.byShape);
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Persistance de la sélection à chaque changement (rechargement compris).
+  useEffect(() => {
+    if (skipSaveRef.current) {
+      skipSaveRef.current = false;
+      return;
+    }
+    saveSelection({ equipped: getEquippedPreset(), byShape: selectedByShape });
+  }, [equippedStackId, selectedByShape]);
+
   // Hydratation différée pour refléter l'équipement après un changement de vue.
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
@@ -109,6 +140,32 @@ export default function PlushWorld() {
     const speciesIds = Array.from(new Set(remoteOwned.map((card) => card.speciesId)));
     unlockedRef.current = speciesIds;
     setUnlocked(speciesIds);
+
+    // Validation de la sélection restaurée contre l'inventaire réel : une
+    // carte vendue au marché ne peut plus rester sélectionnée ni équipée.
+    const keys = new Set(remoteOwned.map(ownedStackKey));
+
+    setSelectedByShape((prev) => {
+      const clean: Record<string, string> = {};
+      let changed = false;
+      for (const [shape, key] of Object.entries(prev)) {
+        if (keys.has(key)) clean[shape] = key;
+        else changed = true;
+      }
+      return changed ? clean : prev;
+    });
+
+    setEquippedStackId((prevId) => {
+      if (!prevId) return prevId;
+      if (!keys.has(prevId)) {
+        setEquippedPreset(null);
+        return null;
+      }
+      // La peluche équipée est rafraîchie avec les données fraîches d'inventaire
+      const fresh = remoteOwned.find((card) => ownedStackKey(card) === prevId) ?? null;
+      if (fresh) setEquippedPreset(fresh);
+      return prevId;
+    });
   }, []);
 
   const refreshOwnedCardCount = useCallback(async () => {

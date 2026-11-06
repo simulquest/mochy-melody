@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MousePointerClick, Clock, Gift, Orbit } from 'lucide-react';
+import { X, MousePointerClick, Clock, Gift } from 'lucide-react';
 import {
   RARITIES,
   OwnedPlush,
@@ -886,12 +886,6 @@ export default function LootboxScene({
             )}
           </p>
         )}
-
-        {/* astuce : la caméra peut orbiter autour du coffre */}
-        <p className="flex items-center gap-1.5 text-[11px] font-medium text-white/35">
-          <Orbit className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          Glissez pour tourner autour du coffre · molette ou pincement pour zoomer
-        </p>
       </div>
 
       {webglError && (
