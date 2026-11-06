@@ -13,7 +13,8 @@ import {
 import { PlushEngine } from '@/lib/plush/plush-engine';
 import { PlushPreset } from '@/lib/plush/plush-shape';
 import { PlushSpecies } from '@/lib/plush/species';
-import { PlushMutation, mutationRarity, rarityColor, rarityName } from '@/lib/plush/mutations';
+import { PlushMutation, mutationRarity } from '@/lib/plush/mutations';
+import { getModelConfig } from '@/lib/plush/config/roster';
 import Lootbox from '@/components/plush/Lootbox';
 import CoinBalance from '@/components/plush/CoinBalance';
 import HeartBalance from '@/components/plush/HeartBalance';
@@ -144,12 +145,20 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
     [],
   );
 
-  // Rareté retenue pour le gain : la plus rare entre la carte équipée et
-  // la mutation affichée (Commune = 1 MochyHeart … Mythique = 5).
+  // Rareté EFFECTIVE de la peluche affichée = la plus élevée entre la rareté
+  // du modèle (roster), celle du coffre d'origine (snapshot équipé) et celle
+  // portée par sa mutation — même règle que la collection / boutique / marché
+  // (source unique de vérité). Sert au badge affiché ET au gain de cœurs
+  // (Commune = 1 MochyHeart … Mythique = 5).
+  const baseIdx = Math.max(
+    0,
+    RARITIES.findIndex((r) => r.id === (getModelConfig(species.id).rarity ?? 'commune')),
+  );
   const mutRarityIdx = mut
     ? Math.max(0, RARITIES.findIndex((r) => r.id === mutationRarity(mut)))
     : 0;
-  const rewardRarityIdx = Math.max(lootRarityIdx, mutRarityIdx);
+  const effRarityIdx = Math.max(baseIdx, lootRarityIdx, mutRarityIdx);
+  const effRarity = RARITIES[effRarityIdx];
 
   // ---- MochyHearts : état initial depuis le serveur ----
   useEffect(() => {
@@ -175,7 +184,7 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
   const awardHearts = useCallback(() => {
     if (!petLoaded || petBusy.current) return;
     const speciesId = species.id;
-    const rarityIdx = rewardRarityIdx;
+    const rarityIdx = effRarityIdx;
     petBusy.current = true;
     (async () => {
       try {
@@ -198,15 +207,14 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
         petBusy.current = false;
       }
     })();
-  }, [petLoaded, species.id, rewardRarityIdx, fireToast]);
+  }, [petLoaded, species.id, effRarityIdx, fireToast]);
 
   // Le moteur (créé une fois) appelle toujours la dernière version.
   useEffect(() => {
     petRef.current = awardHearts;
   }, [awardHearts]);
 
-  const globalRarity = mut ? mutationRarity(mut) : 'commune';
-  const mutated = !!mut;
+  const globalRarity = effRarity;
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-theme-bg select-none">
@@ -249,20 +257,18 @@ export default function PlushExperience({ species, onBack }: PlushExperienceProp
             </button>
           )}
           <div>
-            {mutated && (
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span
-                  className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
-                  style={{
-                    color: rarityColor(globalRarity),
-                    background: `${rarityColor(globalRarity)}1f`,
-                    border: `1px solid ${rarityColor(globalRarity)}55`,
-                  }}
-                >
-                  {rarityName(globalRarity)}
-                </span>
-              </div>
-            )}
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span
+                className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+                style={{
+                  color: globalRarity.color,
+                  background: `${globalRarity.color}1f`,
+                  border: `1px solid ${globalRarity.color}55`,
+                }}
+              >
+                {globalRarity.name}
+              </span>
+            </div>
             <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">
               {species.name}
             </h1>
