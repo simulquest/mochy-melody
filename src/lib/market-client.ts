@@ -144,6 +144,18 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return json as T;
 }
 
+export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: 'no-store',
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `Erreur ${res.status}`);
+  return json as T;
+}
+
 // ---------------------------------------------------------------------------
 // Utilitaires d'affichage
 // ---------------------------------------------------------------------------

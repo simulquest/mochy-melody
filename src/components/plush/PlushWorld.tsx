@@ -22,6 +22,7 @@ import {
   MUTATION_VARIANT_COUNT,
 } from '@/lib/plush/mutations';
 import { isUnlocked } from '@/lib/plush/unlock';
+import { apiGet, apiPut } from '@/lib/market-client';
 import {
   getEquippedPreset,
   PLUSH_POOL,
@@ -57,6 +58,11 @@ export default function PlushWorld() {
   const unlockedRef = useRef<string[]>([]);
   // Ne pas écraser la sauvegarde avant la restauration du démarrage
   const skipSaveRef = useRef(true);
+  // Synchro serveur de la sélection (colonne profiles.selection)
+  const serverSelRef = useRef<{ equipped: string | null; byShape: Record<string, string> } | null>(null);
+  const serverAppliedRef = useRef(false);
+  const ownedRef = useRef<OwnedPlush[] | null>(null);
+  const lastPushedRef = useRef('');
 
   // Synchronise la vue interne avec le paramètre d'URL (liens de la barre basse).
   useEffect(() => {
@@ -106,14 +112,100 @@ export default function PlushWorld() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Persistance de la sélection à chaque changement (rechargement compris).
+  // Persistance de la sélection à chaque changement (rechargement compris) :
+  // cache local instantané + synchronisation serveur (best effort).
   useEffect(() => {
     if (skipSaveRef.current) {
       skipSaveRef.current = false;
       return;
     }
     saveSelection({ equipped: getEquippedPreset(), byShape: selectedByShape });
+    const payload = { equipped: equippedStackId, byShape: selectedByShape };
+    const serialized = JSON.stringify(payload);
+    if (serialized !== lastPushedRef.current) {
+      lastPushedRef.current = serialized;
+      apiPut<{ ok: boolean }>('/api/profile', { selection: payload }).catch(() => {
+        lastPushedRef.current = ''; // nouvelle tentative au prochain changement
+      });
+    }
   }, [equippedStackId, selectedByShape]);
+
+  /**
+   * Applique (une seule fois, au démarrage) la sélection venant du serveur :
+   * le compte est la source de vérité entre appareils. Si le serveur n'a
+   * encore aucune sélection (ou une sélection périmée), la sauvegarde locale
+   * est poussée vers lui.
+   */
+  const tryApplyServerSelection = useCallback(() => {
+    if (serverAppliedRef.current) return;
+    const sel = serverSelRef.current;
+    const owned = ownedRef.current;
+    if (!sel || !owned) return;
+    serverAppliedRef.current = true;
+    const keys = new Set(owned.map(ownedStackKey));
+
+    if (sel.equipped && keys.has(sel.equipped)) {
+      const card = owned.find((c) => ownedStackKey(c) === sel.equipped) ?? null;
+      if (card) {
+        setEquippedPreset(card);
+        setEquippedStackId(sel.equipped);
+        prevEquippedRef.current = sel.equipped;
+      }
+    } else {
+      // Serveur sans sélection (ou sélection dont la carte n'existe plus)
+      // → on y pousse la sauvegarde locale si elle contient une peluche.
+      const saved = loadSavedSelection();
+      if (saved.equipped) {
+        const payload = {
+          equipped: ownedStackKey(saved.equipped),
+          byShape: saved.byShape,
+        };
+        const serialized = JSON.stringify(payload);
+        if (serialized !== lastPushedRef.current) {
+          lastPushedRef.current = serialized;
+          apiPut<{ ok: boolean }>('/api/profile', { selection: payload }).catch(() => {
+            lastPushedRef.current = ''; // nouvelle tentative au prochain changement
+          });
+        }
+      }
+    }
+
+    const entries = Object.entries(sel.byShape ?? {});
+    if (entries.length > 0) {
+      setSelectedByShape((prev) => {
+        const merged: Record<string, string> = { ...prev };
+        for (const [shape, key] of entries) {
+          if (keys.has(key)) merged[shape] = key;
+        }
+        return merged;
+      });
+    }
+  }, []);
+
+  // Charge la sélection serveur (profiles.selection). Appliquée dès que
+  // l'inventaire est disponible pour résoudre les peluches possédées.
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<{ selection?: { equipped?: unknown; byShape?: unknown } | null }>('/api/profile')
+      .then((profile) => {
+        if (cancelled) return;
+        const sel = profile.selection;
+        const equipped = sel && typeof sel === 'object' && typeof sel.equipped === 'string' ? sel.equipped : null;
+        const byShape =
+          sel && typeof sel === 'object' && sel.byShape && typeof sel.byShape === 'object'
+            ? (sel.byShape as Record<string, string>)
+            : {};
+        serverSelRef.current = { equipped, byShape };
+        lastPushedRef.current = JSON.stringify(serverSelRef.current);
+        tryApplyServerSelection();
+      })
+      .catch(() => {
+        // non connecté / hors ligne : la sauvegarde locale reste utilisée
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tryApplyServerSelection]);
 
   // Hydratation différée pour refléter l'équipement après un changement de vue.
   useEffect(() => {
@@ -140,6 +232,7 @@ export default function PlushWorld() {
     const speciesIds = Array.from(new Set(remoteOwned.map((card) => card.speciesId)));
     unlockedRef.current = speciesIds;
     setUnlocked(speciesIds);
+    ownedRef.current = remoteOwned;
 
     // Validation de la sélection restaurée contre l'inventaire réel : une
     // carte vendue au marché ne peut plus rester sélectionnée ni équipée.
@@ -166,7 +259,9 @@ export default function PlushWorld() {
       if (fresh) setEquippedPreset(fresh);
       return prevId;
     });
-  }, []);
+
+    tryApplyServerSelection();
+  }, [tryApplyServerSelection]);
 
   const refreshOwnedCardCount = useCallback(async () => {
     try {

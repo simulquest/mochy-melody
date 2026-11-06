@@ -19,6 +19,11 @@ export interface Profile {
   avatar_url: string | null;
   coins: number;
   onboarding_completed: boolean;
+  /** Sélection de peluche (équipée + variantes par famille), jsonb libre. */
+  selection?: {
+    equipped: string | null;
+    byShape: Record<string, string>;
+  } | null;
 }
 
 export interface InventoryItem {

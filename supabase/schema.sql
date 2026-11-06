@@ -35,9 +35,16 @@ create table if not exists public.profiles (
   -- MochyHearts : monnaie gagnée en caressant (1..5 selon la rareté)
   hearts       bigint not null default 0 check (hearts >= 0),
   onboarding_completed boolean not null default false,
+  -- Sélection de peluche : peluche équipée + variante choisie par famille.
+  -- Format : {"equipped": "<card_id>::<mutation_key>"|null,
+  --           "byShape": {"<shape>": "<card_id>::<mutation_key>"}}
+  selection    jsonb,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
+
+-- Migration pour les bases existantes créées avant l'ajout de la colonne.
+alter table public.profiles add column if not exists selection jsonb;
 
 -- ---------------------------------------------------------------------
 -- INVENTORY — piles de cartes (doublons regroupés)
