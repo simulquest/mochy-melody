@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MousePointerClick, Clock, Gift } from 'lucide-react';
+import { X, MousePointerClick, Clock, Gift, Orbit } from 'lucide-react';
 import {
   RARITIES,
   OwnedPlush,
@@ -370,8 +370,32 @@ export default function LootboxScene({
     let flashBoost = 0;
     let lastFlashId = 0;
     let baseZ = 8.4;
-    const ndc = { x: 0, y: 0 };
-    const ndcTarget = { x: 0, y: 0 };
+
+    // ----- Contrôles d'orbite : la caméra tourne autour du coffre.
+    // Glisser = orbiter (360°), molette / pincer = zoomer,
+    // tap court = frapper le coffre (gameplay d'origine conservé).
+    const ORBIT_TARGET = new THREE.Vector3(0, 1.9, 0);
+    const MIN_Z = 5.5;
+    const MAX_Z = 17;
+    const PHI_MIN = 0.15;   // presque vu du dessus
+    const PHI_MAX = 2.7;    // vu d'en dessous
+    const TAP_SLOP = 8;     // px de tolérance avant de considérer un glisser
+    let theta = 0;          // azimut (tour complet)
+    let phi = 1.46;         // hauteur (0 = au-dessus, PI/2 = horizon)
+    let thetaTarget = theta;
+    let phiTarget = phi;
+    let radius = 8.4;
+    let radiusTarget = radius;
+    let userZoomed = false;
+    let lastInteract = -10; // auto-rotation douce dès l'arrivée
+    let dragStart: { x: number; y: number } | null = null;
+    let dragLast: { x: number; y: number } | null = null;
+    let orbiting = false;
+    let multiTouch = false;
+    let pinchDist = 0;
+    let pinchRadius = 0;
+    const pointers = new Map<number, { x: number; y: number }>();
+    const clampZoom = (z: number) => Math.min(MAX_Z, Math.max(MIN_Z, z));
     const raycaster = new THREE.Raycaster();
     const current = new THREE.Color(RARITIES[rarityIdx].color);
     const target = new THREE.Color(current);
@@ -382,19 +406,111 @@ export default function LootboxScene({
       renderer.setSize(w, h, false);
       camera.aspect = w / Math.max(1, h);
       baseZ = Math.max(8.4, 5.4 / (0.728 * camera.aspect));
-      camera.position.set(0, 2.8, baseZ);
-      camera.lookAt(0, 2, 0);
+      // Recadrage automatique sauf si l'utilisateur a choisi son propre zoom
+      if (!userZoomed) radiusTarget = baseZ;
+      radiusTarget = clampZoom(radiusTarget);
       camera.updateProjectionMatrix();
     };
     window.addEventListener('resize', resize);
     resize();
+    radius = radiusTarget;
 
-    const onMove = (e: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      ndcTarget.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      ndcTarget.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    // ----- Entrées : orbite au glisser, zoom molette/pincement, tap = frappe
+    const onPointerDown = (e: PointerEvent) => {
+      canvas.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      lastInteract = clock.getElapsed();
+      if (pointers.size === 2) {
+        // Début d'un pincement : on abandonne l'orbite en cours
+        multiTouch = true;
+        orbiting = false;
+        const [a, b] = [...pointers.values()];
+        pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+        pinchRadius = radiusTarget;
+      } else if (pointers.size === 1) {
+        dragStart = { x: e.clientX, y: e.clientY };
+        dragLast = { x: e.clientX, y: e.clientY };
+        orbiting = false;
+        multiTouch = false;
+      }
     };
-    canvas.addEventListener('pointermove', onMove, { passive: true });
+
+    const onPointerMove = (e: PointerEvent) => {
+      const pt = pointers.get(e.pointerId);
+      if (!pt) return; // simple survol sans appui : rien à faire
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      lastInteract = clock.getElapsed();
+
+      if (pointers.size >= 2) {
+        const [a, b] = [...pointers.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinchDist > 0 && d > 0) {
+          radiusTarget = clampZoom(pinchRadius * (pinchDist / d));
+          userZoomed = true;
+        }
+        return;
+      }
+
+      if (!dragStart || !dragLast) return;
+      if (!orbiting && Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) > TAP_SLOP) {
+        orbiting = true; // au-delà du seuil : c'est un glisser, pas un tap
+      }
+      if (orbiting) {
+        thetaTarget -= (e.clientX - dragLast.x) * 0.0055;
+        phiTarget = Math.min(PHI_MAX, Math.max(PHI_MIN, phiTarget - (e.clientY - dragLast.y) * 0.0045));
+      }
+      dragLast = { x: e.clientX, y: e.clientY };
+    };
+
+    const finishPointer = (e: PointerEvent) => {
+      const had = pointers.delete(e.pointerId);
+      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+      if (!had) return;
+
+      if (pointers.size === 1) {
+        // Fin d'un pincement : le doigt restant reprend une orbite sans à-coup
+        const [rest] = [...pointers.values()];
+        dragStart = { x: rest.x, y: rest.y };
+        dragLast = { x: rest.x, y: rest.y };
+        orbiting = false;
+        multiTouch = true;
+        pinchDist = 0;
+        return;
+      }
+      if (pointers.size > 0) return;
+
+      const wasTap = !orbiting && !multiTouch && dragStart !== null;
+      dragStart = null;
+      dragLast = null;
+      orbiting = false;
+      multiTouch = false;
+      pinchDist = 0;
+      if (!wasTap) return;
+
+      // Tap court sur le coffre = un coup (comportement d'origine)
+      const p = propsRef.current;
+      if (!p || p.phase !== 'idle' || p.chestsAvailable <= 0) return;
+      const rect = canvas.getBoundingClientRect();
+      const n = {
+        x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        y: -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      };
+      if (fxRef.current?.hit(n)) p.onClick();
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      userZoomed = true;
+      lastInteract = clock.getElapsed();
+      radiusTarget = clampZoom(radiusTarget * Math.exp(e.deltaY * 0.0011));
+    };
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', finishPointer);
+    canvas.addEventListener('pointercancel', finishPointer);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
 
     // Effets exposés au composant React
     fxRef.current = {
@@ -443,13 +559,18 @@ export default function LootboxScene({
       beamMat.color.copy(current);
       particleMat.color.copy(current);
 
-      // Parallaxe douce
-      ndc.x += (ndcTarget.x - ndc.x) * (1 - Math.exp(-3 * dt));
-      ndc.y += (ndcTarget.y - ndc.y) * (1 - Math.exp(-3 * dt));
-      camera.position.x = ndc.x * 0.45;
-      camera.position.y = 2.8 + ndc.y * 0.18;
-      camera.position.z = baseZ;
-      camera.lookAt(0, 2, 0);
+      // Caméra en orbite autour du coffre + auto-rotation après inactivité
+      if (t - lastInteract > 4) thetaTarget += dt * 0.12;
+      theta += (thetaTarget - theta) * (1 - Math.exp(-12 * dt));
+      phi += (phiTarget - phi) * (1 - Math.exp(-12 * dt));
+      radius += (radiusTarget - radius) * (1 - Math.exp(-9 * dt));
+      const sinPhi = Math.sin(phi);
+      camera.position.set(
+        ORBIT_TARGET.x + radius * sinPhi * Math.sin(theta),
+        ORBIT_TARGET.y + radius * Math.cos(phi),
+        ORBIT_TARGET.z + radius * sinPhi * Math.cos(theta),
+      );
+      camera.lookAt(ORBIT_TARGET);
 
       if (p.phase === 'idle') {
         openT = -1;
@@ -582,7 +703,11 @@ export default function LootboxScene({
       cancelAnimationFrame(rafId);
       clock.dispose();
       window.removeEventListener('resize', resize);
-      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', finishPointer);
+      canvas.removeEventListener('pointercancel', finishPointer);
+      canvas.removeEventListener('wheel', onWheel);
       fxRef.current = null;
 
       if (plushMesh) {
@@ -597,19 +722,6 @@ export default function LootboxScene({
       if (pmrem) pmrem.dispose();
       renderer.dispose();
     };
-  }, []);
-
-  // Clic / tap sur la scène = un coup sur le coffre (seulement s'il est touché)
-  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!e.isPrimary) return;
-    const p = propsRef.current;
-    if (!p || p.phase !== 'idle' || p.chestsAvailable <= 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const n = {
-      x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      y: -((e.clientY - rect.top) / rect.height) * 2 + 1,
-    };
-    if (fxRef.current?.hit(n)) p.onClick();
   }, []);
 
   const rar = RARITIES[rarityIdx];
@@ -632,7 +744,7 @@ export default function LootboxScene({
       aria-label={
         locked
           ? `Lootbox en trois dimensions — coffre en recharge, ${formatCooldown(remaining)} restantes`
-          : `Lootbox en trois dimensions — ${chestsAvailable}/${MAX_CHESTS} coffres dispo — touchez le coffre pour le frapper`
+          : `Lootbox en trois dimensions — ${chestsAvailable}/${MAX_CHESTS} coffres dispo — glissez pour tourner autour du coffre, touchez-le pour le frapper`
       }
     >
       {/* fond + vignette */}
@@ -643,17 +755,16 @@ export default function LootboxScene({
         aria-hidden
       />
 
-      {/* scène 3D — toute la surface est cliquable */}
+      {/* scène 3D — glisser pour orbiter, tap sur le coffre pour le frapper */}
       <canvas
         ref={canvasRef}
         data-tutorial="lootbox"
         className={`absolute inset-0 h-full w-full touch-none ${locked ? 'cursor-default' : 'cursor-pointer'}`}
-        onPointerDown={handlePointerDown}
         onContextMenu={(e) => e.preventDefault()}
         aria-label={
           locked
-            ? `Coffre en recharge, prochaine ouverture dans ${formatCooldown(remaining)}.`
-            : `Coffre ${rar.name}, progression ${progress} sur ${rar.clicks}. ${chestsAvailable}/${MAX_CHESTS} coffres dispo. Touchez pour frapper.`
+            ? `Coffre en recharge, prochaine ouverture dans ${formatCooldown(remaining)}. Glissez pour tourner autour du coffre.`
+            : `Coffre ${rar.name}, progression ${progress} sur ${rar.clicks}. ${chestsAvailable}/${MAX_CHESTS} coffres dispo. Touchez pour frapper, glissez pour tourner autour du coffre.`
         }
         aria-disabled={locked}
         role="button"
@@ -775,6 +886,12 @@ export default function LootboxScene({
             )}
           </p>
         )}
+
+        {/* astuce : la caméra peut orbiter autour du coffre */}
+        <p className="flex items-center gap-1.5 text-[11px] font-medium text-white/35">
+          <Orbit className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          Glissez pour tourner autour du coffre · molette ou pincement pour zoomer
+        </p>
       </div>
 
       {webglError && (
