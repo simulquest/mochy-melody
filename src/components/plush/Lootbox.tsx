@@ -141,6 +141,10 @@ export default function Lootbox({
   // Valeurs vues par la scène 3D : figées pendant l'ouverture pour que le coffre
   // garde sa teinte de rareté (sinon il repasserait au gris de Commune dès l'open).
   const [sceneBox, setSceneBox] = useState({ rarityIdx: 0, progress: 0 });
+  // Miroirs de la scène 3D pour les callbacks asynchrones (réponses serveur,
+  // recharges) : la rareté RENDUE et la phase RENDUE, sans les mettre en deps.
+  const sceneRarityRef = useRef(0);
+  const scenePhaseRef = useRef<LootboxPhase>('idle');
   const [flash, setFlash] = useState<{ color: string; id: number } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Horloge du cooldown (rafraîchie chaque seconde quand un coffre recharge).
@@ -214,6 +218,14 @@ export default function Lootbox({
     return () => clearTimeout(id);
   }, [upgradeToast]);
 
+  // Miroirs lisibles depuis les callbacks async (jamais pendant le rendu).
+  useEffect(() => {
+    sceneRarityRef.current = sceneBox.rarityIdx;
+  }, [sceneBox.rarityIdx]);
+  useEffect(() => {
+    scenePhaseRef.current = scenePhase;
+  }, [scenePhase]);
+
   // Compte à rebours de la prochaine recharge de coffre.
   useEffect(() => {
     if (!persist) return;
@@ -233,6 +245,13 @@ export default function Lootbox({
             setPersist((prev) =>
               prev ? serverStateToPersist(state, prev.owned, equippedKeyRef.current) : prev,
             );
+            // La rareté affichée par la scène 3D suit la vérité serveur — sauf
+            // pendant l'animation d'ouverture (le coffre doit garder la teinte
+            // du coffre qui s'ouvre). Cas typique : un autre onglet/appareil a
+            // joué pendant ce temps, ou un upgrade n'a jamais été reçu.
+            if (scenePhaseRef.current === 'idle') {
+              setSceneBox({ rarityIdx: state.rarity_idx, progress: state.progress });
+            }
             setLoadError(null);
           })
           .catch((error: unknown) => {
@@ -287,10 +306,14 @@ export default function Lootbox({
   const applyServerEvent = useCallback((ev: RemoteClickEvent) => {
     if (ev.type === 'locked') {
       // État périmé (rafale de clics, autre onglet…) : rien n'a été appliqué,
-      // on resynchronise l'affichage sur la vérité serveur.
+      // on resynchronise l'affichage sur la vérité serveur — y compris la
+      // rareté affichée par la scène 3D, sinon le coffre garderait une teinte
+      // et un palier périmés (ex. « Commune 5/6 ») alors que la carte révélée
+      // à l'ouverture correspondrait à la vraie rareté serveur.
       const st = ev.persist;
       if (st) {
         setPersist((p) => (p ? serverStateToPersist(st, p.owned, equippedKeyRef.current) : p));
+        setSceneBox({ rarityIdx: st.rarity_idx, progress: st.progress });
       }
       setNow(Date.now());
       return;
@@ -332,8 +355,21 @@ export default function Lootbox({
       return;
     }
 
-    // progress
-    setSceneBox((sb) => ({ ...sb, progress: serverBox.progress }));
+    // progress — resynchronise AUSSI la rareté affichée : si un « upgrade »
+    // n'a jamais été vu par cet onglet (réponse perdue, autre onglet/appareil),
+    // la scène restait sinon bloquée sur l'ancienne rareté jusqu'à l'ouverture,
+    // et la carte révélée ne « correspondait » pas au coffre affiché.
+    if (serverBox.rarity_idx !== sceneRarityRef.current) {
+      const rarityIdx = Math.max(0, Math.min(RARITIES.length - 1, serverBox.rarity_idx));
+      setSceneBox({ rarityIdx, progress: serverBox.progress });
+      // Montée silencieuse : même annonce qu'un upgrade normal (flash + toast).
+      if (rarityIdx > sceneRarityRef.current) {
+        setFlash({ color: RARITIES[rarityIdx].color, id: Date.now() });
+        setUpgradeToast(rarityIdx);
+      }
+    } else {
+      setSceneBox((sb) => ({ ...sb, progress: serverBox.progress }));
+    }
     vibrate(12);
   }, [onInventoryChanged]);
 
