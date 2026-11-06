@@ -165,6 +165,31 @@ export function isDefaultMutation(mut: PlushMutation): boolean {
 }
 
 /**
+ * Libellé d'aide quand la mutation SURCLASSE la rareté du coffre d'origine
+ * (ex. peluche issue d'un coffre Commune affichée « Rare » grâce à ses yeux
+ * Améthyste). Renvoie `null` quand la rareté affichée vient du coffre
+ * lui-même — l'info mutation n'a alors rien d'expliquer.
+ */
+export function mutationUpgradeLabel(
+  rarityIdx: number,
+  mut: PlushMutation | null | undefined,
+): string | null {
+  if (!mut) return null;
+  if (effectiveRarityIdx(rarityIdx, mut) <= rarityIdx) return null;
+  const parts: Array<{ label: string; rarity: MutRarityId }> = [
+    { label: `Yeux ${mut.eye.label.toLowerCase()}`, rarity: mut.eye.rarity },
+    { label: `Pelage ${mut.fur.label.toLowerCase()}`, rarity: mut.fur.rarity },
+    { label: `Teinte ${mut.tint.label.toLowerCase()}`, rarity: mut.tint.rarity },
+  ];
+  if (mut.hetero) parts.push({ label: 'Hétérochromie', rarity: 'rare' });
+  let best = parts[0];
+  for (const p of parts) {
+    if (RARITY_INDEX[p.rarity] > RARITY_INDEX[best.rarity]) best = p;
+  }
+  return `Mutation · ${best.label}`;
+}
+
+/**
  * Signature stable d'une mutation, utilisée comme identité de PILE d'inventaire
  * (doublons regroupés par variante + mutation). `'none'` si aucune mutation.
  */

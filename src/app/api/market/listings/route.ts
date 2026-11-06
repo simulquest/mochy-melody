@@ -36,34 +36,44 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, parseInt(sp.get('page') || '1', 10) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(sp.get('pageSize') || '50', 10) || 50));
 
-    let query = supabase.from('listings').select('*', { count: 'exact' });
-
-    if (status && status !== 'all') {
-      query = query.eq('status', status);
-    }
-    if (cardId) query = query.eq('card_id', cardId);
-    if (speciesId) query = query.eq('species_id', speciesId);
-    if (rarity) query = query.eq('rarity_idx', Number(rarity));
-    if (mine) query = query.eq('seller_id', user.id);
-
-    switch (sort) {
-      case 'price_asc':
-        query = query.order('current_price', { ascending: true });
-        break;
-      case 'price_desc':
-        query = query.order('current_price', { ascending: false });
-        break;
-      case 'recent':
-        query = query.order('created_at', { ascending: false });
-        break;
-      case 'ending_soon':
-      default:
-        query = query.order('ends_at', { ascending: true });
-    }
-
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
-    const { data, error, count } = await query.range(from, to);
+
+    const buildQuery = (useEffectiveRarity: boolean) => {
+      let q = supabase.from('listings').select('*', { count: 'exact' });
+      if (status && status !== 'all') q = q.eq('status', status);
+      if (cardId) q = q.eq('card_id', cardId);
+      if (speciesId) q = q.eq('species_id', speciesId);
+      if (rarity) {
+        // Filtre sur la rareté EFFECTIVE (max entre coffre d'origine et
+        // mutation) pour correspondre aux badges affichés sur les cartes.
+        // Repli sur `rarity_idx` brut si la colonne générée n'existe pas
+        // encore (migration pas encore passée sur la base).
+        q = q.eq(useEffectiveRarity ? 'effective_rarity_idx' : 'rarity_idx', Number(rarity));
+      }
+      if (mine) q = q.eq('seller_id', user.id);
+
+      switch (sort) {
+        case 'price_asc':
+          q = q.order('current_price', { ascending: true });
+          break;
+        case 'price_desc':
+          q = q.order('current_price', { ascending: false });
+          break;
+        case 'recent':
+          q = q.order('created_at', { ascending: false });
+          break;
+        case 'ending_soon':
+        default:
+          q = q.order('ends_at', { ascending: true });
+      }
+      return q;
+    };
+
+    let { data, error, count } = await buildQuery(true).range(from, to);
+    if (error && rarity && /effective_rarity_idx/i.test(error.message)) {
+      ({ data, error, count } = await buildQuery(false).range(from, to));
+    }
     if (error) throw new Error(`listings: ${error.message}`);
 
     const listings = (data as Listing[]) ?? [];

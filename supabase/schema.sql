@@ -123,8 +123,30 @@ create table if not exists public.listings (
   ends_at           timestamptz not null,
   settled_at        timestamptz,
   created_at        timestamptz not null default now(),
-  check (ends_at >= starts_at + interval '1 hour')
+  check (ends_at >= starts_at + interval '1 hour'),
+  -- Rareté EFFECTIVE = max(coffre d'origine, mutation portée) — aligne le
+  -- filtre « Commun/Rare/… » du marché sur les badges affichés.
+  -- (Voir migration_listings_effective_rarity.sql pour les bases existantes.)
+  effective_rarity_idx int generated always as (
+    greatest(
+      coalesce(rarity_idx, 0),
+      case mutation->'eye'->>'rarity'
+        when 'rare' then 1 when 'epique' then 2
+        when 'legendaire' then 3 when 'mythique' then 4 else 0 end,
+      case mutation->'fur'->>'rarity'
+        when 'rare' then 1 when 'epique' then 2
+        when 'legendaire' then 3 when 'mythique' then 4 else 0 end,
+      case mutation->'tint'->>'rarity'
+        when 'rare' then 1 when 'epique' then 2
+        when 'legendaire' then 3 when 'mythique' then 4 else 0 end,
+      case when coalesce(mutation->'hetero', 'null'::jsonb) <> 'null'::jsonb
+        then 1 else 0 end
+    )
+  ) stored
 );
+
+create index if not exists listings_effective_rarity_idx
+  on public.listings (effective_rarity_idx);
 
 -- ---------------------------------------------------------------------
 -- BIDS — enchères (coins bloqués en escrow)

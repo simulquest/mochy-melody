@@ -49,6 +49,8 @@ export interface Listing {
   starts_at: string;
   ends_at: string;
   created_at: string;
+  /** Rareté effective (max coffre/mutation) — colonne générée côté SQL. */
+  effective_rarity_idx?: number;
 }
 
 export interface ListingView extends Listing {

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, Backpack, Sparkles, X, Check, Clock, ChevronDown } from 'lucide-react';
 import { PlushPreset } from '@/lib/plush/plush-shape';
-import { PlushMutation, effectiveRarityIdx } from '@/lib/plush/mutations';
+import { PlushMutation, effectiveRarityIdx, mutationUpgradeLabel } from '@/lib/plush/mutations';
 import {
   RARITIES,
   MAX_CHESTS,
@@ -50,6 +50,23 @@ function RarityChip({ idx, className = '' }: { idx: number; className?: string }
       {mythic && <Sparkles className="h-3 w-3" aria-hidden />}
       {r.name}
     </span>
+  );
+}
+
+/**
+ * Sous la carte de révélation : explique pourquoi une peluche issue d'un coffre
+ * Commune peut afficher « Rare », « Épique »… (sa mutation surclasse le coffre).
+ */
+function MutationHint({ rarityIdx, mut }: { rarityIdx: number; mut: PlushMutation | null }) {
+  const label = mutationUpgradeLabel(rarityIdx, mut);
+  if (!label) return null;
+  return (
+    <p
+      className="-mt-1 text-[11px] font-semibold tracking-wide"
+      style={{ color: RARITIES[effectiveRarityIdx(rarityIdx, mut)].color }}
+    >
+      {label}
+    </p>
   );
 }
 
@@ -696,6 +713,7 @@ export default function Lootbox({
                     className="flex flex-col items-center gap-2"
                   >
                     <RarityChip idx={effectiveRarityIdx(reveal.rarityIdx, reveal.mutation)} />
+                    <MutationHint rarityIdx={reveal.rarityIdx} mut={reveal.mutation ?? null} />
                     <h2 className="text-xl font-bold text-white">Peluche {reveal.name}</h2>
                     <p className="max-w-[26ch] text-xs leading-relaxed text-white/50">
                       Une nouvelle peluche a rejoint votre collection. Caressez-la autant que vous voulez !
