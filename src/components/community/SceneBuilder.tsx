@@ -693,7 +693,7 @@ export default function SceneBuilder({
       setBusy(publish ? 'publish' : 'save');
       try {
         const payload = {
-          title,
+          title: title.trim() || 'Ma scène',
           data: {
             theme: themeId,
             objects: objectsRef.current,
@@ -1045,6 +1045,39 @@ export default function SceneBuilder({
             </button>
           );
         })}
+      </div>
+
+      {/* Titre de la scène (modifiable, envoyé à la galerie) */}
+      <div className="mt-4">
+        <label
+          htmlFor="scene-title"
+          className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-white/40"
+        >
+          <i className="fa-solid fa-pen text-[9px]" aria-hidden />
+          Titre de la scène
+        </label>
+        <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 transition-colors focus-within:border-fuchsia-300/40 focus-within:bg-white/[0.06]">
+          <i className="fa-solid fa-tag text-xs text-white/35" aria-hidden />
+          <input
+            id="scene-title"
+            type="text"
+            value={title}
+            maxLength={60}
+            placeholder="Ex. : Prairie enchantée"
+            disabled={busy !== null}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setDirty(true);
+            }}
+            onBlur={(e) => {
+              if (!e.target.value.trim()) setTitle('Ma scène');
+            }}
+            className="w-full bg-transparent text-sm font-bold text-white outline-none placeholder:font-medium placeholder:text-white/25 disabled:opacity-50"
+          />
+          <span className="shrink-0 text-[10px] tabular-nums text-white/25">
+            {title.length}/60
+          </span>
+        </div>
       </div>
 
       {/* Enregistrement / publication */}
