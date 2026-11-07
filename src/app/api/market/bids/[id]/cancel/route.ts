@@ -4,8 +4,9 @@ import { requireUser, handleApiError } from '@/lib/market';
 
 /**
  * POST /api/market/bids/[id]/cancel — annule la mise active de l'utilisateur
- * sur une enchère encore en cours. Uniquement possible si la mise a été
- * dépassée (jamais en tête) : les MochyCoins bloqués sont remboursés.
+ * sur une enchère encore en cours (possible même en tête). Les MochyCoins
+ * bloqués sont remboursés ; si la mise annulée était en tête, le second
+ * enchérisseur redevient premier (re-escrow de sa mise côté RPC).
  */
 export async function POST(
   _req: NextRequest,

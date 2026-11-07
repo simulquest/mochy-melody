@@ -1041,8 +1041,11 @@ begin
 end;
 $$;
 
--- Annulation d'une mise par l'enchérisseur (uniquement s'il a été dépassé).
--- Rembourse l'escrow et passe la mise en « refunded ».
+-- Annulation d'une mise par l'enchérisseur (possible même en tête).
+-- Rembourse l'escrow et passe la mise en « refunded ». Si la mise annulée
+-- était en tête, le second enchérisseur redevient premier : ses coins
+-- (déjà remboursés quand il a été dépassé) sont re-bloqués ; s'il ne peut
+-- plus se payer sa mise, elle est retirée et on descend au suivant.
 -- Voir supabase/migration_cancel_bid.sql pour les règles détaillées.
 create or replace function public.market_cancel_bid(
   p_user_id text,
@@ -1052,8 +1055,11 @@ returns jsonb
 language plpgsql security definer set search_path = public
 as $$
 declare
-  bid public.bids;
-  lst public.listings;
+  bid      public.bids;
+  lst      public.listings;
+  nxt      record;
+  v_leader text;
+  v_price  bigint;
 begin
   select * into bid
   from public.bids
@@ -1081,10 +1087,7 @@ begin
     raise exception 'Cette enchère est terminée';
   end if;
 
-  if lst.highest_bidder_id = p_user_id then
-    raise exception 'Vous êtes en tête : cette mise ne peut pas être annulée';
-  end if;
-
+  -- Rembourse les coins bloqués et marque la mise remboursée.
   update public.profiles
   set coins = coins + bid.amount, updated_at = now()
   where user_id = p_user_id;
@@ -1093,10 +1096,53 @@ begin
   set status = 'refunded'
   where id = bid.id;
 
+  -- Mise en tête annulée : le second enchérisseur redevient premier.
+  v_leader := null;
+  v_price  := null;
+  if lst.highest_bidder_id = p_user_id then
+    for nxt in
+      select b.id, b.bidder_id, b.amount
+      from public.bids b
+      where b.listing_id = lst.id
+        and b.status = 'outbid'
+        and b.bidder_id <> p_user_id
+      order by b.amount desc, b.created_at asc
+    loop
+      -- Re-escrow : ne passe que si le joueur a encore assez de coins.
+      update public.profiles
+      set coins = coins - nxt.amount, updated_at = now()
+      where user_id = nxt.bidder_id and coins >= nxt.amount;
+
+      if found then
+        update public.bids
+        set status = 'active'
+        where id = nxt.id;
+
+        v_leader := nxt.bidder_id;
+        v_price  := nxt.amount;
+        exit;
+      end if;
+
+      -- Plus assez de coins : mise retirée (coins déjà remboursés au
+      -- moment où il a été dépassé), on essaie la mise suivante.
+      update public.bids
+      set status = 'refunded'
+      where id = nxt.id;
+    end loop;
+
+    -- Personne en tête → la vente repart du prix de départ.
+    update public.listings
+    set highest_bidder_id = v_leader,
+        current_price     = coalesce(v_price, lst.starting_price)
+    where id = lst.id;
+  end if;
+
   return jsonb_build_object(
-    'listing_id', lst.id,
-    'bid_id',     bid.id,
-    'refunded',   bid.amount
+    'listing_id',    lst.id,
+    'bid_id',        bid.id,
+    'refunded',      bid.amount,
+    'new_leader_id', v_leader,
+    'new_price',     v_price
   );
 end;
 $$;

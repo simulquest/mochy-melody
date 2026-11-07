@@ -45,7 +45,8 @@ const dateFmt = new Intl.DateTimeFormat('fr-FR', {
 });
 
 /** Modale de détail d'une de mes enchères : fiche carte + historique des mises
- * + actions « Annuler l'enchère » (si dépassé) et « Renchérir ». */
+ * + actions « Annuler l'enchère » (possible même en tête : le second
+ * enchérisseur redevient alors premier) et « Renchérir » (si dépassé). */
 export default function BidDetailDialog({
   listingId,
   currentUserId,
@@ -106,7 +107,9 @@ export default function BidDetailDialog({
   const leading = !!listing && listing.highest_bidder_id === currentUserId;
   const timeLeft = listing ? Math.max(0, new Date(listing.ends_at).getTime() - now) : 0;
   const ended = !listing || timeLeft <= 0 || listing.status !== 'active';
-  const canCancel = !!myActiveBid && !ended && !leading;
+  // L'annulation est possible même en tête : le second enchérisseur
+  // redeviendra alors premier (re-escrow de sa mise côté serveur).
+  const canCancel = !!myActiveBid && !ended;
   const canRencherir = !ended && !leading;
 
   const handleCancel = async () => {
@@ -340,8 +343,8 @@ export default function BidDetailDialog({
               {!ended && leading && (
                 <p className="mt-4 flex items-center gap-1.5 text-[11px] text-emerald-300/80">
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  Vous êtes en tête : attendez la fin de l&apos;enchère (une mise en
-                  tête ne peut pas être annulée).
+                  Vous êtes en tête : si vous annulez, le second enchérisseur
+                  redeviendra premier.
                 </p>
               )}
               {error && data && (
@@ -386,7 +389,10 @@ export default function BidDetailDialog({
               )}
               {canCancel && confirmCancel && (
                 <p className="mt-2 text-center text-[11px] text-rose-300/80">
-                  Vos {formatCoins(myActiveBid!.amount)} 🪙 seront remboursés.
+                  Vos {formatCoins(myActiveBid!.amount)} 🪙 seront remboursés
+                  {leading
+                    ? ' et le second enchérisseur redeviendra en tête.'
+                    : '.'}
                 </p>
               )}
             </>
