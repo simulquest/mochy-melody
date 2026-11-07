@@ -11,11 +11,14 @@ import {
   Tag,
   LogOut,
   Loader2,
+  Clock,
+  ChevronRight,
 } from 'lucide-react';
 import ListingCard from '@/components/market/ListingCard';
 import BottomNav from '@/components/plush/BottomNav';
 import SellDialog from '@/components/market/SellDialog';
 import BidDialog from '@/components/market/BidDialog';
+import BidDetailDialog from '@/components/market/BidDetailDialog';
 import CardPriceChart from '@/components/market/CardPriceChart';
 import GameTutorial from '@/components/plush/GameTutorial';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -24,7 +27,13 @@ import { getSpecies, SPECIES } from '@/lib/plush/species';
 import { RARITIES } from '@/lib/plush/lootbox';
 import { effectiveRarityIdx } from '@/lib/plush/mutations';
 import { useMe, useListings, useCards } from '@/hooks/use-market';
-import { apiPost, formatCoins, type ListingView, type InventoryItem } from '@/lib/market-client';
+import {
+  apiPost,
+  formatCoins,
+  formatTimeLeft,
+  type ListingView,
+  type InventoryItem,
+} from '@/lib/market-client';
 
 type Tab = 'sales' | 'mine' | 'bids' | 'cours';
 
@@ -51,6 +60,8 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
   const [sellOpen, setSellOpen] = useState<boolean>(!!initialSellId);
   const [sellPreselect, setSellPreselect] = useState<string | null>(initialSellId ?? null);
   const [bidTarget, setBidTarget] = useState<ListingView | null>(null);
+  // Enchère ouverte dans la modale de détail « Mes enchères » (id de la vente).
+  const [detailListingId, setDetailListingId] = useState<string | null>(null);
   const [chartCard, setChartCard] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(null);
   // Incrémenté après chaque action pour recharger la liste des enchères.
@@ -112,6 +123,17 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
     async (listing: ListingView) => {
       await apiPost(`/api/market/listings/${listing.id}/cancel`);
       fireToast('Vente annulée, carte rendue.');
+      setTick((t) => t + 1);
+      await reloadMe();
+    },
+    [reloadMe, fireToast],
+  );
+
+  /** Annule ma mise sur une enchère : les coins bloqués sont remboursés. */
+  const handleCancelBid = useCallback(
+    async (bidId: string, amount: number) => {
+      await apiPost(`/api/market/bids/${bidId}/cancel`);
+      fireToast(`Enchère annulée · ${formatCoins(amount)} 🪙 remboursés !`);
       setTick((t) => t + 1);
       await reloadMe();
     },
@@ -200,7 +222,13 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
             onBid={setBidTarget}
           />
         )}
-        {tab === 'bids' && <BidsTab me={me} onChart={setChartCard} />}
+        {tab === 'bids' && (
+          <BidsTab
+            me={me}
+            onChart={setChartCard}
+            onOpen={(listingId) => setDetailListingId(listingId)}
+          />
+        )}
         {tab === 'cours' && <CoursTab onChart={setChartCard} />}
       </main>
 
@@ -228,6 +256,19 @@ export default function Marketplace({ initialSellId, tutorialStep }: Marketplace
             coins={me.profile.coins}
             onClose={() => setBidTarget(null)}
             onSubmit={handleBid}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {detailListingId && (
+          <BidDetailDialog
+            key={detailListingId}
+            listingId={detailListingId}
+            currentUserId={me.profile.user_id}
+            refreshKey={tick}
+            onClose={() => setDetailListingId(null)}
+            onCancelBid={handleCancelBid}
+            onRencherir={setBidTarget}
           />
         )}
       </AnimatePresence>
@@ -527,12 +568,16 @@ function InventoryTile({ item, onSell }: { item: InventoryItem; onSell: (id: str
 function BidsTab({
   me,
   onChart,
+  onOpen,
 }: {
   me: NonNullable<ReturnType<typeof useMe>['data']>;
   onChart: (cardId: string) => void;
+  /** Ouvre la modale de détail de l'enchère cliquée. */
+  onOpen: (listingId: string) => void;
 }) {
   const active = me.myBids.filter((b) => b.status === 'active' && b.listing);
   const outbid = me.myBids.filter((b) => b.status === 'outbid' && b.listing);
+  const refunded = me.myBids.filter((b) => b.status === 'refunded' && b.listing);
   const won = me.won;
 
   return (
@@ -547,7 +592,7 @@ function BidsTab({
         ) : (
           <div className="flex flex-col gap-2">
             {active.map((b) => (
-              <BidRow key={b.id} bid={b} me={me} onChart={onChart} />
+              <BidRow key={b.id} bid={b} me={me} onOpen={onOpen} />
             ))}
           </div>
         )}
@@ -559,7 +604,19 @@ function BidsTab({
           <h2 className="mb-3 text-sm font-bold text-white/85">Dépassées</h2>
           <div className="flex flex-col gap-2">
             {outbid.map((b) => (
-              <BidRow key={b.id} bid={b} me={me} onChart={onChart} />
+              <BidRow key={b.id} bid={b} me={me} onOpen={onOpen} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Annulées (mises remboursées) */}
+      {refunded.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-bold text-white/85">Annulées</h2>
+          <div className="flex flex-col gap-2">
+            {refunded.map((b) => (
+              <BidRow key={b.id} bid={b} me={me} onOpen={onOpen} />
             ))}
           </div>
         </section>
@@ -608,45 +665,95 @@ function BidsTab({
 function BidRow({
   bid,
   me,
-  onChart,
+  onOpen,
 }: {
   bid: NonNullable<ReturnType<typeof useMe>['data']>['myBids'][number];
   me: NonNullable<ReturnType<typeof useMe>['data']>;
-  onChart: (cardId: string) => void;
+  /** Ouvre la modale de détail de l'enchère. */
+  onOpen: (listingId: string) => void;
 }) {
   const listing = bid.listing!;
   const leading = listing.highest_bidder_id === me.profile.user_id;
   const rarity = RARITIES[effectiveRarityIdx(listing.rarity_idx, listing.mutation)] ?? RARITIES[0];
+  const refunded = bid.status === 'refunded';
+  const timeLeft = Math.max(0, new Date(listing.ends_at).getTime() - Date.now());
+  const stillRunning = listing.status === 'active' && timeLeft > 0;
 
-  return (
-    <div
-      className="flex items-center gap-3 rounded-2xl border bg-white/[0.03] p-3"
-      style={{ borderColor: `${rarity.color}33` }}
-    >
-      <button onClick={() => onChart(listing.card_id)} className="shrink-0">
+  const content = (
+    <>
+      <div
+        className="shrink-0 rounded-xl border border-white/10"
+        style={{
+          background: `radial-gradient(circle at 40% 30%, ${listing.preset.glow}33, transparent 70%)`,
+        }}
+      >
         <PlushPreview3D
           species={getSpecies(listing.species_id)}
           preset={listing.preset}
           mutation={listing.mutation}
           size={48}
         />
-      </button>
+      </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-white">{listing.card_name}</p>
         <p className="text-[11px] text-white/45">
           Votre enchère : <span className="font-bold text-white/75">{formatCoins(bid.amount)} 🪙</span>
         </p>
+        {stillRunning && (
+          <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-white/35">
+            <Clock className="h-3 w-3" aria-hidden />
+            {formatTimeLeft(timeLeft)}
+          </p>
+        )}
       </div>
-      <span
-        className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-          leading
-            ? 'bg-emerald-400/15 text-emerald-300'
-            : 'bg-rose-400/15 text-rose-300'
-        }`}
+      {refunded ? (
+        <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/50">
+          Remboursée
+        </span>
+      ) : (
+        <span
+          className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+            leading
+              ? 'bg-emerald-400/15 text-emerald-300'
+              : 'bg-rose-400/15 text-rose-300'
+          }`}
+        >
+          {leading ? 'En tête' : `Dépassé (${formatCoins(listing.current_price)})`}
+        </span>
+      )}
+      {!refunded && (
+        <ChevronRight
+          className="h-4 w-4 shrink-0 text-white/30 transition-transform group-hover:translate-x-0.5 group-hover:text-white/60"
+          aria-hidden
+        />
+      )}
+    </>
+  );
+
+  const style = { borderColor: `${rarity.color}33` };
+
+  // Mise remboursée : ligne informative non cliquable.
+  if (refunded) {
+    return (
+      <div
+        className="flex items-center gap-3 rounded-2xl border bg-white/[0.03] p-3 opacity-60"
+        style={style}
       >
-        {leading ? 'En tête' : `Dépassé (${formatCoins(listing.current_price)})`}
-      </span>
-    </div>
+        {content}
+      </div>
+    );
+  }
+
+  // Enchère en cours : cliquer ouvre le détail (carte, mises, actions).
+  return (
+    <button
+      onClick={() => onOpen(listing.id)}
+      aria-label={`Détails de l'enchère ${listing.card_name}`}
+      className="group flex w-full items-center gap-3 rounded-2xl border bg-white/[0.03] p-3 text-left transition-all hover:bg-white/[0.07]"
+      style={style}
+    >
+      {content}
+    </button>
   );
 }
 

@@ -70,6 +70,12 @@ export interface Bid {
   listing?: Listing | null;
 }
 
+/** Réponse de GET /api/market/listings/[id]/bids (modale détail enchère). */
+export interface ListingBidsResponse {
+  listing: ListingView;
+  bids: Bid[];
+}
+
 export interface Sale {
   id: string;
   listing_id: string;

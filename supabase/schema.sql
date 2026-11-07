@@ -1041,6 +1041,66 @@ begin
 end;
 $$;
 
+-- Annulation d'une mise par l'enchérisseur (uniquement s'il a été dépassé).
+-- Rembourse l'escrow et passe la mise en « refunded ».
+-- Voir supabase/migration_cancel_bid.sql pour les règles détaillées.
+create or replace function public.market_cancel_bid(
+  p_user_id text,
+  p_bid_id  uuid
+)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  bid public.bids;
+  lst public.listings;
+begin
+  select * into bid
+  from public.bids
+  where id = p_bid_id and bidder_id = p_user_id
+  for update;
+
+  if not found then
+    raise exception 'Enchère introuvable';
+  end if;
+
+  if bid.status <> 'active' then
+    raise exception 'Cette mise n''est plus active';
+  end if;
+
+  select * into lst
+  from public.listings
+  where id = bid.listing_id
+  for update;
+
+  if not found then
+    raise exception 'Vente introuvable';
+  end if;
+
+  if lst.status <> 'active' or lst.ends_at <= now() then
+    raise exception 'Cette enchère est terminée';
+  end if;
+
+  if lst.highest_bidder_id = p_user_id then
+    raise exception 'Vous êtes en tête : cette mise ne peut pas être annulée';
+  end if;
+
+  update public.profiles
+  set coins = coins + bid.amount, updated_at = now()
+  where user_id = p_user_id;
+
+  update public.bids
+  set status = 'refunded'
+  where id = bid.id;
+
+  return jsonb_build_object(
+    'listing_id', lst.id,
+    'bid_id',     bid.id,
+    'refunded',   bid.amount
+  );
+end;
+$$;
+
 -- Clôture de toutes les enchères échues (appelée au début des routes).
 create or replace function public.market_settle_expired()
 returns integer
