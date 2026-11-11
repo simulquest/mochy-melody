@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import LoginWithSimulquest from '@/components/market/LoginWithSimulquest';
 import LoginPlush from '@/components/market/LoginPlush';
+import SpecialPlushTeasers from '@/components/market/SpecialPlushTeasers';
 import { getSession } from '@/lib/auth/session';
 import { safeInternalPath } from '@/lib/auth/redirect';
 
@@ -84,6 +85,10 @@ export default async function LoginPage({
           La connexion utilise votre compte Simulquest existant. Aucun nouveau
           mot de passe à créer.
         </p>
+
+        {/* Peluches uniques : 1 par semaine (≤ Épique) + 1 par mois (Mythique),
+            à gagner chaque jour via le coffre mystère qui tombe du ciel. */}
+        <SpecialPlushTeasers />
       </div>
     </main>
   );

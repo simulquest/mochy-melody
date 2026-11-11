@@ -89,7 +89,9 @@ type ExtraShape =
   | 'tigre'
   | 'licorne'
   | 'hibou'
-  | 'pingouin';
+  | 'pingouin'
+  | 'tortue'
+  | 'meduse';
 
 interface ExtraSeed {
   id: string;
@@ -1103,6 +1105,45 @@ export const MODEL_CONFIGS: PlushModelConfig[] = [
     shape: 'tigre',
     rarity: 'legendaire',
     colors: { root: '#1a1a1e', tip: '#8a8a94', body: '#3a3a44', glow: '#6a6a7a' },
+  }),
+
+  // -------------------------------------------------------------------------
+  // Tortue & Méduse — peluches EXCLUSIVES : sans `rarity`, elles ne sortent
+  // JAMAIS des coffres. La Tortue tourne en peluche de la semaine (Commune,
+  // Rare ou Épique, sans mutation) et la Méduse en peluche du mois
+  // (Mythique, sans mutation). Voir `src/lib/plush/specials.ts`.
+  // -------------------------------------------------------------------------
+  makeExtra({
+    id: 'tortue-sieste',
+    name: 'Tortue Sieste',
+    emoji: '🐢',
+    tagline: 'Elle porte sa maison partout et fait la sieste dessous.',
+    shape: 'tortue',
+    colors: { root: '#44583c', tip: '#e6f0c8', body: '#9cbf7c', glow: '#c2e8a0' },
+  }),
+  makeExtra({
+    id: 'tortue-corail',
+    name: 'Tortue Corail',
+    emoji: '🐢',
+    tagline: 'Sa carapace a la couleur des récifs au coucher du soleil.',
+    shape: 'tortue',
+    colors: { root: '#8f2f3f', tip: '#ffd0b8', body: '#e8806e', glow: '#ff9f8a' },
+  }),
+  makeExtra({
+    id: 'tortue-nebuleuse',
+    name: 'Tortue Nébuleuse',
+    emoji: '🐢',
+    tagline: 'Sa carapace garde en mémoire les couleurs d’une nuit étoilée.',
+    shape: 'tortue',
+    colors: { root: '#18233f', tip: '#a8e0ff', body: '#3d6ea8', glow: '#66ccff' },
+  }),
+  makeExtra({
+    id: 'meduse-cosmique',
+    name: 'Méduse Cosmique',
+    emoji: '🪼',
+    tagline: 'Elle flotte entre les galaxies, lumineuse et intouchable.',
+    shape: 'meduse',
+    colors: { root: '#2a1a3e', tip: '#f2e2ff', body: '#7a5ab8', glow: '#c8a0ff', hueShift: 1 },
   }),
 ];
 

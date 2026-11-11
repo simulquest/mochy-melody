@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import ThemeDelights from "@/components/theme/ThemeDelights";
 import { AudioProvider } from "@/components/audio/AudioProvider";
+import SpecialChestDrop from "@/components/plush/SpecialChestDrop";
 import { getSiteTheme } from "@/lib/theme-server";
 
 // Le thème est relu à chaque requête depuis config.json : édition du fichier
@@ -64,6 +65,9 @@ export default function RootLayout({
           <AudioProvider>{children}</AudioProvider>
         </ThemeProvider>
         <Toaster />
+        {/* Coffre mystère : tombe du ciel de temps en temps (1 tentative/jour,
+            peluche unique de la semaine ou du mois à gagner). */}
+        <SpecialChestDrop />
       </body>
     </html>
   );

@@ -74,6 +74,8 @@ create table if not exists public.lootbox_state (
   rarity_idx       int not null default 0 check (rarity_idx between 0 and 4),
   progress         int not null default 0,
   chests_available int not null default 5 check (chests_available between 0 and 5),
+  -- Rareté d'origine du coffre courant : plafond de montée = base + 1.
+  base_rarity_idx  int not null default 0 check (base_rarity_idx between 0 and 4),
   next_refill_at   timestamptz,
   updated_at       timestamptz not null default now()
 );
@@ -662,6 +664,7 @@ begin
     st.rarity_idx       := greatest(0, least(4, coalesce(p_rarity_idx, 0)));
     st.progress         := greatest(0, coalesce(p_progress, 0));
     st.chests_available := greatest(0, least(5, coalesce(p_chests, st.chests_available)));
+    st.base_rarity_idx  := st.rarity_idx; -- la rareté importée = rareté d'origine
     if p_next_refill_ms is not null and p_next_refill_ms > 0 then
       st.next_refill_at := to_timestamp(p_next_refill_ms / 1000.0);
     else
@@ -676,6 +679,7 @@ begin
         progress         = rf.progress,
         chests_available = rf.chests_available,
         next_refill_at   = rf.next_refill_at,
+        base_rarity_idx  = st.base_rarity_idx,
         updated_at       = now()
     where user_id = p_user_id;
   end if;
@@ -713,6 +717,7 @@ declare
   st        public.lootbox_state;
   v_type    text := p_event->>'type';
   v_clicks  int;
+  v_cap     int;
   v_rows    int;
   v_new     int := null;
   won       jsonb := null;
@@ -738,6 +743,14 @@ begin
                 else 24
               end;
 
+  -- Plafond de rareté : UN cran au-dessus de la rareté d'origine du coffre.
+  v_cap := least(4, coalesce(st.base_rarity_idx, 0) + 1);
+
+  -- Un 'upgrade' au-delà du plafond est rétrogradé en simple progression.
+  if v_type = 'upgrade' and coalesce(st.rarity_idx, 0) >= v_cap then
+    v_type := 'progress';
+  end if;
+
   -- Un 'open' calculé sur un état périmé ne doit PAS consommer de coffre.
   if v_type = 'open' and (coalesce(st.progress, 0) + 1) < v_clicks then
     v_type := 'progress';
@@ -746,7 +759,9 @@ begin
   case v_type
     when 'upgrade' then
       update public.lootbox_state
-      set rarity_idx = least(4, greatest(st.rarity_idx + 1, coalesce((p_event->>'newRarityIdx')::int, st.rarity_idx + 1))),
+      set rarity_idx = least(v_cap,
+                             greatest(st.rarity_idx + 1,
+                                      coalesce((p_event->>'newRarityIdx')::int, st.rarity_idx + 1))),
           progress   = st.progress + 1,
           updated_at = now()
       where user_id = p_user_id
@@ -757,7 +772,9 @@ begin
       if v_rows = 0 then
         return jsonb_build_object('type', 'locked', 'persist', to_jsonb(public.lootbox_ensure_state(p_user_id)));
       end if;
-      v_new := least(4, greatest(st.rarity_idx + 1, coalesce((p_event->>'newRarityIdx')::int, st.rarity_idx + 1)));
+      v_new := least(v_cap,
+                     greatest(st.rarity_idx + 1,
+                              coalesce((p_event->>'newRarityIdx')::int, st.rarity_idx + 1)));
 
     when 'progress' then
       update public.lootbox_state
@@ -784,6 +801,7 @@ begin
       update public.lootbox_state
       set rarity_idx       = 0,
           progress         = 0,
+          base_rarity_idx  = 0, -- le prochain coffre repart de Commune
           chests_available = st.chests_available - 1,
           next_refill_at   = case
             when st.chests_available >= 5 and st.next_refill_at is null

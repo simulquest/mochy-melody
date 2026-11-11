@@ -96,6 +96,8 @@ export interface LootboxState {
   rarity_idx: number;
   progress: number;
   chests_available: number;
+  /** Rareté d'origine du coffre courant : plafond = base_rarity_idx + 1. */
+  base_rarity_idx: number;
   next_refill_at: string | null;
   updated_at: string;
 }

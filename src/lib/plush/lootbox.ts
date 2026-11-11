@@ -29,6 +29,24 @@ export const RARITIES: Rarity[] = [
   { id: 'mythique',   name: 'Mythique',   color: '#ff5f9e', clicks: 24, upgrade: 0 },
 ];
 
+/**
+ * Rareté maximale gagnable dans un coffre : UN cran au-dessus de sa rareté
+ * d'origine (borné au dernier palier). Source unique de vérité du plafond,
+ * partagée par le moteur de lootbox, le tirage de mutation et l'affichage.
+ */
+export function maxRarityForChest(baseRarityIdx: number): number {
+  return Math.min(Math.max(0, Math.floor(baseRarityIdx)) + 1, RARITIES.length - 1);
+}
+
+/**
+ * Taille maximale d'un lot de clics joué en une seule requête : la
+ * progression étant conservée à chaque montée de rareté, un coffre s'ouvre
+ * toujours en 24 clics maximum (palier Mythique). Un lot de cette taille
+ * suffit donc à terminer le coffre courant, quel que soit son état — les
+ * taps au-delà sont avalés par l'animation d'ouverture.
+ */
+export const MAX_BATCH_CLICKS = 24;
+
 /** Nombre max de coffres en réserve. */
 export const MAX_CHESTS = 5;
 /** Intervalle de recharge d'un coffre : 4 min 30. */
@@ -117,7 +135,12 @@ export interface OwnedPlush extends PlushPreset {
 }
 
 export interface LootboxPersist {
-  box: { rarityIdx: number; progress: number };
+  box: {
+    rarityIdx: number;
+    progress: number;
+    /** Rareté d'origine du coffre (plafond de montée = base + 1). */
+    baseRarityIdx?: number;
+  };
   owned: OwnedPlush[];
   equippedId: string | null;
   /** Nombre de coffres disponibles immédiatement (0..MAX_CHESTS). */

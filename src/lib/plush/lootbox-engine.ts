@@ -1,4 +1,4 @@
-import { PLUSH_POOL, RARITIES } from './lootbox';
+import { PLUSH_POOL, RARITIES, maxRarityForChest } from './lootbox';
 import type { PlushPreset } from './plush-shape';
 import { rollMutation, mutationKey, type PlushMutation } from './mutations';
 
@@ -9,12 +9,18 @@ import { rollMutation, mutationKey, type PlushMutation } from './mutations';
  * mais ici elle n'écrit jamais dans le navigateur : elle renvoie simplement
  * l'événement à appliquer, que la route API transmet à la fonction SQL
  * transactionnelle `lootbox_click`.
+ *
+ * Plafond de rareté : un coffre ne peut jamais dépasser UN cran au-dessus de
+ * sa rareté d'origine (`base_rarity_idx`) — un coffre Commune plafonne à
+ * Rare, un Rare à Épique, etc. (voir `maxRarityForChest`).
  */
 
 export interface LootboxServerState {
   rarity_idx: number;
   progress: number;
   chests_available: number;
+  /** Rareté d'origine du coffre courant : plafond = base_rarity_idx + 1. */
+  base_rarity_idx: number;
 }
 
 export type ServerClickEvent =
@@ -52,9 +58,11 @@ export function clickBoxServer(prev: LootboxServerState): ServerClickEvent {
   }
 
   const rarity = RARITIES[prev.rarity_idx];
-  const canUpgrade = prev.rarity_idx < RARITIES.length - 1;
+  const base = Math.max(0, Math.floor(prev.base_rarity_idx ?? 0));
+  // Plafond : UN cran au-dessus de la rareté d'origine du coffre.
+  const canUpgrade = prev.rarity_idx < maxRarityForChest(base);
 
-  // 1) chance de monter d'un cran (clics conservés)
+  // 1) chance de monter d'un cran (clics conservés, plafond respecté)
   if (canUpgrade && Math.random() < rarity.upgrade) {
     const rarityIdx = prev.rarity_idx + 1;
     return {
@@ -69,7 +77,12 @@ export function clickBoxServer(prev: LootboxServerState): ServerClickEvent {
   if (progress >= rarity.clicks) {
     return {
       type: 'open',
-      persist: { rarity_idx: 0, progress: 0, chests_available: prev.chests_available - 1 },
+      persist: {
+        rarity_idx: 0,
+        progress: 0,
+        chests_available: prev.chests_available - 1,
+        base_rarity_idx: 0, // le prochain coffre repart de Commune
+      },
       won: pickWonServer(prev.rarity_idx),
     };
   }

@@ -8,6 +8,7 @@ import {
 import {
   getModelConfig,
   EXTRA_MODEL_CONFIGS,
+  MODEL_CONFIGS,
 } from './config/roster';
 import type { PlushModelConfig } from './config/types';
 
@@ -569,6 +570,101 @@ const pingouin = makeShapeBase('pingouin', 1.10, {
   furBoost: [],
 });
 
+// Tortue : carapace en dôme large, tête qui dépasse devant et quatre
+// nageoires aplaties sur les côtés — silhouette unique dans le roster.
+function tortueRadius(d: THREE.Vector3): number {
+  let r = 1;
+  // carapace : dôme bien bombé au-dessus, base resserrée
+  r *= 0.66 + 0.34 * THREE.MathUtils.smoothstep(d.y, -0.45, 0.5);
+  // bosse centrale du dôme
+  r *= 1 + 0.08 * Math.exp(-((d.y - 0.3) ** 2) / 0.14);
+  // tête qui dépasse à l'avant, au ras de la base de la carapace
+  if (d.z > 0.35) {
+    r += 0.30 * Math.exp(-((d.x * d.x) / 0.22 + ((d.y - 0.02) ** 2) / 0.13));
+  }
+  return r;
+}
+
+const tortueSurface = makeSurface(tortueRadius, { sx: 1.3, sy: 0.95, sz: 1.12, flatten: 0.6 });
+
+const tortue = makeShapeBase('tortue', 1.16, {
+  surfacePoint: tortueSurface,
+  surfaceNormal: makeNormal(tortueSurface),
+  face: {
+    eyeL: v3(-0.20, 0.20, 0.92),
+    eyeR: v3(0.20, 0.20, 0.92),
+    nose: v3(0, 0.02, 0.99),
+    eyeScale: 0.105,
+    noseColor: '#2f2126',
+  },
+  ears: [],
+  bumps: [
+    // plaques de carapace posées sur le dôme (relief subtil, couleur du corps)
+    { dir: v3(0, 0.98, 0.12), r: 0.24, squash: [1.3, 0.42, 1.3] },
+    { dir: v3(-0.44, 0.8, 0.42), r: 0.17, squash: [1.25, 0.4, 1.25] },
+    { dir: v3(0.44, 0.8, 0.42), r: 0.17, squash: [1.25, 0.4, 1.25] },
+    { dir: v3(-0.4, 0.78, -0.4), r: 0.17, squash: [1.25, 0.4, 1.25] },
+    { dir: v3(0.4, 0.78, -0.4), r: 0.17, squash: [1.25, 0.4, 1.25] },
+    // quatre nageoires aplaties + petite queue
+    { dir: v3(-0.82, 0.05, 0.5), r: 0.22, squash: [0.45, 0.6, 1.55] },
+    { dir: v3(0.82, 0.05, 0.5), r: 0.22, squash: [0.45, 0.6, 1.55] },
+    { dir: v3(-0.8, 0.02, -0.55), r: 0.2, squash: [0.5, 0.65, 1.4] },
+    { dir: v3(0.8, 0.02, -0.55), r: 0.2, squash: [0.5, 0.65, 1.4] },
+    { dir: v3(0, 0.08, -0.95), r: 0.12, squash: [1.1, 0.75, 1.6] },
+  ],
+  snout: { dir: v3(0, -0.06, 1), scale: [0.15, 0.10, 0.09], color: '#6a4a3a' },
+  furBoost: [
+    { dir: v3(0, 0, 1), sigma: 0.3, boost: 0.25 },
+    { dir: v3(-0.82, 0.05, 0.5), sigma: 0.3, boost: 0.3 },
+    { dir: v3(0.82, 0.05, 0.5), sigma: 0.3, boost: 0.3 },
+  ],
+});
+
+// Méduse : cloche arrondie qui flotte, jupe ondulée et longues tentacules
+// suspendues — la seule peluche du roster qui nage au-dessus du sol.
+function meduseRadius(d: THREE.Vector3): number {
+  let r = 0.95;
+  // cloche : large et arrondie au-dessus, bords qui retombent
+  r *= 0.62 + 0.38 * THREE.MathUtils.smoothstep(d.y, -0.5, 0.45);
+  // couronne du dôme
+  r *= 1 + 0.07 * Math.exp(-((d.y - 0.3) ** 2) / 0.12);
+  // jupe ondulée sous la cloche
+  if (d.y < 0) {
+    const a = Math.atan2(d.z, d.x);
+    r += 0.09 * Math.exp(-((d.y + 0.42) ** 2) / 0.16) * (0.5 + 0.5 * Math.sin(a * 7));
+  }
+  return r;
+}
+
+const meduseSurface = makeSurface(meduseRadius, { sx: 1.12, sy: 1.05, sz: 1.08, flatten: 1 });
+
+const meduse = makeShapeBase('meduse', 1.08, {
+  surfacePoint: meduseSurface,
+  surfaceNormal: makeNormal(meduseSurface),
+  face: {
+    eyeL: v3(-0.2, 0.22, 0.92),
+    eyeR: v3(0.2, 0.22, 0.92),
+    nose: v3(0, 0.04, 0.97),
+    eyeScale: 0.13,
+    noseColor: '#ff9fc2',
+  },
+  ears: [],
+  bumps: [
+    // longues tentacules suspendues sous la jupe
+    { dir: v3(-0.36, -0.84, 0.18), r: 0.09, squash: [1, 2.5, 1] },
+    { dir: v3(0.36, -0.84, 0.18), r: 0.09, squash: [1, 2.5, 1] },
+    { dir: v3(-0.28, -0.86, -0.32), r: 0.085, squash: [1, 2.4, 1] },
+    { dir: v3(0.28, -0.86, -0.32), r: 0.085, squash: [1, 2.4, 1] },
+    { dir: v3(0, -0.9, 0.4), r: 0.08, squash: [1, 2.3, 1] },
+    { dir: v3(0, -0.9, -0.1), r: 0.095, squash: [1, 2.6, 1] },
+  ],
+  ghost: { opacity: 0.93, floatAmp: 0.09, emissive: '#c8a0ff' },
+  furBoost: [
+    { dir: v3(0, 0.9, 0), sigma: 0.5, boost: 0.35 },
+    { dir: v3(0, -0.85, 0.15), sigma: 0.55, boost: 0.5 },
+  ],
+});
+
 // Cochon : corps rondouillard, groin ovale proéminent avec narines,
 // oreilles pointues écartées — le groin suffit à le reconnaître.
 function cochonRadius(d: THREE.Vector3): number {
@@ -1032,6 +1128,8 @@ const SHAPE_BASES: Record<string, PlushSpecies> = {
   licorne,
   hibou,
   pingouin,
+  tortue,
+  meduse,
 };
 
 /**
@@ -1098,8 +1196,19 @@ export const SPECIES: PlushSpecies[] = [
   ...EXTRA_SPECIES,
 ];
 
+/**
+ * Espèces EXCLUSIVES (Tortue Sieste / Corail / Nébuleuse, Méduse Cosmique) :
+ * hors coffres et hors hub (donc absentes de `SPECIES`), mais résolubles par
+ * `getSpecies` pour rendre l'inventaire, le marché et les offres spéciales
+ * (peluche de la semaine / du mois — voir `src/lib/plush/specials.ts`).
+ */
+const EXCLUSIVE_SPECIES: PlushSpecies[] = MODEL_CONFIGS
+  .filter((cfg) => cfg.rarity === undefined)
+  .map((cfg) => makeVariant(SHAPE_BASES[cfg.shape] ?? mochi, cfg));
+
 export function getSpecies(id: string): PlushSpecies {
-  const species = SPECIES.find((s) => s.id === id);
+  const species =
+    SPECIES.find((s) => s.id === id) ?? EXCLUSIVE_SPECIES.find((s) => s.id === id);
   if (!species) throw new Error(`Espèce de peluche inconnue : ${id}`);
   return species;
 }
@@ -1128,6 +1237,8 @@ export const SHAPE_LABELS: Record<string, string> = {
   licorne: 'Licorne',
   hibou: 'Hibou',
   pingouin: 'Pingouin',
+  tortue: 'Tortue',
+  meduse: 'Méduse',
 };
 
 export function getShapeLabel(shape: string): string {

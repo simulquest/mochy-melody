@@ -10,6 +10,7 @@ import { PlushMutation, effectiveRarityIdx, mutationUpgradeLabel } from '@/lib/p
 import {
   RARITIES,
   MAX_CHESTS,
+  MAX_BATCH_CLICKS,
   CHEST_REFILL_MS,
   LootboxPersist,
   OwnedPlush,
@@ -27,13 +28,18 @@ import {
   fetchRemoteOwned,
   remoteClick,
   serverStateToPersist,
+  fetchSpecialOffers,
+  SPECIALS_UPDATED_EVENT,
   type RemoteClickEvent,
+  type SpecialOffers,
   ownedStackKey,
 } from '@/lib/plush/lootbox-remote';
 import { playGameSound } from '@/lib/plush/game-audio';
 
-/** Coups mémorisés pendant une requête en vol (rejoués ensuite, bornés). */
-const MAX_QUEUED_TAPS = 3;
+/** Pause avant de rejouer les taps en attente après une erreur réseau. */
+const CLICK_RETRY_DELAY_MS = 600;
+/** Erreurs réseau consécutives tolérées avant de vider la file de taps. */
+const MAX_CLICK_ERROR_STREAK = 3;
 
 function RarityChip({ idx, className = '' }: { idx: number; className?: string }) {
   const r = RARITIES[idx];
@@ -50,6 +56,52 @@ function RarityChip({ idx, className = '' }: { idx: number; className?: string }
       {mythic && <Sparkles className="h-3 w-3" aria-hidden />}
       {r.name}
     </span>
+  );
+}
+
+/**
+ * Pastille « peluche de la semaine / du mois » (mode page) : rappelle l'offre
+ * en cours. L'obtention ne se fait PAS ici — elle passe par le coffre
+ * mystère qui tombe du ciel (voir SpecialChestDrop), UNE tentative par jour
+ * avec un pourcentage de chance.
+ */
+function SpecialOfferChip({
+  offer,
+  chance,
+}: {
+  offer: SpecialOffers['week'];
+  chance?: number;
+}) {
+  const r = RARITIES[offer.rarityIdx];
+  const weekly = offer.period === 'week';
+  return (
+    <div
+      className="pointer-events-auto w-56 rounded-2xl border bg-black/45 p-3 backdrop-blur-xl"
+      style={{ borderColor: `${r.color}44`, boxShadow: `0 0 18px ${r.color}22` }}
+    >
+      <p className="text-[9px] font-bold uppercase tracking-[0.18em]" style={{ color: r.color }}>
+        {weekly ? 'Peluche de la semaine' : 'Peluche du mois'}
+      </p>
+      <p className="mt-0.5 text-sm font-bold leading-tight text-white">{offer.name}</p>
+      <p className="mt-0.5 text-[10px] font-semibold text-white/55">
+        {r.name} · sans mutation
+      </p>
+      {offer.claimed ? (
+        <p className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-emerald-300">
+          <Check className="h-3.5 w-3.5" aria-hidden /> Obtenue
+        </p>
+      ) : (
+        <div className="mt-2">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold text-white/85">
+            <Gift className="h-3.5 w-3.5 shrink-0" style={{ color: r.color }} aria-hidden />
+            Coffre mystère : {Math.round((chance ?? 0) * 100)} % / jour
+          </p>
+          <p className="mt-0.5 text-[9px] leading-snug text-white/45">
+            Il tombe du ciel de temps en temps — touche-le vite quand il apparaît !
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -147,20 +199,28 @@ export default function Lootbox({
   const scenePhaseRef = useRef<LootboxPhase>('idle');
   const [flash, setFlash] = useState<{ color: string; id: number } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Peluches spéciales : une exclusive par semaine et une par mois (voir
+  // src/lib/plush/specials.ts). L'affichage reste caché tant que l'API n'a
+  // pas répondu, et se recharge quand le coffre mystère a été ouvert
+  // (événement SPECIALS_UPDATED_EVENT envoyé par SpecialChestDrop).
+  const [specials, setSpecials] = useState<SpecialOffers | null>(null);
+  const [specialsError, setSpecialsError] = useState<string | null>(null);
   // Horloge du cooldown (rafraîchie chaque seconde quand un coffre recharge).
   const [now, setNow] = useState(() => Date.now());
   const [showVariants, setShowVariants] = useState(false);
   // La caisse est toujours autorisée côté serveur.
   const equippedKeyRef = useRef<string | null>(null);
-  // ---- Garde-fou anti-rafale -----------------------------------------------
-  // Une seule requête /api/lootbox/click à la fois ; les coups reçus pendant
-  // ce temps sont mémorisés puis rejoués après la réponse. Deux taps lancés
-  // AVANT la réponse faisaient calculer deux « open » au serveur, qui
-  // appliquait alors 2 décrémentations → les coffres en réserve disparaissaient
-  // (et 2 cartes étaient créditées pour une seule ouverture).
+  // ---- Garde-fou anti-rafale + lot de clics ---------------------------------
+  // Les taps s'empilent sans limite dans `queuedTapsRef` ; une seule requête
+  // part à la fois et joue le PLEIN de taps d'un bloc (jusqu'à
+  // MAX_BATCH_CLICKS par requête) : le compteur affiché rattrape le nombre
+  // réel de taps et un coffre s'ouvre en 1-2 aller-retours réseau au lieu
+  // d'un par tap. Une erreur réseau ponctuelle garde la file et réessaie ;
+  // trois erreurs de suite la vident (le serveur est peut-être injoignable).
   const clickPendingRef = useRef(false);
   const queuedTapsRef = useRef(0);
-  const clickFnRef = useRef<(() => void) | null>(null);
+  const errorStreakRef = useRef(0);
+  const drainQueueRef = useRef<() => void>(() => {});
   const pageOpenedRef = useRef(false);
 
   // La collection ouverte depuis une peluche regroupe les variantes de la même
@@ -210,6 +270,30 @@ export default function Lootbox({
     setScenePhase('idle');
     setSceneOpen(true);
   }, [pageMode, mounted, persist]);
+
+  // Offres spéciales (semaine + mois) : chargées à l'arrivée, rechargées à
+  // chaque ouverture du coffre mystère (SpecialChestDrop diffuse l'événement).
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      fetchSpecialOffers()
+        .then((offers) => {
+          if (cancelled) return;
+          setSpecials(offers);
+          setSpecialsError(null);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setSpecialsError('Offres spéciales indisponibles pour le moment.');
+        });
+    };
+    load();
+    window.addEventListener(SPECIALS_UPDATED_EVENT, load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(SPECIALS_UPDATED_EVENT, load);
+    };
+  }, []);
 
   // Le toast d'upgrade disparaît tout seul
   useEffect(() => {
@@ -373,7 +457,65 @@ export default function Lootbox({
     vibrate(12);
   }, [onInventoryChanged]);
 
-  /** Un coup sur le coffre 3D. */
+  /** Joue la file de taps en attente : un seul lot en vol à la fois. */
+  const drainQueue = useCallback(() => {
+    if (clickPendingRef.current || queuedTapsRef.current <= 0) return;
+    clickPendingRef.current = true;
+    void (async () => {
+      while (queuedTapsRef.current > 0) {
+        // Le PLEIN des taps accumulés part dans cette requête (borné au lot
+        // max : un coffre s'ouvre toujours en 24 clics ou moins).
+        const count = Math.min(queuedTapsRef.current, MAX_BATCH_CLICKS);
+        queuedTapsRef.current -= count;
+
+        let ev: RemoteClickEvent | null = null;
+        try {
+          ev = await remoteClick(count);
+          errorStreakRef.current = 0;
+          setLoadError(null);
+        } catch (error) {
+          errorStreakRef.current += 1;
+          console.error('Clic sur le coffre impossible :', error);
+          if (errorStreakRef.current >= MAX_CLICK_ERROR_STREAK) {
+            // Réseau instable : on abandonne les taps en attente pour éviter
+            // de tourner en boucle, l'utilisateur retape quand il veut.
+            queuedTapsRef.current = 0;
+            setLoadError(error instanceof Error ? error.message : 'Clic sur le coffre impossible');
+          } else {
+            // Coup de réseau ponctuel : la file est conservée, on réessaie
+            // dans un court instant.
+            setTimeout(() => drainQueueRef.current(), CLICK_RETRY_DELAY_MS);
+          }
+          break;
+        }
+
+        if (ev) applyServerEvent(ev);
+
+        if (ev?.type === 'open') {
+          // L'animation d'ouverture avale les taps restants.
+          queuedTapsRef.current = 0;
+          break;
+        }
+        if (ev?.type === 'locked') {
+          // Plus de coffres (ou course entre onglets) : la file est vidée,
+          // applyServerEvent a déjà resynchronisé l'affichage.
+          queuedTapsRef.current = 0;
+          break;
+        }
+      }
+      clickPendingRef.current = false;
+      // Des taps sont arrivés pendant la requête → on enchaîne.
+      if (queuedTapsRef.current > 0) drainQueueRef.current();
+    })();
+  }, [applyServerEvent]);
+
+  // Mémorise la dernière version de drainQueue (état frais) pour les
+  // relances programmées (erreur réseau, taps rejoués).
+  useEffect(() => {
+    drainQueueRef.current = drainQueue;
+  }, [drainQueue]);
+
+  /** Un coup sur le coffre 3D : il s'empile, le drain fait le reste. */
   const handleBoxClick = useCallback(() => {
     if (!persist) return;
     // Ouverture en cours / carte de révélation : la caisse ne réagit plus.
@@ -382,38 +524,9 @@ export default function Lootbox({
       setNow(Date.now());
       return;
     }
-
-    // Anti-rafale : une seule requête à la fois.
-    if (clickPendingRef.current) {
-      queuedTapsRef.current = Math.min(queuedTapsRef.current + 1, MAX_QUEUED_TAPS);
-      return;
-    }
-    clickPendingRef.current = true;
-    (async () => {
-      let ev: RemoteClickEvent | null = null;
-      try {
-        ev = await remoteClick();
-        setLoadError(null);
-      } catch (error) {
-        console.error('Clic sur le coffre impossible :', error);
-        setLoadError(error instanceof Error ? error.message : 'Clic sur le coffre impossible');
-        queuedTapsRef.current = 0;
-      }
-      clickPendingRef.current = false;
-      if (ev) applyServerEvent(ev);
-      if (ev?.type === 'open') return;
-      if (queuedTapsRef.current > 0) {
-        queuedTapsRef.current -= 1;
-        setTimeout(() => clickFnRef.current?.(), 0);
-      }
-    })();
-  }, [persist, scenePhase, applyServerEvent]);
-
-  // Mémorise la dernière version de handleBoxClick (état frais) pour rejouer
-  // les coups mis en attente pendant une requête.
-  useEffect(() => {
-    clickFnRef.current = handleBoxClick;
-  }, [handleBoxClick]);
+    queuedTapsRef.current += 1;
+    drainQueue();
+  }, [persist, scenePhase, drainQueue]);
 
   /** L'animation d'ouverture 3D est terminée → carte de révélation. */
   const handleOpenComplete = useCallback(() => {
@@ -658,6 +771,24 @@ export default function Lootbox({
             onClose={closeScene}
             pageMode={pageMode}
           />,
+          document.body,
+        )}
+
+      {/* ---------- Peluches spéciales : semaine + mois ---------- */}
+      {pageMode && specials && typeof document !== 'undefined' &&
+        createPortal(
+          <div className="pointer-events-none fixed left-4 top-[calc(5.25rem+env(safe-area-inset-top))] z-[124] flex flex-col gap-2 sm:left-6 sm:top-24">
+            <SpecialOfferChip offer={specials.week} chance={specials.attempt?.weekChance} />
+            <SpecialOfferChip offer={specials.month} chance={specials.attempt?.monthChance} />
+            {specialsError && (
+              <p
+                role="alert"
+                className="pointer-events-auto max-w-56 rounded-xl border border-rose-300/25 bg-black/75 px-3 py-2 text-[11px] text-rose-100/85 backdrop-blur-xl"
+              >
+                {specialsError}
+              </p>
+            )}
+          </div>,
           document.body,
         )}
 

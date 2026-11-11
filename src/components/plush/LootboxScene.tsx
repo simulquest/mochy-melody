@@ -394,7 +394,11 @@ export default function LootboxScene({
     let multiTouch = false;
     let pinchDist = 0;
     let pinchRadius = 0;
-    const pointers = new Map<number, { x: number; y: number }>();
+    // Suivi PAR DOIGT : position courante + point de départ + drapeau « a
+    // glissé ». Un tap à deux pouces (pouce posé, index qui tape) reste donc
+    // compté — seul un VRAI pincement (les deux doigts ont glissé) est
+    // exclu des frappes.
+    const pointers = new Map<number, { x: number; y: number; sx: number; sy: number; moved: boolean }>();
     const clampZoom = (z: number) => Math.min(MAX_Z, Math.max(MIN_Z, z));
     const raycaster = new THREE.Raycaster();
     const current = new THREE.Color(RARITIES[rarityIdx].color);
@@ -418,11 +422,17 @@ export default function LootboxScene({
     // ----- Entrées : orbite au glisser, zoom molette/pincement, tap = frappe
     const onPointerDown = (e: PointerEvent) => {
       canvas.setPointerCapture(e.pointerId);
-      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      pointers.set(e.pointerId, {
+        x: e.clientX,
+        y: e.clientY,
+        sx: e.clientX,
+        sy: e.clientY,
+        moved: false,
+      });
       lastInteract = clock.getElapsed();
       if (pointers.size === 2) {
-        // Début d'un pincement : on abandonne l'orbite en cours
-        multiTouch = true;
+        // Second doigt : préparation d'un éventuel pincement. multiTouch n'est
+        // PAS posé ici — il ne le sera que si les DEUX doigts glissent.
         orbiting = false;
         const [a, b] = [...pointers.values()];
         pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
@@ -449,12 +459,21 @@ export default function LootboxScene({
           radiusTarget = clampZoom(pinchRadius * (pinchDist / d));
           userZoomed = true;
         }
+        // Vrai pincement uniquement si les DEUX doigts ont glissé — un pouce
+        // posé pendant que l'index tape ne doit pas tuer les frappes.
+        if (!multiTouch && a.moved && b.moved) {
+          multiTouch = true;
+          orbiting = false;
+        }
         return;
       }
 
       if (!dragStart || !dragLast) return;
+      if (!pt.moved && Math.hypot(e.clientX - pt.sx, e.clientY - pt.sy) > TAP_SLOP) {
+        pt.moved = true; // au-delà du seuil : ce doigt a glissé
+      }
       if (!orbiting && Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) > TAP_SLOP) {
-        orbiting = true; // au-delà du seuil : c'est un glisser, pas un tap
+        orbiting = true; // c'est un glisser, pas un tap
       }
       if (orbiting) {
         thetaTarget -= (e.clientX - dragLast.x) * 0.0055;
@@ -464,23 +483,26 @@ export default function LootboxScene({
     };
 
     const finishPointer = (e: PointerEvent) => {
+      const pt = pointers.get(e.pointerId);
       const had = pointers.delete(e.pointerId);
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-      if (!had) return;
+      if (!had || !pt) return;
 
       if (pointers.size === 1) {
-        // Fin d'un pincement : le doigt restant reprend une orbite sans à-coup
+        // Fin d'un pincement : le doigt restant reprend une orbite sans à-coup.
         const [rest] = [...pointers.values()];
         dragStart = { x: rest.x, y: rest.y };
         dragLast = { x: rest.x, y: rest.y };
         orbiting = false;
-        multiTouch = true;
+        // Vrai pincement (les deux doigts ont glissé) → le doigt restant ne
+        // tape plus ; pouce posé + tap de l'index → les frappes continuent.
+        multiTouch = pt.moved && rest.moved;
         pinchDist = 0;
         return;
       }
-      if (pointers.size > 0) return;
+      if (pointers.size > 0) return; // 3+ doigts : aucune frappe
 
-      const wasTap = !orbiting && !multiTouch && dragStart !== null;
+      const wasTap = !pt.moved && !multiTouch && !orbiting;
       dragStart = null;
       dragLast = null;
       orbiting = false;
