@@ -287,11 +287,11 @@
      voit la même peluche.
      ========================================================================== */
   const WEEKLY_SPECIALS = [
-    { name: "Tortue Sieste", rarityIdx: 0 },
-    { name: "Tortue Corail", rarityIdx: 1 },
-    { name: "Tortue Nébuleuse", rarityIdx: 2 },
+    { id: "tortue-sieste", name: "Tortue Sieste", rarityIdx: 0 },
+    { id: "tortue-corail", name: "Tortue Corail", rarityIdx: 1 },
+    { id: "tortue-nebuleuse", name: "Tortue Nébuleuse", rarityIdx: 2 },
   ];
-  const MONTHLY_SPECIAL = { name: "Méduse Cosmique", rarityIdx: 4 };
+  const MONTHLY_SPECIAL = { id: "meduse-cosmique", name: "Méduse Cosmique", rarityIdx: 4 };
 
   function isoWeek(date) {
     const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -324,6 +324,20 @@
     const monthCard = $("#unique-month");
     if (weekCard) weekCard.style.setProperty("--rc", weekRc.color);
     if (monthCard) monthCard.style.setProperty("--rc", monthRc.color);
+
+    /* Aperçu 3D — le VRAI modèle du jeu (specials3d.js, même pipeline que la
+     * page login) : tortue / méduse dessinées par createPlushMesh. Sans WebGL,
+     * le scénario reste vide (la carte reste propre). */
+    const S3 = window.MMSPECIALS;
+    function renderStage(stageId, modelId) {
+      const stage = document.getElementById(stageId);
+      if (!stage || !S3 || !S3.webglOK) return;
+      const c = document.createElement("canvas");
+      stage.appendChild(c);
+      if (!S3.render(c, modelId, { w: 190, h: 170 })) stage.innerHTML = "";
+    }
+    renderStage("unique-week-stage", weekly.id);
+    renderStage("unique-month-stage", MONTHLY_SPECIAL.id);
   })();
 
   /* ==========================================================================
