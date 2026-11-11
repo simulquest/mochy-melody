@@ -51,6 +51,7 @@
         <li><a href="#jeu">Le jeu</a></li>
         <li><a href="#collection">Collection</a></li>
         <li><a href="#mutations">Mutations</a></li>
+        <li><a href="#uniques">Uniques</a></li>
         <li><a href="#marche">Marché</a></li>
         <li class="nav-cta-mobile"><a class="btn btn-primary btn-sm" href="/play">Jouer maintenant</a></li>
       </ul>
@@ -82,6 +83,7 @@
         <ul class="hero-stats reveal" aria-label="Chiffres du jeu">
           <li><b data-count="10">0</b><span>espèces</span></li>
           <li><b data-count="15">0</b><span>mutations</span></li>
+          <li><b data-count="4">0</b><span>exclusives en rotation</span></li>
           <li><b data-count="5">0</b><span>raretés</span></li>
           <li><b data-count="37000" data-suffix="+">0</b><span>combinaisons</span></li>
         </ul>
@@ -183,6 +185,88 @@
             <span>Une chance sur dix que les deux yeux portent des couleurs différentes. Les connaisseurs s'arrachent ces exemplaires.</span>
           </div>
         </article>
+      </div>
+    </section>
+
+    <!-- ============ PELUCHES UNIQUES (hebdo / mensuel) ============ -->
+    <section class="section section-uniques" id="uniques" aria-labelledby="uniques-title">
+      <div class="section-head reveal">
+        <p class="kicker">Les exclusives</p>
+        <h2 id="uniques-title">Une peluche <span class="grad-text">unique</span> chaque semaine et chaque mois</h2>
+        <p class="section-sub">
+          Des silhouettes inédites, sans mutation, introuvables dans les coffres. Décrochez
+          l'exclusive de la période avant qu'elle ne change — une seule fois par période&nbsp;!
+        </p>
+      </div>
+
+      <div class="uniques-grid">
+        <article class="unique-card reveal" id="unique-week">
+          <div class="unique-head">
+            <span class="unique-ico" aria-hidden="true">🗓️</span>
+            <h3>Chaque semaine</h3>
+            <span class="unique-chip" id="unique-week-chip">…</span>
+          </div>
+          <p class="unique-desc">
+            Une exclusive inédite renouvelée chaque lundi — Commune, Rare ou Épique,
+            jamais plus haut. Trois designs se relaient au fil des semaines.
+          </p>
+          <div class="unique-current">
+            <span>En ce moment</span>
+            <b id="unique-week-name">…</b>
+          </div>
+        </article>
+
+        <article class="unique-card unique-card-mythique reveal" id="unique-month">
+          <div class="unique-head">
+            <span class="unique-ico" aria-hidden="true">🌙</span>
+            <h3>Chaque mois</h3>
+            <span class="unique-chip" id="unique-month-chip">…</span>
+          </div>
+          <p class="unique-desc">
+            La plus convoitée : une exclusive Mythique à décrocher avant la fin du mois.
+            Une silhouette nouvelle, réservée à ceux qui guettent le ciel.
+          </p>
+          <div class="unique-current">
+            <span>Ce mois-ci</span>
+            <b id="unique-month-name">…</b>
+          </div>
+        </article>
+      </div>
+
+      <div class="uniques-how reveal">
+        <h3>Comment l'obtenir&nbsp;?</h3>
+        <ol class="uniques-steps">
+          <li>
+            <span class="how-ico" aria-hidden="true">☁️</span>
+            <div>
+              <b>Guettez le ciel</b>
+              <span>De temps en temps, un coffre mystère tombe du ciel — où que vous soyez sur le site.</span>
+            </div>
+          </li>
+          <li>
+            <span class="how-ico" aria-hidden="true">👆</span>
+            <div>
+              <b>Touchez-le vite</b>
+              <span>Il ne reste au sol que quelques secondes. Touché, il s'ouvre : une seule tentative par jour&nbsp;!</span>
+            </div>
+          </li>
+          <li>
+            <span class="how-ico" aria-hidden="true">🎉</span>
+            <div>
+              <b>Découvrez votre récompense</b>
+              <span><b>20&nbsp;%</b> de chance d'y trouver la peluche de la semaine, <b>6&nbsp;%</b> celle du mois — sinon une peluche de consolation. Raté&nbsp;? Demain, vous retentez votre chance&nbsp;!</span>
+            </div>
+          </li>
+        </ol>
+        <div class="unique-badges">
+          <span>Silhouettes inédites</span>
+          <span>Sans mutation</span>
+          <span>Introuvables dans les coffres</span>
+          <span>Une seule fois par période</span>
+        </div>
+        <div class="uniques-cta">
+          <a class="btn btn-primary" href="/play">Guetter le prochain coffre →</a>
+        </div>
       </div>
     </section>
 

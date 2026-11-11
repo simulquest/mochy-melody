@@ -281,6 +281,52 @@
   $("#mut-tints").append(...D.TINTS.map(mutItem));
 
   /* ==========================================================================
+     3 bis. PELUCHES UNIQUES — l'exclusive de la semaine et du mois
+     Même calendrier que le jeu (UTC, semaines ISO-8601, cf. src/lib/plush/
+     specials.ts) : la rotation hebdo change chaque lundi, tout le monde
+     voit la même peluche.
+     ========================================================================== */
+  const WEEKLY_SPECIALS = [
+    { name: "Tortue Sieste", rarityIdx: 0 },
+    { name: "Tortue Corail", rarityIdx: 1 },
+    { name: "Tortue Nébuleuse", rarityIdx: 2 },
+  ];
+  const MONTHLY_SPECIAL = { name: "Méduse Cosmique", rarityIdx: 4 };
+
+  function isoWeek(date) {
+    const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const dayNum = d.getUTCDay() || 7; // dimanche = 7
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum); // jeudi de la semaine
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return { year: d.getUTCFullYear(), week: week };
+  }
+
+  (function fillUniques() {
+    const weekEl = $("#unique-week-name");
+    const weekChip = $("#unique-week-chip");
+    const monthEl = $("#unique-month-name");
+    const monthChip = $("#unique-month-chip");
+    if (!weekEl || !weekChip || !monthEl || !monthChip) return;
+
+    const now = new Date();
+    const wk = isoWeek(now);
+    const weekly = WEEKLY_SPECIALS[(wk.year * 53 + wk.week) % WEEKLY_SPECIALS.length];
+    const weekRc = D.RARITIES[weekly.rarityIdx];
+    const monthRc = D.RARITIES[MONTHLY_SPECIAL.rarityIdx];
+
+    weekEl.textContent = weekly.name;
+    weekChip.textContent = weekRc.name;
+    monthEl.textContent = MONTHLY_SPECIAL.name;
+    monthChip.textContent = monthRc.name;
+
+    const weekCard = $("#unique-week");
+    const monthCard = $("#unique-month");
+    if (weekCard) weekCard.style.setProperty("--rc", weekRc.color);
+    if (monthCard) monthCard.style.setProperty("--rc", monthRc.color);
+  })();
+
+  /* ==========================================================================
      5. COURS DES CARTES — mini graphique canvas
      ========================================================================== */
   const canvas = $("#price-chart");
