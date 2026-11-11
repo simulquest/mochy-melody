@@ -22,9 +22,9 @@ import { getSpecies } from '@/lib/plush/species';
  * l'offre est publique et déterministe, et la landing reste consultable
  * sans être connecté.
  *
- * L'obtention ne se fait PAS par un bouton : dans le jeu, un coffre mystère
- * tombe du ciel une fois par jour, avec un pourcentage de chance de
- * contenir ces peluches (sinon une peluche aléatoire de consolation).
+ * Le PRINCIPE (cadence hebdo/mensuelle, coffre mystère, une tentative par
+ * jour…) est expliqué juste en dessous par `SpecialChestExplainer` : cette
+ * vitrine reste volontairement courte pour ne pas le répéter.
  */
 export default function SpecialPlushTeasers() {
   const offers = useMemo(
@@ -55,18 +55,14 @@ export default function SpecialPlushTeasers() {
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
         <h2 className="text-sm font-black tracking-tight text-white">
-          Peluches uniques
+          Les exclusives du moment
         </h2>
       </div>
 
       <p className="mt-1.5 text-[11px] leading-relaxed text-white/50">
-        Chaque jour, un coffre mystère tombe du ciel dans le jeu : il peut
-        contenir la peluche exclusive de la semaine ({Math.round(SPECIAL_CHEST_WEEK_CHANCE * 100)} % de
-        chance, Commune à Épique maximum) ou celle du mois
-        ({Math.round(SPECIAL_CHEST_MONTH_CHANCE * 100)} %, Mythique) — sinon, une
-        peluche aléatoire en consolation. Des silhouettes inédites, sans
-        aucune mutation, introuvables dans les coffres, et impossible à
-        réobtenir une fois gagnée.
+        Voici les deux peluches uniques à décrocher en ce moment, aperçus en
+        3D comme en jeu — leur chance quotidienne est affichée sur chaque
+        carte.
       </p>
 
       <div className="mt-3 grid grid-cols-2 gap-2.5">

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import LoginWithSimulquest from '@/components/market/LoginWithSimulquest';
 import LoginPlush from '@/components/market/LoginPlush';
 import SpecialPlushTeasers from '@/components/market/SpecialPlushTeasers';
+import SpecialChestExplainer from '@/components/market/SpecialChestExplainer';
 import { getSession } from '@/lib/auth/session';
 import { safeInternalPath } from '@/lib/auth/redirect';
 
@@ -86,9 +87,11 @@ export default async function LoginPage({
           mot de passe à créer.
         </p>
 
-        {/* Peluches uniques : 1 par semaine (≤ Épique) + 1 par mois (Mythique),
-            à gagner chaque jour via le coffre mystère qui tombe du ciel. */}
+        {/* Peluches uniques : les exclusives du moment (aperçus 3D), puis
+            l'explication du système — 1 par semaine (≤ Épique) + 1 par mois
+            (Mythique), à gagner chaque jour via le coffre mystère. */}
         <SpecialPlushTeasers />
+        <SpecialChestExplainer />
       </div>
     </main>
   );
