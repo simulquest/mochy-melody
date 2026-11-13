@@ -107,15 +107,30 @@ function wpick<T extends { w: number }>(arr: T[]): T {
   return arr[arr.length - 1];
 }
 
-/** Tire une nouvelle mutation (10 % de chance d'hétérochromie). */
-export function rollMutation(): PlushMutation {
-  const eye = wpick(EYE_POOL);
-  const fur = wpick(FUR_POOL);
-  const tint = wpick(TINT_POOL);
+/**
+ * Tire une nouvelle mutation (10 % de chance d'hétérochromie).
+ *
+ * `maxRarityIdx` plafonne la rareté des traits tirés : les yeux, la fourrure,
+ * la teinte et l'hétérochromie sont choisis parmi les seuls traits dont la
+ * rareté est ≤ à ce plafond (les poids restants sont renormalisés). Un coffre
+ * plafonne au niveau `maxRarityForChest(base)` — une peluche issue d'un coffre
+ * Commune ne peut donc jamais porter de trait Épique ou au-delà, et ne peut
+ * pas afficher une rareté supérieure au plafond du coffre.
+ */
+export function rollMutation(maxRarityIdx: number = RARITIES.length - 1): PlushMutation {
+  const cap = Math.max(0, Math.min(RARITIES.length - 1, Math.floor(maxRarityIdx)));
+  const eyes = EYE_POOL.filter((e) => RARITY_INDEX[e.rarity] <= cap);
+  const furs = FUR_POOL.filter((f) => RARITY_INDEX[f.rarity] <= cap);
+  const tints = TINT_POOL.filter((t) => RARITY_INDEX[t.rarity] <= cap);
+  const eye = wpick(eyes);
+  const fur = wpick(furs);
+  const tint = wpick(tints);
   let hetero: EyeMut | null = null;
-  if (Math.random() < 0.10) {
-    const others = EYE_POOL.filter((e) => e.id !== eye.id);
-    hetero = others[Math.floor(Math.random() * others.length)];
+  // L'hétérochromie compte « rare » dans la rareté globale : exclue si le
+  // plafond est en dessous, et l'œil droit est tiré dans le pool plafonné aussi.
+  if (cap >= RARITY_INDEX.rare && Math.random() < 0.10) {
+    const others = eyes.filter((e) => e.id !== eye.id);
+    hetero = others.length > 0 ? wpick(others) : null;
   }
   return { eye, fur, tint, hetero };
 }

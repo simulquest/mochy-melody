@@ -12,7 +12,9 @@ import { rollMutation, mutationKey, type PlushMutation } from './mutations';
  *
  * Plafond de rareté : un coffre ne peut jamais dépasser UN cran au-dessus de
  * sa rareté d'origine (`base_rarity_idx`) — un coffre Commune plafonne à
- * Rare, un Rare à Épique, etc. (voir `maxRarityForChest`).
+ * Rare, un Rare à Épique, etc. (voir `maxRarityForChest`). Le plafond vaut
+ * aussi pour la MUTATION tirée à l'ouverture : une peluche sortie d'un coffre
+ * Commune ne peut pas afficher « Mythique » via une mutation Galaxie/Prisme.
  */
 
 export interface LootboxServerState {
@@ -83,24 +85,32 @@ export function clickBoxServer(prev: LootboxServerState): ServerClickEvent {
         chests_available: prev.chests_available - 1,
         base_rarity_idx: 0, // le prochain coffre repart de Commune
       },
-      won: pickWonServer(prev.rarity_idx),
+      won: pickWonServer(prev.rarity_idx, base),
     };
   }
 
   return { type: 'progress', persist: { ...prev, progress } };
 }
 
-/** Tire une carte du pool + une mutation (tirage serveur). */
-export function pickWonServer(rarityIdx: number): ServerWonCard {
+/** Tire une carte du pool + une mutation (tirage serveur).
+ *
+ * `baseRarityIdx` : rareté d'ORIGINE du coffre (défaut = `rarityIdx`, cas des
+ * coffres achetés en boutique qui s'ouvrent à leur rareté d'achat). La
+ * mutation tirée est plafonnée comme la carte : au mieux UN cran au-dessus du
+ * coffre (`maxRarityForChest`), pour qu'un coffre Commune n'affiche jamais
+ * « Mythique » à cause d'une mutation Galaxie/Prisme.
+ */
+export function pickWonServer(rarityIdx: number, baseRarityIdx?: number): ServerWonCard {
   const pool = PLUSH_POOL[rarityIdx];
-  const base = pool[Math.floor(Math.random() * pool.length)];
-  const mutation = rollMutation();
+  const base = Math.max(0, Math.floor(baseRarityIdx ?? rarityIdx));
+  const entry = pool[Math.floor(Math.random() * pool.length)];
+  const mutation = rollMutation(maxRarityForChest(base));
   return {
-    id: base.id,
-    name: base.name,
-    speciesId: base.speciesId,
+    id: entry.id,
+    name: entry.name,
+    speciesId: entry.speciesId,
     rarityIdx,
-    preset: base.preset,
+    preset: entry.preset,
     mutation,
     mutationKey: mutationKey(mutation),
   };

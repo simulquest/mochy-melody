@@ -7,7 +7,8 @@
 --
 -- Concrètement :
 --   1. colonne `lootbox_state.base_rarity_idx` : rareté d'origine du coffre
---      courant (0 = Commune, le défaut pour les coffres en recharge) ;
+--      courant (0 = Commune, le défaut pour les coffres en recharge) — les
+--      états hérités au-delà du plafond sont ramenés à leur palier légal ;
 --   2. `lootbox_click` : les montées de rareté sont bornées à
 --      base_rarity_idx + 1, et une ouverture repart sur un coffre Commune
 --      (base 0) ;
@@ -15,7 +16,11 @@
 --      la rareté importée comme la rareté d'origine du coffre.
 --
 -- Le miroir TS (src/lib/plush/lootbox.ts → maxRarityForChest, appliqué par
--- lootbox-engine.ts) partage exactement la même règle.
+-- lootbox-engine.ts) partage exactement la même règle, y compris pour la
+-- MUTATION tirée à l'ouverture : les traits (yeux, fourrure, teinte,
+-- hétérochromie) sont tirés parmi les raretés ≤ au plafond du coffre, pour
+-- qu'un coffre Commune n'affiche jamais « Mythique » via une mutation
+-- Galaxie/Prisme.
 --
 -- ⚠️ À EXÉCUTER dans le SQL Editor de Supabase (« Run »).
 --    Ré-exécutable sans risque (idempotent).
@@ -28,6 +33,17 @@ alter table public.lootbox_state
 update public.lootbox_state
    set base_rarity_idx = 0
  where base_rarity_idx is null;
+
+-- 1 bis) États hérités de l'ère SANS plafond : un coffre en cours dont la
+-- rareté dépasse déjà base_rarity_idx + 1 (ex. coffre Commune monté Mythique)
+-- est ramené à son plafond légal. La progression de clics est conservée — si
+-- elle dépasse le palier recalculé, le coffre s'ouvre simplement au prochain
+-- clic, à SA rareté légale. Les coffres Commune légitimement montés à Rare
+-- (rarity_idx = base + 1) ne sont PAS touchés.
+update public.lootbox_state
+   set rarity_idx  = base_rarity_idx + 1,
+       updated_at  = now()
+ where rarity_idx > base_rarity_idx + 1;
 
 -- 2) La fonction de clic applique le plafond (miroir SQL de maxRarityForChest).
 create or replace function public.lootbox_click(
