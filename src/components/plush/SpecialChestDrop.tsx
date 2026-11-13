@@ -57,39 +57,49 @@ interface AttemptResult {
   granted: OwnedPlush | null;
 }
 
-/** Petit coffre en CSS pur (bois + bandes dorées), réutilisé en deux tailles. */
+/** Petit coffre en CSS pur, aux couleurs du coffre du jeu (violet + or). */
 function MiniChest({ width }: { width: number }) {
   const lidH = Math.round(width * 0.42);
   const baseH = Math.round(width * 0.52);
+  const goldBand = 'bg-gradient-to-b from-[#ffe89a]/90 to-[#ffd75e]/80';
   return (
     <div className="relative" style={{ width, height: lidH + baseH }}>
       {/* lueur au sol */}
-      <div className="absolute -bottom-2 left-1/2 h-3 w-[125%] -translate-x-1/2 rounded-full bg-amber-300/25 blur-md" />
-      {/* couvercle bombé */}
+      <div className="absolute -bottom-2 left-1/2 h-3 w-[125%] -translate-x-1/2 rounded-full bg-violet-400/25 blur-md" />
+      {/* couvercle bombé violet */}
       <div
-        className="absolute inset-x-0 top-0 rounded-t-[45%] border-x-2 border-t-2 border-amber-200/70"
+        className="absolute inset-x-0 top-0 rounded-t-[45%] border-x-2 border-t-2 border-[#ffd75e]/80"
         style={{
           height: lidH,
-          background: 'linear-gradient(180deg, #a4682f 0%, #8a5424 55%, #6f4119 100%)',
-          boxShadow: 'inset 0 2px 6px rgba(255,255,255,0.25), inset 0 -3px 6px rgba(0,0,0,0.35)',
+          background: 'linear-gradient(180deg, #5b2ec9 0%, #4b22b0 55%, #3a1d8e 100%)',
+          boxShadow: 'inset 0 2px 6px rgba(255,255,255,0.3), inset 0 -3px 6px rgba(0,0,0,0.35)',
         }}
       >
-        <div className="absolute inset-y-0 left-[16%] w-[9%] rounded bg-gradient-to-b from-amber-200/90 to-amber-500/80" />
-        <div className="absolute inset-y-0 right-[16%] w-[9%] rounded bg-gradient-to-b from-amber-200/90 to-amber-500/80" />
+        {/* pommeaux dorés aux coins */}
+        <div className="absolute -top-1 left-[10%] h-2 w-2 rounded-full bg-[#ffd75e] shadow-[0_0_3px_rgba(255,215,94,0.9)]" />
+        <div className="absolute -top-1 right-[10%] h-2 w-2 rounded-full bg-[#ffd75e] shadow-[0_0_3px_rgba(255,215,94,0.9)]" />
+        <div className={`absolute inset-y-0 left-[13%] w-[9%] rounded ${goldBand}`} />
+        <div className={`absolute inset-y-0 right-[13%] w-[9%] rounded ${goldBand}`} />
       </div>
-      {/* caisse */}
+      {/* couture blanche sous le couvercle */}
+      <div className="absolute inset-x-[4%] z-10 h-[3px] rounded bg-white/90" style={{ top: lidH - 2 }} />
+      {/* caisse violette */}
       <div
-        className="absolute inset-x-0 rounded-b-xl border-x-2 border-b-2 border-amber-200/60"
+        className="absolute inset-x-0 rounded-b-xl border-x-2 border-b-2 border-[#ffd75e]/70"
         style={{
           top: lidH - 2,
           height: baseH,
-          background: 'linear-gradient(180deg, #8a5424 0%, #6f4119 60%, #573312 100%)',
+          background: 'linear-gradient(180deg, #4b22b0 0%, #3f1c96 55%, #31167a 100%)',
           boxShadow: 'inset 0 3px 8px rgba(255,255,255,0.12), inset 0 -4px 8px rgba(0,0,0,0.4)',
         }}
       >
-        {/* serrure dorée */}
-        <div className="absolute left-1/2 top-1 h-[46%] w-[22%] -translate-x-1/2 rounded-b-lg rounded-t-sm border border-amber-200/80 bg-gradient-to-b from-amber-200 to-amber-500">
-          <div className="absolute left-1/2 top-[30%] h-[26%] w-[26%] -translate-x-1/2 rounded-full bg-[#573312]" />
+        <div className={`absolute inset-y-0 left-[13%] w-[9%] rounded-b ${goldBand}`} />
+        <div className={`absolute inset-y-0 right-[13%] w-[9%] rounded-b ${goldBand}`} />
+        {/* socle doré */}
+        <div className="absolute -inset-x-1 bottom-0 h-[9%] rounded bg-gradient-to-b from-[#ffe89a] to-[#e2b53e]" />
+        {/* anneau doré central */}
+        <div className="absolute left-1/2 top-[16%] h-[36%] w-[24%] -translate-x-1/2 rounded-full border-2 border-[#ffd75e] bg-[#31167a]/50">
+          <div className="absolute left-1/2 top-[32%] h-[24%] w-[28%] -translate-x-1/2 rounded-full bg-[#ffd75e]" />
         </div>
       </div>
     </div>
@@ -401,26 +411,32 @@ export default function SpecialChestDrop() {
             key="mystery-chest"
             type="button"
             aria-label="Coffre mystère ! Touche-le vite pour l'ouvrir."
-            initial={{ y: -160, rotate: -18, opacity: 0 }}
-            animate={{ y: 0, rotate: 0, opacity: 1 }}
-            exit={{ y: -150, rotate: 12, opacity: 0, transition: { duration: 0.5, ease: 'easeIn' } }}
-            transition={{ type: 'spring', stiffness: 190, damping: 12, mass: 0.9 }}
+            initial={{ y: '-62vh', x: '0vw', rotate: -10, opacity: 0 }}
+            animate={{
+              y: ['-62vh', '-24vh', '-8vh', '0vh'],
+              x: ['0vw', '-8vw', '6vw', '0vw'],
+              rotate: [-10, 6, -5, 0],
+              opacity: [0, 1, 1, 1],
+            }}
+            transition={{ duration: 2.6, times: [0, 0.4, 0.72, 1], ease: 'easeInOut' }}
+            exit={{ y: '-45vh', rotate: 12, opacity: 0, transition: { duration: 0.55, ease: 'easeIn' } }}
             onClick={() => void openChest()}
-            className="fixed bottom-[6.75rem] right-4 z-[130] flex cursor-pointer flex-col items-center gap-1.5 sm:bottom-10 sm:right-8"
+            className="fixed bottom-[6.75rem] right-4 z-[130] flex cursor-pointer flex-col items-center sm:bottom-10 sm:right-8"
           >
+            {/* une fois posé (et pendant la descente) : dérive lente sur la page */}
             <motion.span
-              animate={{ y: [0, -7, 0] }}
-              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-              className="drop-shadow-[0_10px_16px_rgba(0,0,0,0.45)]"
+              animate={{ x: [0, '-7vw', '5vw', 0], y: [0, '-3vh', '-6vh', 0] }}
+              transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+              className="flex flex-col items-center gap-1.5 drop-shadow-[0_10px_16px_rgba(0,0,0,0.45)]"
             >
               <MiniChest width={58} />
-            </motion.span>
-            <motion.span
-              animate={{ scale: [1, 1.09, 1] }}
-              transition={{ duration: 1.4, repeat: Infinity }}
-              className="rounded-full border border-amber-200/50 bg-black/70 px-2.5 py-0.5 text-[10px] font-bold text-amber-200 backdrop-blur-md"
-            >
-              Coffre mystère !
+              <motion.span
+                animate={{ scale: [1, 1.09, 1] }}
+                transition={{ duration: 1.4, repeat: Infinity }}
+                className="rounded-full border border-violet-300/50 bg-black/70 px-2.5 py-0.5 text-[10px] font-bold text-violet-100 backdrop-blur-md"
+              >
+                Coffre mystère !
+              </motion.span>
             </motion.span>
           </motion.button>
         )}
