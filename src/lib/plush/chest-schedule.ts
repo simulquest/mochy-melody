@@ -20,7 +20,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
-import { specialDayKey } from './specials';
+import { specialDayKey, type ChestUnavailableReason } from './specials';
 
 /** Délai de la première chute de la journée (30 à 90 s), tiré une seule fois. */
 const FIRST_DELAY_MIN_MS = 30_000;
@@ -44,9 +44,10 @@ type ChestRow = { spawn_count: number; next_spawn_at: string };
 /**
  * Migration pas encore exécutée dans Supabase (table absente, code 42P01) :
  * pas de coffre mystère, mais AUCUNE erreur 500 — le reste de la page
- * (offres, tentative) continue de fonctionner.
+ * (offres, tentative) continue de fonctionner. Exportée pour que les routes
+ * API puissent dégrader de la même façon et expliquer l'état au client.
  */
-function isMissingTable(err: unknown): boolean {
+export function isMissingTable(err: unknown): boolean {
   return (
     typeof err === 'object' &&
     err !== null &&
@@ -151,23 +152,32 @@ async function casReschedule(
 
 /**
  * Horaire du coffre du jour pour l'utilisateur (et re-planification paresseuse
- * d'une chute en retard jamais signalée). Renvoie null si plus de coffre
- * aujourd'hui : tentative déjà consommée, 5 chutes manquées, ou migration
- * pas encore exécutée (dégradation propre, jamais d'erreur 500).
+ * d'une chute en retard jamais signalée). Renvoie AUSSI la raison de
+ * l'indisponibilité quand `chest` est null : tentative déjà consommée,
+ * 5 chutes manquées, ou migration pas encore exécutée (dégradation propre,
+ * jamais d'erreur 500 — mais désormais EXPLIQUÉE au client).
  */
-export async function resolveChestSchedule(userId: string): Promise<ChestScheduleDTO | null> {
+export async function resolveChestSchedule(userId: string): Promise<{
+  chest: ChestScheduleDTO | null;
+  reason: ChestUnavailableReason | null;
+}> {
   try {
     return await resolveChestScheduleInner(userId);
   } catch (err) {
-    if (isMissingTable(err)) return null;
+    if (isMissingTable(err)) return { chest: null, reason: 'migrations_absentes' };
     throw err;
   }
 }
 
-async function resolveChestScheduleInner(userId: string): Promise<ChestScheduleDTO | null> {
+async function resolveChestScheduleInner(userId: string): Promise<{
+  chest: ChestScheduleDTO | null;
+  reason: ChestUnavailableReason | null;
+}> {
   const supabase = getSupabaseAdmin();
   const dayKey = specialDayKey();
-  if (await attemptConsumed(supabase, userId, dayKey)) return null;
+  if (await attemptConsumed(supabase, userId, dayKey)) {
+    return { chest: null, reason: 'tentative_consommee' };
+  }
 
   let row = await readRow(supabase, userId, dayKey);
   if (!row) {
@@ -175,7 +185,7 @@ async function resolveChestScheduleInner(userId: string): Promise<ChestScheduleD
     // chute, UNE seule fois (les visites suivantes le retrouvent inchangé).
     await ensureRow(supabase, userId, dayKey, FIRST_DELAY_MIN_MS, FIRST_DELAY_MAX_MS);
     row = await readRow(supabase, userId, dayKey);
-    if (!row) return null;
+    if (!row) return { chest: null, reason: 'migrations_absentes' };
   }
 
   // Chute due mais jamais signalée manquée (onglet fermé, page cachée…) :
@@ -188,8 +198,10 @@ async function resolveChestScheduleInner(userId: string): Promise<ChestScheduleD
     row = (await casReschedule(supabase, userId, dayKey, { overdue: true }, row.spawn_count)) ?? row;
   }
 
-  if (row.spawn_count >= CHEST_MAX_MISSES_PER_DAY) return null;
-  return toDTO(row);
+  if (row.spawn_count >= CHEST_MAX_MISSES_PER_DAY) {
+    return { chest: null, reason: 'chutes_manquees_epuisees' };
+  }
+  return { chest: toDTO(row), reason: null };
 }
 
 /**

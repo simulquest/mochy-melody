@@ -10,8 +10,9 @@ import {
   randomConsolationPool,
   type SpecialCard,
   type SpecialPeriod,
+  type ChestUnavailableReason,
 } from '@/lib/plush/specials';
-import { resolveChestSchedule } from '@/lib/plush/chest-schedule';
+import { resolveChestSchedule, isMissingTable, type ChestScheduleDTO } from '@/lib/plush/chest-schedule';
 
 /** Offre spéciale telle que le client la reçoit. */
 export interface SpecialOfferDTO {
@@ -59,17 +60,22 @@ export async function GET() {
     const weekKey = specialPeriodKey('week');
     const monthKey = specialPeriodKey('month');
     const dayKey = specialDayKey();
+    // Tables absentes (migrations pas encore exécutées) : dégradation propre
+    // — aucune erreur 500, le client reçoit le pourquoi via `chestReason`.
     const { data, error } = await supabase
       .from('special_plush_grants')
       .select('period_type, period_key')
       .eq('user_id', user.id)
       .in('period_key', [weekKey, monthKey]);
-    if (error) throw new Error(`special_plush_grants: ${error.message}`);
+    if (error && !isMissingTable(error)) {
+      throw new Error(`special_plush_grants: ${error.message}`);
+    }
+    const grants = (error ? null : data) ?? [];
 
-    const claimedWeek = (data ?? []).some(
+    const claimedWeek = grants.some(
       (g) => g.period_type === 'week' && g.period_key === weekKey,
     );
-    const claimedMonth = (data ?? []).some(
+    const claimedMonth = grants.some(
       (g) => g.period_type === 'month' && g.period_key === monthKey,
     );
 
@@ -80,10 +86,19 @@ export async function GET() {
       .eq('user_id', user.id)
       .eq('day_key', dayKey)
       .maybeSingle();
-    if (attemptErr) throw new Error(`special_plush_attempts: ${attemptErr.message}`);
+    if (attemptErr && !isMissingTable(attemptErr)) {
+      throw new Error(`special_plush_attempts: ${attemptErr.message}`);
+    }
 
     // Prochaine chute du coffre mystère : horaire mémorisé côté serveur.
-    const chest = attempt ? null : await resolveChestSchedule(user.id);
+    // Tentative déjà consommée → plus de coffre aujourd'hui (raison explicite).
+    let chest: ChestScheduleDTO | null = null;
+    let chestReason: ChestUnavailableReason | null = null;
+    if (attempt) {
+      chestReason = 'tentative_consommee';
+    } else {
+      ({ chest, reason: chestReason } = await resolveChestSchedule(user.id));
+    }
 
     return Response.json({
       week: offerDTO('week', claimedWeek),
@@ -95,6 +110,7 @@ export async function GET() {
         monthChance: SPECIAL_CHEST_MONTH_CHANCE,
       },
       chest,
+      chestReason,
     });
   } catch (err) {
     return handleApiError(err);

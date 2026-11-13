@@ -46,6 +46,19 @@ export const SPECIAL_CHEST_WEEK_CHANCE = 0.2;
 /** Chance quotidienne que le coffre mystère contienne la peluche du mois. */
 export const SPECIAL_CHEST_MONTH_CHANCE = 0.06;
 
+/**
+ * Pourquoi le coffre mystère ne tombe PAS aujourd'hui (renseigné par l'API
+ * quand `chest` est null, pour un état lisible en jeu au lieu d'un silence) :
+ *   • tentative_consommée : le coffre a été touché aujourd'hui (UN essai/jour) ;
+ *   • chutes_manquées_épuisées : 5 chutes sont déjà passées sans être touchées ;
+ *   • migrations_absentes : les tables SQL du système ne sont pas créées —
+ *     exécuter les migrations Supabase du coffre mystère.
+ */
+export type ChestUnavailableReason =
+  | 'tentative_consommee'
+  | 'chutes_manquees_epuisees'
+  | 'migrations_absentes';
+
 /** Peluches de la semaine — rotation déterministe parmi ces designs. */
 export const WEEKLY_SPECIALS: SpecialDesign[] = [
   { period: 'week', modelId: 'tortue-sieste', rarity: 'commune' },

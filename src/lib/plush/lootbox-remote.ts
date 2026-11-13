@@ -9,6 +9,7 @@ import { type LootboxPersist, type OwnedPlush } from './lootbox';
 import { mutationKey } from './mutations';
 import type { PlushPreset } from './plush-shape';
 import { SPECIES } from './species';
+import type { ChestUnavailableReason } from './specials';
 
 /** État de la caisse renvoyé par le serveur. */
 export interface ServerLootboxState {
@@ -199,6 +200,8 @@ export interface SpecialOffers {
   attempt: SpecialAttemptInfo;
   /** null : plus de coffre aujourd'hui (tentative consommée ou chutes épuisées). */
   chest: ChestScheduleInfo | null;
+  /** Quand `chest` est null : pourquoi (affiché en jeu). null/absent = coffre planifié. */
+  chestReason?: ChestUnavailableReason | null;
 }
 
 /** GET /api/lootbox/special — les offres spéciales en cours + état du jour. */

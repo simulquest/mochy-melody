@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, Backpack, Sparkles, X, Check, Clock, ChevronDown } from 'lucide-react';
 import { PlushPreset } from '@/lib/plush/plush-shape';
 import { PlushMutation, effectiveRarityIdx, mutationUpgradeLabel } from '@/lib/plush/mutations';
+import type { ChestUnavailableReason } from '@/lib/plush/specials';
 import {
   RARITIES,
   MAX_CHESTS,
@@ -68,12 +69,23 @@ function RarityChip({ idx, className = '' }: { idx: number; className?: string }
 function SpecialOfferChip({
   offer,
   chance,
+  chestReason,
 }: {
   offer: SpecialOffers['week'];
   chance?: number;
+  chestReason?: ChestUnavailableReason | null;
 }) {
   const r = RARITIES[offer.rarityIdx];
   const weekly = offer.period === 'week';
+  // Pourquoi le coffre ne tombe pas aujourd'hui (chest null côté serveur).
+  const chestStatus: string | null =
+    chestReason === 'tentative_consommee'
+      ? "Coffre déjà touché aujourd'hui — retour demain !"
+      : chestReason === 'chutes_manquees_epuisees'
+        ? 'Toutes les chutes du jour sont passées — retour demain !'
+        : chestReason === 'migrations_absentes'
+          ? 'Coffre mystère indisponible : migrations SQL du coffre à exécuter.'
+          : null;
   return (
     <div
       className="pointer-events-auto w-56 rounded-2xl border bg-black/45 p-3 backdrop-blur-xl"
@@ -96,9 +108,13 @@ function SpecialOfferChip({
             <Gift className="h-3.5 w-3.5 shrink-0" style={{ color: r.color }} aria-hidden />
             Coffre mystère : {Math.round((chance ?? 0) * 100)} % / jour
           </p>
-          <p className="mt-0.5 text-[9px] leading-snug text-white/45">
-            Il tombe du ciel de temps en temps — touche-le vite quand il apparaît !
-          </p>
+          {chestStatus ? (
+            <p className="mt-0.5 text-[9px] leading-snug text-amber-200/80">{chestStatus}</p>
+          ) : (
+            <p className="mt-0.5 text-[9px] leading-snug text-white/45">
+              Il tombe du ciel de temps en temps — touche-le vite quand il apparaît !
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -778,8 +794,16 @@ export default function Lootbox({
       {pageMode && specials && typeof document !== 'undefined' &&
         createPortal(
           <div className="pointer-events-none fixed left-4 top-[calc(5.25rem+env(safe-area-inset-top))] z-[124] flex flex-col gap-2 sm:left-6 sm:top-24">
-            <SpecialOfferChip offer={specials.week} chance={specials.attempt?.weekChance} />
-            <SpecialOfferChip offer={specials.month} chance={specials.attempt?.monthChance} />
+            <SpecialOfferChip
+              offer={specials.week}
+              chance={specials.attempt?.weekChance}
+              chestReason={specials.chestReason}
+            />
+            <SpecialOfferChip
+              offer={specials.month}
+              chance={specials.attempt?.monthChance}
+              chestReason={specials.chestReason}
+            />
             {specialsError && (
               <p
                 role="alert"
